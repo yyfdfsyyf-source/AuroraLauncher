@@ -32,6 +32,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
+import org.glavo.monetfx.Brightness;
 import org.jackhuang.hmcl.theme.Themes;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
@@ -102,8 +103,8 @@ public class RipplerContainer extends StackPane {
                 if (event.getEventType() == MouseEvent.MOUSE_ENTERED) {
                     coverAnimation = new Transition() {
                         {
-                            setCycleDuration(Motion.SHORT4);
-                            setInterpolator(Motion.EASE_IN);
+                            setCycleDuration(Motion.MEDIUM2);
+                            setInterpolator(Motion.EASE_IN_OUT);
                         }
 
                         @Override
@@ -114,8 +115,8 @@ public class RipplerContainer extends StackPane {
                 } else {
                     coverAnimation = new Transition() {
                         {
-                            setCycleDuration(Motion.SHORT4);
-                            setInterpolator(Motion.EASE_OUT);
+                            setCycleDuration(Motion.MEDIUM2);
+                            setInterpolator(Motion.EASE_IN_OUT);
                         }
 
                         @Override
@@ -141,8 +142,9 @@ public class RipplerContainer extends StackPane {
             setBackground(null);
         } else {
             Color onSurface = Themes.getColorScheme().getOnSurface();
+            double maxOpacity = Themes.getColorScheme().getBrightness() == Brightness.DARK ? 0.025 : 0.04;
             setBackground(new Background(new BackgroundFill(
-                    Color.color(onSurface.getRed(), onSurface.getGreen(), onSurface.getBlue(), frac * 0.04),
+                    Color.color(onSurface.getRed(), onSurface.getGreen(), onSurface.getBlue(), frac * maxOpacity),
                     CornerRadii.EMPTY, Insets.EMPTY)));
         }
     }

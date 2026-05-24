@@ -113,7 +113,7 @@ public final class Themes {
             ThemeColor themeColor = Objects.requireNonNullElse(config().getThemeColor(), ThemeColor.DEFAULT);
             Brightness brightness = getBrightness();
             
-            Contrast contrast = brightness == Brightness.DARK ? Contrast.HIGH : Contrast.DEFAULT;
+            Contrast contrast = Contrast.DEFAULT;
 
             Color originalColor = themeColor.color();
             double lightnessMultiplier = config().getThemeLightness();

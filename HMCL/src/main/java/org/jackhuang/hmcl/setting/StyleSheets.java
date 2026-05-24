@@ -156,8 +156,34 @@ public final class StyleSheets {
 
     private static void addColor(StringBuilder builder, ColorScheme scheme, ColorRole role, double opacity) {
         builder.append("  ").append(role.getVariableName()).append("-transparent-%02d".formatted((int) (100 * opacity)))
-                .append(": ").append(ThemeColor.getColorDisplayNameWithOpacity(scheme.getColor(role), opacity))
+                .append(": ").append(ThemeColor.getColorDisplayNameWithOpacity(adjustDarkColor(scheme, role), opacity))
                 .append(";\n");
+    }
+
+    private static boolean isSurfaceRole(ColorRole role) {
+        return switch (role) {
+            case SURFACE, SURFACE_DIM, SURFACE_BRIGHT, SURFACE_CONTAINER_LOWEST, SURFACE_CONTAINER_LOW,
+                 SURFACE_CONTAINER, SURFACE_CONTAINER_HIGH, SURFACE_CONTAINER_HIGHEST, SURFACE_VARIANT -> true;
+            default -> false;
+        };
+    }
+
+    private static Color adjustDarkColor(ColorScheme scheme, ColorRole role) {
+        Color color = scheme.getColor(role);
+        if (scheme.getBrightness() != Brightness.DARK) {
+            return color;
+        }
+
+        if (isSurfaceRole(role) || role == ColorRole.BACKGROUND) {
+            return color.interpolate(Color.WHITE, 0.12);
+        }
+
+        if (role == ColorRole.OUTLINE || role == ColorRole.OUTLINE_VARIANT) {
+            Color elevatedSurface = scheme.getColor(ColorRole.SURFACE).interpolate(Color.WHITE, 0.12);
+            return color.interpolate(elevatedSurface, 0.45);
+        }
+
+        return color;
     }
 
     private static String getThemeStyleSheet() {
@@ -171,7 +197,7 @@ public final class StyleSheets {
         StringBuilder builder = new StringBuilder();
         builder.append("* {\n");
         for (ColorRole colorRole : ColorRole.ALL) {
-            addColor(builder, colorRole.getVariableName(), scheme.getColor(colorRole));
+            addColor(builder, colorRole.getVariableName(), adjustDarkColor(scheme, colorRole));
         }
 
         addColor(builder, "-monet-primary-seed", scheme.getPrimaryColorSeed());

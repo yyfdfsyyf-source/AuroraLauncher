@@ -1,7 +1,14 @@
+# Local replacement assets / dev notes (do not commit)
+替换用/
+project_structure.txt
+
 # Gradle build
 .gradle/
 build/
 **/build/
+
+# Gradle wrapper backup (use root gradle/wrapper only)
+HMCL/gradle/wrapper/
 
 # Gradle wrapper
 gradle-9.5.1/
