@@ -1,0 +1,63 @@
+# Gradle build
+.gradle/
+build/
+**/build/
+
+# Gradle wrapper
+gradle-9.5.1/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Launcher data
+.gradle-user-home/
+.hmcl/
+.minecraft/
+
+# Project temp
+.cnb/
+.gemini/
+.trae/
+
+# Logs
+*.log
+*.log.xz
+
+# Lib
+lib/
+
+# Image directories
+HMCL/image/
+HMCLBoot/image/
+
+# Start scripts (optional)
+start-*.bat
+start-*.sh
+
+# Terracotta templates (optional)
+HMCL/terracotta-template.json
+
+# GitHub workflows (optional for Gitee)
+.github/
+.gitee/
+
+# Minecraft libraries directory (large)
+minecraft/
