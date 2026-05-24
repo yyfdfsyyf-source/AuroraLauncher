@@ -1,0 +1,24 @@
+{
+  "id": "default",
+  "name": "默认主题",
+  "version": "1.0",
+  "author": "HMCL",
+  "description": "HMCL 默认蓝色主题",
+  "primaryColor": "#5C6BC0",
+  "layout": {
+    "cornerRadius": 8.0,
+    "buttonRadius": 20.0,
+    "cardRadius": 12.0,
+    "inputRadius": 8.0,
+    "borderWidth": 0.0,
+    "fontFamily": null,
+    "fontSize": null,
+    "iconSize": null,
+    "animationEnabled": true,
+    "animationDuration": 300.0,
+    "sidebarPosition": "left",
+    "titlebarHeight": null,
+    "contentPadding": null
+  },
+  "css": ""
+}

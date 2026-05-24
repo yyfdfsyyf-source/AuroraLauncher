@@ -1,0 +1,24 @@
+{
+  "id": "sakura",
+  "name": "樱花主题",
+  "version": "1.0",
+  "author": "HMCL",
+  "description": "粉色樱花风格主题，圆润的边角设计",
+  "primaryColor": "#E91E63",
+  "layout": {
+    "cornerRadius": 12.0,
+    "buttonRadius": 24.0,
+    "cardRadius": 16.0,
+    "inputRadius": 12.0,
+    "borderWidth": 0.0,
+    "fontFamily": null,
+    "fontSize": null,
+    "iconSize": 20.0,
+    "animationEnabled": true,
+    "animationDuration": 400.0,
+    "sidebarPosition": "left",
+    "titlebarHeight": null,
+    "contentPadding": 12.0
+  },
+  "css": ""
+}
