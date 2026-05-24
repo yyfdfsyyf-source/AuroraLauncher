@@ -1,35 +1,18 @@
-/*
- * Hello Minecraft! Launcher
- * Copyright (C) 2025 huangyuhui <huanghongxun2008@126.com> and contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
 package org.jackhuang.hmcl;
 
 import org.jackhuang.hmcl.util.SwingUtils;
 
 import javax.swing.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
-import java.util.ResourceBundle;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/**
- * @author Glavo
- */
 public final class Main {
     private static final int MINIMUM_JAVA_VERSION = 17;
     private static final String DOWNLOAD_PAGE = "https://hmcl.huangyuhui.net/download/";
@@ -113,13 +96,11 @@ public final class Main {
         if (currentDir.contains("!")) {
             SwingUtils.initLookAndFeel();
             System.err.println("The current working path contains an exclamation mark: " + currentDir);
-            // No Chinese translation because both Swing and JavaFX cannot render Chinese character properly when exclamation mark exists in the path.
             SwingUtils.showErrorDialog("Exclamation mark(!) is not allowed in the working path.\n" + "The path is " + currentDir);
             System.exit(1);
         } else if (jarPath != null && jarPath.contains("!")) {
             SwingUtils.initLookAndFeel();
             System.err.println("The jar path contains an exclamation mark: " + jarPath);
-            // No Chinese translation because both Swing and JavaFX cannot render Chinese character properly when exclamation mark exists in the path.
             SwingUtils.showErrorDialog("Exclamation mark(!) is not allowed in the path where HMCL is in.\n" + "The path is " + jarPath);
             System.exit(1);
         }
@@ -141,12 +122,114 @@ public final class Main {
         }
     }
 
+    // ========= 新增：查找缓存的 JavaFX JAR =========
+    private static List<File> findJavaFXJars() {
+        Path cacheDir = Paths.get(System.getProperty("user.home"), ".hmcl", "cache");
+        if (!Files.isDirectory(cacheDir)) {
+            return Collections.emptyList();
+        }
+        try (Stream<Path> stream = Files.list(cacheDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        return name.startsWith("javafx-") && name.endsWith(".jar");
+                    })
+                    .map(Path::toFile)
+                    .collect(Collectors.toList());
+        } catch (IOException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    // ========= 新增：以模块路径重启 JVM =========
+    private static void restartWithModulePath(String[] args) throws Exception {
+        List<File> javafxJars = findJavaFXJars();
+        if (javafxJars.isEmpty()) {
+            EntryPoint.main(args); // 找不到 JavaFX 缓存，回退到普通运行
+            return;
+        }
+
+        String javaExe = Paths.get(System.getProperty("java.home"), "bin", "java").toString();
+
+        List<String> command = new ArrayList<>();
+        command.add(javaExe);
+
+        // 构建模块路径
+        String modulePath = javafxJars.stream()
+                .map(File::getAbsolutePath)
+                .collect(Collectors.joining(File.pathSeparator));
+        command.add("--module-path");
+        command.add(modulePath);
+
+        // 添加 JavaFX 模块
+        command.add("--add-modules=javafx.controls,javafx.graphics,javafx.base");
+
+        // 添加所有必需的 --add-opens
+        String[] addOpens = {
+                "java.base/java.lang=ALL-UNNAMED",
+                "java.base/java.lang.reflect=ALL-UNNAMED",
+                "java.base/jdk.internal.loader=ALL-UNNAMED",
+                "javafx.graphics/javafx.css=ALL-UNNAMED",
+                "javafx.graphics/javafx.stage=ALL-UNNAMED",
+                "javafx.graphics/javafx.scene=ALL-UNNAMED",
+                "javafx.graphics/com.sun.glass.ui=ALL-UNNAMED",
+                "javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED",
+                "javafx.graphics/com.sun.javafx.util=ALL-UNNAMED",
+                "javafx.graphics/com.sun.prism=ALL-UNNAMED",
+                "javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED",
+                "javafx.controls/com.sun.javafx.scene.control.behavior=ALL-UNNAMED",
+                "javafx.graphics/com.sun.javafx.tk.quantum=ALL-UNNAMED",
+                "javafx.controls/javafx.scene.control.skin=ALL-UNNAMED",
+                "jdk.attach/sun.tools.attach=ALL-UNNAMED"
+        };
+        for (String open : addOpens) {
+            command.add("--add-opens=" + open);
+        }
+        command.add("--enable-native-access=ALL-UNNAMED");
+
+        // 标记已重启，避免无限循环
+        command.add("-Dhmcl.add-opens.applied=true");
+
+        command.add("-jar");
+        command.add(getThisJarPath());
+
+        // 传递原始参数
+        command.addAll(Arrays.asList(args));
+
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.inheritIO();
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        System.exit(exitCode);
+    }
+
+    // ========= 主入口 =========
     public static void main(String[] args) throws Throwable {
         checkDirectoryPath();
-        if (getJavaFeatureVersion(System.getProperty("java.version")) >= MINIMUM_JAVA_VERSION) {
-            EntryPoint.main(args);
-        } else {
+        if (getJavaFeatureVersion(System.getProperty("java.version")) < MINIMUM_JAVA_VERSION) {
             showErrorAndExit(args);
+            return;
+        }
+
+        // 如果已经是重启过的进程，直接运行主程序
+        if (System.getProperty("hmcl.add-opens.applied") != null) {
+            EntryPoint.main(args);
+            return;
+        }
+
+        // 检测当前是否为模块化 JavaFX 环境，如果不是则重启
+        boolean needRestart = true;
+        try {
+            ModuleLayer.boot().findModule("javafx.graphics").orElseThrow();
+            needRestart = false; // 已存在 javafx.graphics 模块，说明加载正确
+        } catch (Exception ignored) {
+        }
+
+        if (needRestart) {
+            restartWithModulePath(args);
+        } else {
+            EntryPoint.main(args);
         }
     }
 }

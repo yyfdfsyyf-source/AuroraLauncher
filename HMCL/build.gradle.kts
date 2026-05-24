@@ -152,15 +152,18 @@ tasks.compileJava {
     source = fileTree("src/main/java") {
         exclude("**/com/jfoenix/**")
     } + fileTree("src/main/java") {
-        // JFoenix 特殊组件（保留）
+        include("**/com/jfoenix/controls/JFXColorPicker.java")   // 新增
         include("**/com/jfoenix/controls/JFXPopup.java")
         include("**/com/jfoenix/controls/JFXRippler.java")
         include("**/com/jfoenix/controls/JFXSnackbar.java")
         include("**/com/jfoenix/controls/JFXSnackbarLayout.java")
-        // JFoenix TextField/PasswordField with validation
         include("**/com/jfoenix/controls/JFXTextField.java")
         include("**/com/jfoenix/controls/JFXPasswordField.java")
         include("**/com/jfoenix/controls/JFXComboBox.java")
+        include("**/com/jfoenix/utils/JFXNodeUtils.java")
+        include("**/com/jfoenix/controls/events/JFXDialogEvent.java")
+        include("**/com/jfoenix/skins/compat/*.java")
+
         // Utils
         include("**/com/jfoenix/utils/JFXNodeUtils.java")
         // Events

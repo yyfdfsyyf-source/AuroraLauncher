@@ -402,6 +402,17 @@ public final class LauncherHelper {
                     return Task.completed(java);
                 }
 
+                // Try to find suitable Java from system before downloading
+                JavaRuntime foundJava = null;
+                try {
+                    foundJava = JavaManager.findSuitableJava(gameVersion, version);
+                } catch (InterruptedException ignored) {
+                }
+
+                if (foundJava != null) {
+                    return Task.completed(foundJava);
+                }
+
                 // Reset invalid java version
                 CompletableFuture<JavaRuntime> future = new CompletableFuture<>();
                 Task<JavaRuntime> result = Task.fromCompletableFuture(future);

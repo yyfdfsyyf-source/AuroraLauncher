@@ -368,7 +368,7 @@ public final class Config extends ObservableSetting {
     }
 
     @SerializedName("uiLibrary")
-    private final ObjectProperty<UILibrary> uiLibrary = new SimpleObjectProperty<>(UILibrary.JFOENIX);
+    private final ObjectProperty<UILibrary> uiLibrary = new SimpleObjectProperty<>(UILibrary.ATLANTAFX);
 
     public ObjectProperty<UILibrary> uiLibraryProperty() {
         return uiLibrary;
