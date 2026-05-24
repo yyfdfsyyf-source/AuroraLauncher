@@ -231,12 +231,12 @@ public class DecoratorSkin extends SkinBase<Decorator> {
             HBox buttonsContainer = new HBox();
             buttonsContainer.setAlignment(Pos.TOP_RIGHT);
             buttonsContainer.setMaxHeight(40);
-
-            // Background download indicator
-            BackgroundDownloadIndicator downloadIndicator = new BackgroundDownloadIndicator();
-            downloadIndicator.visibleProperty().bind(skinnable.backgroundDownloadExecutorProperty().isNotNull());
-
             {
+                // 后台下载指示器
+                BackgroundDownloadIndicator downloadIndicator = new BackgroundDownloadIndicator();
+                downloadIndicator.setFocusTraversable(false);
+                skinnable.forbidDraggingWindow(downloadIndicator);
+
                 JFXButton btnHelp = new JFXButton();
                 btnHelp.setFocusTraversable(false);
                 btnHelp.setGraphic(SVG.HELP.createIcon(Themes.titleFillProperty()));
@@ -257,14 +257,6 @@ public class DecoratorSkin extends SkinBase<Decorator> {
 
                 buttonsContainer.getChildren().setAll(downloadIndicator, btnHelp, btnMin, btnClose);
             }
-
-            // Bind download indicator to executor
-            skinnable.backgroundDownloadExecutorProperty().addListener((obs, oldVal, newVal) -> {
-                if (newVal != null) {
-                    downloadIndicator.bindTaskExecutor(newVal);
-                }
-            });
-
             AnchorPane layer = new AnchorPane();
             layer.setPickOnBounds(false);
             layer.getChildren().add(buttonsContainer);

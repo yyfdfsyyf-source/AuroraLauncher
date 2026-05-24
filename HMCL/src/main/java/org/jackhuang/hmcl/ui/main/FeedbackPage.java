@@ -1,6 +1,7 @@
 /*
- * Hello Minecraft! Launcher
- * Copyright (C) 2021  huangyuhui <huanghongxun2008@126.com> and contributors
+ * AuroraLauncher - Minecraft Launcher
+ * Copyright (C) 2026 YYFDFS and contributors
+ * Based on Hello Minecraft! Launcher by huangyuhui
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,6 @@ package org.jackhuang.hmcl.ui.main;
 
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.theme.Themes;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.WeakListenerHolder;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
@@ -31,8 +31,6 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 import org.jackhuang.hmcl.Metadata;
 
 public class FeedbackPage extends SpinnerPane {
-
-    private final WeakListenerHolder holder = new WeakListenerHolder();
 
     public FeedbackPage() {
         VBox content = new VBox();
@@ -50,29 +48,17 @@ public class FeedbackPage extends SpinnerPane {
             users.setTitle(i18n("contact.chat.qq_group"));
             users.setSubtitle(i18n("contact.chat.qq_group.statement"));
 
-            var discord = LineButton.createExternalLinkButton("https://discord.gg/jVvC7HfM6U");
-            discord.setLargeTitle(true);
-            discord.setLeading(FXUtils.newBuiltinImage("/assets/img/discord.png"));
-            discord.setTitle(i18n("contact.chat.discord"));
-            discord.setSubtitle(i18n("contact.chat.discord.statement"));
-
-            groups.getContent().setAll(users, discord);
+            groups.getContent().setAll(users);
         }
 
         ComponentList feedback = new ComponentList();
         {
-            var github = LineButton.createExternalLinkButton("https://github.com/HMCL-dev/HMCL/issues/new/choose");
-            github.setLargeTitle(true);
-            github.setTitle(i18n("contact.feedback.github"));
-            github.setSubtitle(i18n("contact.feedback.github.statement"));
+            var gitee = LineButton.createExternalLinkButton("https://gitee.com/YYFDFS/AuroraLauncher/issues");
+            gitee.setLargeTitle(true);
+            gitee.setTitle(i18n("contact.feedback.gitee"));
+            gitee.setSubtitle(i18n("contact.feedback.gitee.statement"));
 
-            holder.add(FXUtils.onWeakChangeAndOperate(Themes.darkModeProperty(), darkMode -> {
-                github.setLeading(darkMode
-                        ? FXUtils.newBuiltinImage("/assets/img/github-white.png")
-                        : FXUtils.newBuiltinImage("/assets/img/github.png"));
-            }));
-
-            feedback.getContent().setAll(github);
+            feedback.getContent().setAll(gitee);
         }
 
         content.getChildren().addAll(

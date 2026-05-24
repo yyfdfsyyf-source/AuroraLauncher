@@ -1,53 +1,41 @@
 [
   {
-    "image" : "/assets/img/yellow_fish.png",
-    "title" : "huanghongxun",
-    "subtitleLocalized" : "about.thanks_to.huanghongxun.statement",
-    "externalLink" : "https://github.com/huanghongxun"
+    "image": "/assets/img/icon.png",
+    "title": "AuroraLauncher 用户",
+    "subtitle": "感谢所有用户的支持与反馈",
+    "externalLink": "https://github.com/AuroraLauncher/AuroraLauncher/discussions"
   },
   {
-    "image" : "/assets/img/glavo.png",
-    "title" : "Glavo",
-    "subtitleLocalized" : "about.thanks_to.glavo.statement",
-    "externalLink" : "https://github.com/Glavo"
-  },
-  {
-    "image" : "/assets/img/zekerzhayard.png",
-    "title" : "ZekerZhayard",
-    "subtitleLocalized" : "about.thanks_to.zekerzhayard.statement",
-    "externalLink" : "https://github.com/ZekerZhayard"
-  },
-  {
-    "image" : "/assets/img/zkitefly.png",
-    "title" : "Zkitefly",
-    "subtitleLocalized" : "about.thanks_to.zkitefly.statement",
-    "externalLink" : "https://github.com/zkitefly"
-  },
-  {
-    "image" : "/assets/img/burningtnt.png",
-    "title" : "Burning_TNT",
-    "subtitleLocalized" : "about.thanks_to.burningtnt.statement",
-    "externalLink" : "https://github.com/burningtnt"
-  },
-  {
-    "image" : "/assets/img/ShulkerSakura.png",
-    "title" : "ShulkerSakura",
-    "subtitleLocalized" : "about.thanks_to.shulkersakura.statement",
-    "externalLink" : "https://github.com/ShulkerSakura"
-  },
-  {
-    "image" : {
-      "light" : "/assets/img/github.png",
-      "dark" : "/assets/img/github-white.png"
+    "image": {
+      "light": "/assets/img/github.png",
+      "dark": "/assets/img/github-white.png"
     },
-    "titleLocalized" : "about.thanks_to.contributors",
-    "subtitleLocalized" : "about.thanks_to.contributors.statement",
-    "externalLink" : "https://github.com/AuroraLauncher/AuroraLauncher/graphs/contributors"
+    "title": "开源社区",
+    "subtitle": "所有为 AuroraLauncher 贡献代码的开发者",
+    "externalLink": "https://github.com/AuroraLauncher/AuroraLauncher/graphs/contributors"
   },
   {
-    "image" : "/assets/img/icon.png",
-    "titleLocalized" : "about.thanks_to.users",
-    "subtitleLocalized" : "about.thanks_to.users.statement",
-    "externalLink" : "https://github.com/AuroraLauncher/AuroraLauncher/discussions"
+    "image": "/assets/img/yellow_fish.png",
+    "title": "huanghongxun",
+    "subtitle": "HMCL 原作者，AuroraLauncher 基于 HMCL 开发",
+    "externalLink": "https://github.com/huanghongxun"
+  },
+  {
+    "image": "/assets/img/glavo.png",
+    "title": "Glavo",
+    "subtitle": "HMCL 维护者，为 HMCL 贡献大量代码",
+    "externalLink": "https://github.com/Glavo"
+  },
+  {
+    "image": "/assets/img/burningtnt.png",
+    "title": "Burning_TNT",
+    "subtitle": "为 HMCL 贡献许多技术支持",
+    "externalLink": "https://github.com/burningtnt"
+  },
+  {
+    "image": "/assets/img/bangbang93.png",
+    "title": "bangbang93",
+    "subtitle": "提供 BMCLAPI 下载源服务",
+    "externalLink": "https://github.com/bangbang93"
   }
 ]

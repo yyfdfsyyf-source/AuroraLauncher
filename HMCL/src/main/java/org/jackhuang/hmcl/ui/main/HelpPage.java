@@ -1,6 +1,7 @@
 /*
- * Hello Minecraft! Launcher
- * Copyright (C) 2021  huangyuhui <huanghongxun2008@126.com> and contributors
+ * AuroraLauncher - Minecraft Launcher
+ * Copyright (C) 2026 YYFDFS and contributors
+ * Based on Hello Minecraft! Launcher by huangyuhui
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

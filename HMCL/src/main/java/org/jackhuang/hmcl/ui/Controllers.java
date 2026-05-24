@@ -50,6 +50,7 @@ import org.jackhuang.hmcl.setting.*;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.ui.account.AccountListPage;
+import org.jackhuang.hmcl.ui.construct.BackgroundDownloadManager;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
@@ -609,6 +610,26 @@ public final class Controllers {
         TaskExecutorDialogPane pane = taskDialog(executor, title, onCancel);
         executor.start();
         return pane;
+    }
+
+    /**
+     * 在后台执行下载任务，显示在右上角下载指示器中
+     * @param task 下载任务
+     * @param title 任务标题
+     * @return 任务信息对象
+     */
+    public static BackgroundDownloadManager.DownloadTaskInfo backgroundDownload(Task<?> task, String title) {
+        return BackgroundDownloadManager.getInstance().startDownload(task, title);
+    }
+
+    /**
+     * 在后台执行下载任务，显示在右上角下载指示器中
+     * @param executor 任务执行器
+     * @param title 任务标题
+     * @return 任务信息对象
+     */
+    public static BackgroundDownloadManager.DownloadTaskInfo backgroundDownload(TaskExecutor executor, String title) {
+        return BackgroundDownloadManager.getInstance().startDownload(executor, title);
     }
 
     public static void navigate(Node node) {

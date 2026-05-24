@@ -207,11 +207,10 @@ tasks.jar {
     dependsOn(tasks["shadowJar"])
 }
 
-val jarPath = tasks.jar.get().archiveFile.get().asFile
-
 tasks.shadowJar {
     dependsOn(createPropertiesFile)
 
+    archiveBaseName.set("AuroraLauncher")
     archiveClassifier.set(null as String?)
 
     exclude("**/package-info.class")
@@ -249,8 +248,9 @@ tasks.shadowJar {
     }
 
     doLast {
-        attachSignature(jarPath)
-        createChecksum(jarPath)
+        val jarFile = archiveFile.get().asFile
+        attachSignature(jarFile)
+        createChecksum(jarFile)
     }
 }
 
@@ -277,22 +277,22 @@ tasks.processResources {
     }
 }
 
-fun artifactFile(ext: String) = jarPath.resolveSibling(jarPath.nameWithoutExtension + '.' + ext)
-
 val makeExecutables by tasks.registering {
     val extensions = listOf("exe", "sh")
+    val shadowJarTask = tasks.shadowJar.get()
+    val jarFile = shadowJarTask.archiveFile.get().asFile
 
-    dependsOn(tasks.jar)
+    dependsOn(tasks.shadowJar)
 
-    inputs.file(jarPath)
-    outputs.files(extensions.map { artifactFile(it) })
+    inputs.file(jarFile)
+    outputs.files(extensions.map { ext -> jarFile.resolveSibling("AuroraLauncher-${project.version}.$ext") })
 
     doLast {
-        val jarContent = jarPath.readBytes()
+        val jarContent = jarFile.readBytes()
 
-        ZipFile(jarPath).use { zipFile ->
+        ZipFile(jarFile).use { zipFile ->
             for (extension in extensions) {
-                val output = artifactFile(extension)
+                val output = jarFile.resolveSibling("AuroraLauncher-${project.version}.$extension")
                 val entry = zipFile.getEntry("assets/HMCLauncher.$extension")
                     ?: throw GradleException("HMCLauncher.$extension not found")
 
@@ -310,7 +310,9 @@ val makeExecutables by tasks.registering {
 val makeDeb by tasks.registering(CreateDeb::class) {
     dependsOn(makeExecutables)
 
-    val debFile = layout.file(provider { artifactFile("deb") })
+    val shadowJarTask = tasks.shadowJar.get()
+    val jarFile = shadowJarTask.archiveFile.get().asFile
+    val debFile = layout.file(provider { jarFile.resolveSibling("AuroraLauncher-${project.version}.deb") })
 
     val debChannel = when (versionType) {
         "stable" -> ReleaseType.STABLE
@@ -320,7 +322,7 @@ val makeDeb by tasks.registering(CreateDeb::class) {
 
     version.set(project.version.toString())
     releaseType.set(debChannel)
-    appShFile.set(layout.file(provider { artifactFile("sh") }))
+    appShFile.set(layout.file(provider { jarFile.resolveSibling("AuroraLauncher-${project.version}.sh") }))
     iconFile.set(layout.projectDirectory.file("image/hmcl.png"))
     outputFile.set(debFile)
 
@@ -395,11 +397,11 @@ tasks.withType<JavaExec> {
 }
 
 tasks.register<JavaExec>("run") {
-    dependsOn(tasks.jar)
+    dependsOn(tasks.shadowJar)
 
     group = "application"
 
-    classpath = files(jarPath)
+    classpath = files(tasks.shadowJar.get().archiveFile)
     workingDir = rootProject.rootDir
 
     val vmOptions = parseToolOptions(System.getenv("HMCL_JAVA_OPTS") ?: "-Xmx1g")

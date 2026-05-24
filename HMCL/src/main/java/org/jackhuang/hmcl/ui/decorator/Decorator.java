@@ -70,7 +70,7 @@ public class Decorator extends Control {
 
     private boolean playRestoreMinimizeAnimation = false;
 
-    // Background download indicator
+    // 后台下载执行器属性
     private final ObjectProperty<TaskExecutor> backgroundDownloadExecutor = new SimpleObjectProperty<>();
 
     public Decorator(Stage primaryStage) {
@@ -235,6 +235,19 @@ public class Decorator extends Control {
         return snackbar;
     }
 
+    // 后台下载执行器属性
+    public ObjectProperty<TaskExecutor> backgroundDownloadExecutorProperty() {
+        return backgroundDownloadExecutor;
+    }
+
+    public TaskExecutor getBackgroundDownloadExecutor() {
+        return backgroundDownloadExecutor.get();
+    }
+
+    public void setBackgroundDownloadExecutor(TaskExecutor executor) {
+        this.backgroundDownloadExecutor.set(executor);
+    }
+
     @Override
     protected Skin<?> createDefaultSkin() {
         return new DecoratorSkin(this);
@@ -310,18 +323,5 @@ public class Decorator extends Control {
 
     public void setNavigationDirection(Navigation.NavigationDirection navigationDirection) {
         this.navigationDirection = navigationDirection;
-    }
-
-    // Background download indicator properties
-    public ObjectProperty<TaskExecutor> backgroundDownloadExecutorProperty() {
-        return backgroundDownloadExecutor;
-    }
-
-    public TaskExecutor getBackgroundDownloadExecutor() {
-        return backgroundDownloadExecutor.get();
-    }
-
-    public void setBackgroundDownloadExecutor(TaskExecutor executor) {
-        this.backgroundDownloadExecutor.set(executor);
     }
 }
