@@ -1,0 +1,159 @@
+/**
+ * Hello Minecraft! Launcher
+ * Copyright (C) 2025  huangyuhui <huanghongxun2008@126.com> and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*******************************************************************************
+ *                                                                             *
+ * UI Polish - Refined visual details on top of existing HMCL UI               *
+ *                                                                             *
+ ******************************************************************************/
+
+/* Larger border radius for cards */
+.card,
+.card-no-padding,
+.card-non-transparent {
+    -fx-background-radius: 8;
+}
+
+/* Refined card shadow */
+.card,
+.card-no-padding {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 12, 0.08, 0, 3);
+}
+
+.card-non-transparent {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 8, 0.06, 0, 2);
+}
+
+/* Larger border radius for dialogs */
+.jfx-dialog-layout,
+.task-executor-dialog-layout {
+    -fx-background-radius: 12px;
+}
+
+/* Refined dialog padding */
+.jfx-dialog-layout {
+    -fx-padding: 28px 28px 20px 28px;
+}
+
+/* Larger border radius for popup */
+.jfx-popup-container {
+    -fx-background-radius: 8;
+}
+
+/* Refined installer card shadow */
+.installer-item-wrapper:card {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 12, 0.08, 0, 3);
+}
+
+/* Refined launch button */
+.launch-pane > .button.launch-button,
+.launch-pane > .jfx-button.launch-button {
+    -fx-background-radius: 8px 0 0 8px;
+}
+
+.launch-pane > .button.menu-button,
+.launch-pane > .jfx-button.menu-button {
+    -fx-background-radius: 0 8px 8px 0;
+}
+
+/* Refined code box */
+.code-box {
+    -fx-background-radius: 8;
+}
+
+/* Refined tree view */
+.tree-view {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+/* Refined table view */
+.table-view,
+.table-view .column-header,
+.table-view .filler,
+.table-view .column-header-background,
+.table-row-cell {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+/* Refined options list items */
+.options-list-item:first {
+    -fx-background-radius: 8 8 0 0;
+}
+
+.options-list-item:last {
+    -fx-background-radius: 0 0 8 8;
+}
+
+.options-list-item:first:last {
+    -fx-background-radius: 8 8 8 8;
+}
+
+/* Refined hint boxes */
+.hint {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10;
+}
+
+/* Refined slider thumb */
+.jfx-slider .thumb,
+.jfx-slider:focused .thumb {
+    -fx-background-radius: 24;
+}
+
+/* Refined toolbar buttons */
+.jfx-tool-bar-button {
+    -fx-background-radius: 8px;
+}
+
+.jfx-decorator-button {
+    -fx-background-radius: 8px;
+}
+
+/* Smooth transitions for interactive elements */
+.jfx-button,
+.jfx-tool-bar-button,
+.jfx-decorator-button,
+.nav-item,
+.card,
+.game-card {
+    -fx-transition: -fx-background-color 0.2s, -fx-effect 0.2s;
+}
+
+/* Refined depth shadows */
+.depth-1 {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 4, 0.04, 0, 1);
+}
+
+.depth-2 {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 6, 0.06, 0, 1.5);
+}
+
+.depth-3 {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 8, 0.08, 0, 2);
+}
+
+.depth-4 {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.14), 10, 0.1, 0, 2.5);
+}
+
+.depth-5 {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.16), 12, 0.12, 0, 3);
+}

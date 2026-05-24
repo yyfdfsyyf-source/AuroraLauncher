@@ -1,0 +1,3784 @@
+/*******************************************************************************
+ *                                                                             *
+ * AtlantaFX Flat Theme - Compatibility & Enhancement Stylesheet               *
+ *                                                                             *
+ * This stylesheet provides full compatibility and visual enhancements         *
+ * when using AtlantaFX theme. It maps JFoenix-specific styles to standard     *
+ * JavaFX controls and provides modern flat design elements.                   *
+ ******************************************************************************/
+
+/*******************************************************************************
+ *                                                                             *
+ * CSS Variables - AtlantaFX Design Tokens                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.root {
+    /* Surface colors */
+    -afx-surface: -monet-surface;
+    -afx-surface-variant: -monet-surface-variant;
+    -afx-surface-container: -monet-surface-container;
+    -afx-surface-container-low: -monet-surface-container-low;
+    -afx-surface-container-high: -monet-surface-container-high;
+    -afx-surface-container-highest: -monet-surface-container-highest;
+
+    /* Primary colors */
+    -afx-primary: -monet-primary;
+    -afx-on-primary: -monet-on-primary;
+    -afx-primary-container: -monet-primary-container;
+    -afx-on-primary-container: -monet-on-primary-container;
+
+    /* Secondary colors */
+    -afx-secondary: -monet-secondary;
+    -afx-on-secondary: -monet-on-secondary;
+    -afx-secondary-container: -monet-secondary-container;
+    -afx-on-secondary-container: -monet-on-secondary-container;
+
+    /* Tertiary colors */
+    -afx-tertiary: -monet-tertiary;
+    -afx-on-tertiary: -monet-on-tertiary;
+
+    /* Error colors */
+    -afx-error: -monet-error;
+    -afx-error-container: -monet-error-container;
+    -afx-on-error: -monet-on-error;
+    -afx-on-error-container: -monet-on-error-container;
+
+    /* Outline */
+    -afx-outline: -monet-outline;
+    -afx-outline-variant: -monet-outline-variant;
+
+    /* Text colors */
+    -afx-on-surface: -monet-on-surface;
+    -afx-on-surface-variant: -monet-on-surface-variant;
+
+    /* Shadow elevation */
+    -afx-shadow-1: dropshadow(gaussian, rgba(0, 0, 0, 0.08), 4, 0, 0, 1);
+    -afx-shadow-2: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 8, 0, 0, 2);
+    -afx-shadow-3: dropshadow(gaussian, rgba(0, 0, 0, 0.16), 12, 0, 0, 4);
+    -afx-shadow-4: dropshadow(gaussian, rgba(0, 0, 0, 0.20), 16, 0, 0, 6);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Global Button Styles - Flat Design                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.button {
+    -fx-cursor: hand;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 16px;
+    -fx-font-size: 14px;
+    -fx-font-weight: normal;
+    -fx-text-fill: -afx-on-surface;
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-effect: null;
+}
+
+.button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.button:pressed {
+    -fx-background-color: derive(-afx-surface-variant, -10%);
+}
+
+.button:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+}
+
+/* Primary button - filled style */
+.button.button-primary {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+    -fx-border-color: transparent;
+    -fx-effect: -afx-shadow-1;
+}
+
+.button.button-primary:hover {
+    -fx-background-color: derive(-afx-primary, 10%);
+    -fx-effect: -afx-shadow-2;
+}
+
+.button.button-primary:pressed {
+    -fx-background-color: derive(-afx-primary, -10%);
+    -fx-effect: null;
+}
+
+/* Outlined button style */
+.button.button-outlined {
+    -fx-background-color: transparent;
+    -fx-border-color: -afx-outline;
+    -fx-text-fill: -afx-primary;
+    -fx-border-width: 1px;
+}
+
+.button.button-outlined:hover {
+    -fx-background-color: derive(-afx-primary, 90%);
+    -fx-border-color: -afx-primary;
+}
+
+.button.button-outlined:pressed {
+    -fx-background-color: derive(-afx-primary, 80%);
+}
+
+/* Text button style */
+.button.button-text {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-primary;
+    -fx-padding: 8px 12px;
+}
+
+.button.button-text:hover {
+    -fx-background-color: derive(-afx-primary, 90%);
+}
+
+.button.button-text:pressed {
+    -fx-background-color: derive(-afx-primary, 80%);
+}
+
+/* Icon button - circular */
+.button.button-icon {
+    -fx-background-radius: 50%;
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-max-width: 40px;
+    -fx-max-height: 40px;
+    -fx-padding: 0;
+}
+
+.button.button-icon:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFoenix Compatibility - Button mappings                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-button,
+.jfx-button-raised,
+.jfx-button-border {
+    -fx-cursor: hand;
+    -fx-background-radius: 6px;
+}
+
+.jfx-button-raised {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+    -fx-effect: -afx-shadow-1;
+}
+
+.jfx-button-raised:hover {
+    -fx-background-color: derive(-afx-primary, 10%);
+    -fx-effect: -afx-shadow-2;
+}
+
+.jfx-button-border {
+    -fx-background-color: transparent;
+    -fx-border-color: -afx-outline;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-text-fill: -afx-primary;
+}
+
+.jfx-button-border:hover {
+    -fx-background-color: derive(-afx-primary, 90%);
+    -fx-border-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Launch Pane - Main Page Buttons                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.launch-pane {
+    -fx-spacing: 0;
+    -fx-alignment: center;
+    -fx-effect: -afx-shadow-2;
+}
+
+.launch-pane > .button,
+.launch-pane > .jfx-button {
+    -fx-translate-y: 0;
+    -fx-max-height: 55px;
+    -fx-min-height: 55px;
+    -fx-background-color: -afx-primary-container;
+    -fx-opacity: 1;
+    -fx-cursor: hand;
+    -fx-text-fill: -afx-on-primary-container;
+    -fx-font-size: 14px;
+}
+
+.launch-pane {
+    -fx-max-width: 242px;
+    -fx-min-width: 242px;
+}
+
+.launch-pane > .button.launch-button,
+.launch-pane > .jfx-button.launch-button {
+    -fx-max-width: 210px;
+    -fx-min-width: 210px;
+    -fx-border-width: 0;
+    -fx-background-radius: 8px 0 0 8px;
+    -fx-background-color: -afx-primary;
+}
+
+.launch-pane > .button.launch-button:hover,
+.launch-pane > .jfx-button.launch-button:hover {
+    -fx-background-color: derive(-afx-primary, 10%);
+}
+
+.launch-pane > .button.menu-button,
+.launch-pane > .jfx-button.menu-button {
+    -fx-max-width: 32px;
+    -fx-min-width: 32px;
+    -fx-max-height: 55px;
+    -fx-min-height: 55px;
+    -fx-font-size: 15px;
+    -fx-background-radius: 0 8px 8px 0;
+    -fx-background-color: derive(-afx-primary, -5%);
+    -fx-padding: 0;
+    -fx-content-display: graphic-only;
+}
+
+.launch-pane > .button.menu-button:hover,
+.launch-pane > .jfx-button.menu-button:hover {
+    -fx-background-color: derive(-afx-primary, 5%);
+}
+
+/* 强制覆盖 root.css 的文字颜色 */
+.launch-pane > .button.launch-button,
+.launch-pane > .button.launch-button .label,
+.launch-pane > .button.launch-button *,
+.launch-pane > .jfx-button.launch-button,
+.launch-pane > .jfx-button.launch-button .label,
+.launch-pane > .jfx-button.launch-button * {
+    -fx-text-fill: -afx-on-primary;
+}
+
+.launch-pane > .button.menu-button,
+.launch-pane > .button.menu-button .label,
+.launch-pane > .button.menu-button *,
+.launch-pane > .jfx-button.menu-button,
+.launch-pane > .jfx-button.menu-button .label,
+.launch-pane > .jfx-button.menu-button * {
+    -fx-text-fill: -afx-on-primary;
+}
+
+.launch-pane > .button .svg,
+.launch-pane > .jfx-button .svg {
+    -fx-fill: -afx-on-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Toggle Icon Buttons - Flat Circular Style                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.toggle-icon4 {
+    -fx-pref-width: 36px;
+    -fx-max-width: 36px;
+    -fx-min-width: 36px;
+    -fx-pref-height: 36px;
+    -fx-max-height: 36px;
+    -fx-min-height: 36px;
+    -fx-background-radius: 50%;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.toggle-icon4:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.toggle-icon4:pressed {
+    -fx-background-color: derive(-afx-surface-variant, -5%);
+}
+
+.toggle-icon4 .svg {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+.toggle-icon4:hover .svg {
+    -fx-fill: -afx-on-surface;
+}
+
+.toggle-icon-tiny {
+    -fx-pref-width: 20px;
+    -fx-max-width: 20px;
+    -fx-min-width: 20px;
+    -fx-pref-height: 20px;
+    -fx-max-height: 20px;
+    -fx-min-height: 20px;
+    -fx-background-radius: 50%;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.toggle-icon-tiny:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.announcement-close-button {
+    -fx-pref-width: 32px;
+    -fx-max-width: 32px;
+    -fx-min-width: 32px;
+    -fx-pref-height: 32px;
+    -fx-max-height: 32px;
+    -fx-min-height: 32px;
+    -fx-background-radius: 50%;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.announcement-close-button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Decorator / Toolbar Buttons                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-decorator-button,
+.button.jfx-decorator-button {
+    -fx-max-width: 40px;
+    -fx-min-width: 40px;
+    -fx-max-height: 40px;
+    -fx-min-height: 40px;
+    -fx-background-radius: 50%;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.jfx-decorator-button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.jfx-decorator-button .svg {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+.jfx-decorator-button:hover .svg {
+    -fx-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Text Input Fields - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.text-field,
+.text-area {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-border-width: 1px;
+    -fx-padding: 10px 14px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-prompt-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 14px;
+}
+
+.text-field:focused,
+.text-area:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+    -fx-background-color: -afx-surface;
+}
+
+.text-field:hover,
+.text-area:hover {
+    -fx-background-color: derive(-afx-surface-container-highest, 5%);
+}
+
+/* JFoenix text field compatibility - AtlantaFX mode */
+/* 覆盖 root.css 中可能导致布局问题的样式 */
+.jfx-text-field,
+.jfx-password-field,
+.jfx-text-area {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 14px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-prompt-text-fill: -afx-on-surface-variant;
+    -fx-font-weight: normal;
+    -fx-alignment: center-left;
+    -jfx-focus-color: -afx-primary;
+    -jfx-unfocus-color: transparent;
+}
+
+.jfx-text-field:focused,
+.jfx-password-field:focused,
+.jfx-text-area:focused {
+    -fx-background-color: -afx-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Check Box & Radio Button - Flat Style                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.check-box {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-padding: 4px 0;
+}
+
+.check-box .box {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-border-color: -afx-outline;
+    -fx-border-width: 1.5px;
+    -fx-padding: 2px;
+    -fx-min-width: 18px;
+    -fx-min-height: 18px;
+    -fx-pref-width: 18px;
+    -fx-pref-height: 18px;
+}
+
+.check-box:hover .box {
+    -fx-border-color: -afx-primary;
+}
+
+.check-box:selected .box {
+    -fx-background-color: -afx-primary;
+    -fx-border-color: -afx-primary;
+}
+
+.check-box:selected .mark {
+    -fx-background-color: -afx-on-primary;
+}
+
+.radio-button {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.radio-button .radio {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 50%;
+    -fx-border-radius: 50%;
+    -fx-border-color: -afx-outline;
+    -fx-border-width: 1.5px;
+    -fx-padding: 2px;
+}
+
+.radio-button:hover .radio {
+    -fx-border-color: -afx-primary;
+}
+
+.radio-button:selected .radio {
+    -fx-background-color: -afx-primary;
+    -fx-border-color: -afx-primary;
+}
+
+.radio-button:selected .dot {
+    -fx-background-color: -afx-on-primary;
+}
+
+/* JFoenix compatibility - AtlantaFX mode */
+/* 覆盖 root.css 中可能导致显示异常的样式 */
+.jfx-check-box {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-weight: normal;
+    -jfx-checked-color: -afx-primary;
+    -jfx-unchecked-color: -afx-outline;
+}
+
+.jfx-radio-button {
+    -jfx-selected-color: -afx-primary;
+    -jfx-unselected-color: -afx-outline;
+    -fx-text-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Slider - Flat Style                                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.slider .track {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+    -fx-pref-height: 4px;
+}
+
+.slider .thumb {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 50%;
+    -fx-pref-width: 18px;
+    -fx-pref-height: 18px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.slider .thumb:hover {
+    -fx-effect: -afx-shadow-2;
+    -fx-scale-x: 1.1;
+    -fx-scale-y: 1.1;
+}
+
+.slider .colored-track {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 4px;
+}
+
+/* JFoenix slider compatibility */
+.jfx-slider .track,
+.jfx-slider:vertical .track {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+    -fx-pref-width: 4px;
+    -fx-pref-height: 4px;
+}
+
+.jfx-slider .thumb,
+.jfx-slider:focused .thumb {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 50%;
+    -fx-effect: -afx-shadow-1;
+}
+
+.jfx-slider .colored-track {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 4px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Progress Bar - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.progress-bar .track {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+}
+
+.progress-bar .bar {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 4px;
+    -fx-padding: 3px;
+}
+
+/* JFoenix progress bar compatibility */
+.jfx-progress-bar > .track {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+}
+
+.jfx-progress-bar > .bar {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 4px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Combo Box - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.combo-box {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-border-width: 1px;
+    -fx-padding: 4px 8px;
+    -fx-cursor: hand;
+}
+
+.combo-box:hover {
+    -fx-background-color: derive(-afx-surface-container-highest, 5%);
+}
+
+.combo-box:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+    -fx-background-color: -afx-surface;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 4px;
+}
+
+.combo-box .arrow {
+    -fx-background-color: -afx-on-surface-variant;
+    -fx-shape: "M12 15 7 10H17L12 15Z";
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -afx-on-surface;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 8px;
+    -fx-effect: -afx-shadow-3;
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.combo-box-popup .list-view .list-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.combo-box-popup .list-view .list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/* JFoenix combo box compatibility */
+.jfx-combo-box {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -jfx-focus-color: transparent;
+    -jfx-unfocus-color: transparent;
+    -fx-padding: 4px 8px;
+}
+
+.jfx-combo-box .arrow {
+    -fx-background-color: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * List View - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.list-view .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+    -fx-padding: 10px 16px;
+    -fx-cursor: hand;
+}
+
+.list-view .list-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.list-view .list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+.list-view .scroll-bar .thumb {
+    -fx-background-color: -afx-outline-variant;
+    -fx-background-radius: 4px;
+}
+
+.list-view .scroll-bar .thumb:hover {
+    -fx-background-color: -afx-outline;
+}
+
+/* JFoenix list view compatibility */
+.jfx-list-view {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+}
+
+.jfx-list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.jfx-list-cell:selected {
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Tab Pane - Flat Style                                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.tab-pane {
+    -fx-background-color: transparent;
+    -fx-tab-min-height: 40px;
+}
+
+.tab-pane .tab-header-area {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab-header-background {
+    -fx-background-color: -afx-surface;
+}
+
+.tab-pane .tab {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 10px 20px;
+    -fx-cursor: hand;
+}
+
+.tab-pane .tab:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab .tab-label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 14px;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: -afx-primary;
+    -fx-font-weight: bold;
+}
+
+.tab-pane .tab-selected-line {
+    -fx-background-color: -afx-primary;
+    -fx-pref-height: 2px;
+}
+
+/* JFoenix tab pane compatibility */
+.jfx-tab-pane .tab-header-background {
+    -fx-background-color: -afx-surface;
+}
+
+.tab-selected-line {
+    -fx-background-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Cards & Containers - Elevation System                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.card {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 16px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.card:hover {
+    -fx-effect: -afx-shadow-2;
+}
+
+.card-no-padding {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.card-non-transparent {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 16px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.depth-1 {
+    -fx-effect: -afx-shadow-1;
+}
+
+.depth-2 {
+    -fx-effect: -afx-shadow-2;
+}
+
+.depth-3 {
+    -fx-effect: -afx-shadow-3;
+}
+
+.depth-4 {
+    -fx-effect: -afx-shadow-4;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Dialog - Flat Style                                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-dialog-layout {
+    -fx-background-radius: 16px;
+    -fx-padding: 24px;
+    -fx-background-color: -afx-surface-container-high;
+    -fx-effect: -afx-shadow-4;
+}
+
+.jfx-layout-heading {
+    -fx-font-weight: bold;
+    -fx-font-size: 20px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-padding: 0 0 16px 0;
+}
+
+.jfx-layout-body {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-wrap-text: true;
+    -fx-padding: 0 0 24px 0;
+}
+
+.jfx-layout-actions {
+    -fx-alignment: center-right;
+    -fx-spacing: 8px;
+}
+
+.dialog-accept {
+    -fx-text-fill: -afx-primary;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.dialog-cancel {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.dialog-error {
+    -fx-text-fill: -afx-error;
+    -fx-padding: 8px 16px;
+}
+
+.task-executor-dialog-layout {
+    -fx-background-radius: 16px;
+    -fx-background-color: -afx-surface-container-high;
+    -fx-effect: -afx-shadow-4;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Scroll Bar - Minimal Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.scroll-bar {
+    -fx-background-color: transparent;
+    -fx-pref-width: 8px;
+    -fx-pref-height: 8px;
+}
+
+.scroll-bar .track {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -afx-outline-variant;
+    -fx-background-radius: 4px;
+    -fx-background-insets: 0;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -afx-outline;
+}
+
+.scroll-bar .thumb:pressed {
+    -fx-background-color: -afx-on-surface-variant;
+}
+
+.scroll-bar > .increment-button,
+.scroll-bar > .decrement-button {
+    -fx-padding: 0;
+    -fx-background-color: transparent;
+}
+
+.scroll-bar > .increment-button > .increment-arrow,
+.scroll-bar > .decrement-button > .decrement-arrow {
+    -fx-background-color: -afx-on-surface-variant;
+    -fx-padding: 3px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Tooltip - Flat Style                                                        *
+ *                                                                             *
+ ******************************************************************************/
+
+.tooltip {
+    -fx-text-fill: -afx-on-surface;
+    -fx-background-color: -afx-surface-container-high;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 12px;
+    -fx-font-size: 12px;
+    -fx-effect: -afx-shadow-2;
+}
+
+.tooltip .text {
+    -fx-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Bubble / Toast - Flat Style                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.bubble {
+    -fx-background-color: -afx-surface-container-high;
+    -fx-background-radius: 12px;
+    -fx-padding: 12px 16px;
+    -fx-effect: -afx-shadow-3;
+}
+
+.bubble > HBox > .two-line-list-item > .first-line > .title,
+.bubble > HBox > .two-line-list-item > HBox > .subtitle {
+    -fx-text-fill: -afx-on-surface;
+}
+
+.bubble .svg {
+    -fx-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Menu & Popup - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.popup-menu-content {
+    -fx-padding: 8px 0;
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+}
+
+.popup-menu .scroll-pane > .scroll-bar:vertical,
+.popup-menu .scroll-pane > .scroll-bar:horizontal {
+    -fx-opacity: 0;
+}
+
+.menu-container {
+    -fx-padding: 8px 16px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Announcement - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.announcement {
+    -fx-padding: 20px;
+    -fx-background-color: -afx-primary-container;
+    -fx-background-radius: 12px;
+}
+
+.announcement .title {
+    -fx-text-fill: -afx-on-primary-container;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.announcement Text {
+    -fx-fill: -afx-on-primary-container;
+    -fx-font-size: 14px;
+}
+
+.announcement .hyperlink {
+    -fx-fill: -afx-primary;
+    -fx-text-fill: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Two Line List Item - Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.two-line-list-item > .first-line > .title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 15px;
+    -fx-padding: 0 8px 0 0;
+}
+
+.two-line-list-item > HBox > .subtitle {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-weight: normal;
+    -fx-font-size: 12px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Advanced List Item - Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.advanced-list-item > .rippler-container > .container {
+    -fx-padding: 14px 16px;
+    -fx-background-color: transparent;
+}
+
+.advanced-list-item > .rippler-container > .container > .two-line-list-item {
+    -fx-alignment: center-left;
+    -fx-padding: 0 0 0 10;
+}
+
+.navigation-drawer-item > .rippler-container > .container {
+    -fx-padding: 16px;
+}
+
+.advanced-list-item:selected > .rippler-container > .container {
+    -fx-background-color: -afx-secondary-container;
+}
+
+.advanced-list-item:selected .svg {
+    -fx-fill: -afx-on-secondary-container;
+}
+
+.advanced-list-item:selected > .rippler-container > .container > .two-line-list-item > .first-line > .title {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-weight: bold;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Table View - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.table-view {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 0;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-padding: 8px 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.table-row-cell {
+    -fx-background-color: transparent;
+    -fx-table-cell-border-color: -afx-outline-variant;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: derive(-afx-surface-container, 3%);
+}
+
+.table-cell {
+    -fx-text-fill: -afx-on-surface;
+    -fx-padding: 10px 16px;
+}
+
+.table-view > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:selected {
+    -fx-background-color: -afx-secondary-container;
+}
+
+.table-view > .virtual-flow > .clipped-container > .sheet > .table-row-cell:filled:selected .table-cell {
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Tree View - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.tree-view {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 8px;
+}
+
+.tree-cell {
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 8px;
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.tree-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.tree-cell:focused {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+.tree-cell .arrow {
+    -fx-background-color: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Log Window - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.log-window {
+    -fx-background-color: -afx-surface-container;
+}
+
+.log-window .button {
+    -fx-text-fill: -afx-on-surface;
+}
+
+.log-window-list-cell {
+    -fx-text-fill: -afx-on-surface;
+    -fx-border-width: 0 0 1px 0;
+    -fx-border-color: -afx-outline-variant;
+    -fx-padding: 6px 12px;
+}
+
+.log-window-list-cell:empty {
+    -fx-border-width: 0;
+}
+
+.log-window-list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Spinner - Flat Style                                                        *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-spinner .arc {
+    -fx-stroke: -afx-primary;
+    -fx-stroke-width: 3px;
+}
+
+.jfx-spinner .track {
+    -fx-stroke: -afx-secondary-container;
+    -fx-stroke-width: 3px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Color Picker - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.color-palette {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+    -fx-padding: 12px;
+}
+
+.custom-color-dialog {
+    -fx-background-color: -afx-surface-container-high;
+    -fx-background-radius: 16px;
+    -fx-effect: -afx-shadow-4;
+}
+
+.custom-color-dialog .tab .tab-label {
+    -fx-text-fill: -afx-on-surface;
+}
+
+.custom-color-dialog .tab-selected-line {
+    -fx-background-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Options List - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.options-list {
+    -fx-background-color: transparent;
+    -fx-effect: -afx-shadow-1;
+}
+
+.options-list-item {
+    -fx-background-color: -afx-surface;
+    -fx-border-color: -afx-outline-variant;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 12px 16px;
+    -fx-font-size: 13px;
+}
+
+.options-list-item:first {
+    -fx-background-radius: 12px 12px 0 0;
+    -fx-border-width: 0;
+}
+
+.options-list-item:last {
+    -fx-background-radius: 0 0 12px 12px;
+}
+
+.options-list-item:first:last {
+    -fx-background-radius: 12px;
+    -fx-border-width: 0;
+}
+
+.options-list-item .svg {
+    -fx-fill: -afx-on-surface;
+}
+
+.options-list-item .label {
+    -fx-text-fill: -afx-on-surface;
+}
+
+.options-list-item .label.subtitle {
+    -fx-text-fill: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Profile & Account List Items - Flat Style                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.profile-list-item > .rippler-container > BorderPane {
+    -fx-padding: 12px 16px;
+}
+
+.profile-list-item:selected > .rippler-container > BorderPane {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 8px;
+}
+
+.profile-list-item:selected .svg {
+    -fx-fill: -afx-on-secondary-container;
+}
+
+.profile-list-item:selected > .rippler-container > BorderPane > .two-line-list-item > .first-line > .title {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-weight: bold;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Installer Item - Flat Style                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.installer-item-wrapper {
+    -fx-background-color: -afx-surface;
+    -fx-background-radius: 12px;
+    -fx-pref-width: 180px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.installer-item-wrapper:card {
+    -fx-effect: -afx-shadow-2;
+}
+
+.installer-item-wrapper:hover:card {
+    -fx-effect: -afx-shadow-3;
+}
+
+.installer-item-wrapper .installer-item:list-item {
+    -fx-padding: 10px 12px;
+    -fx-border-color: -afx-outline-variant;
+    -fx-border-width: 0 0 1px 0;
+    -fx-alignment: center-left;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Line Components - Flat Style                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.line-component .line-component-container {
+    -fx-padding: 12px 16px;
+}
+
+.line-component .subtitle-label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.line-component:large-title .title-label {
+    -fx-font-size: 15px;
+    -fx-font-weight: 500;
+}
+
+.line-button .trailing-label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 13px;
+}
+
+.line-button .trailing-icon .svg {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Code Box - Flat Style                                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.code-box {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-alignment: center;
+}
+
+.code-box .code-label {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Hint / Info Boxes - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.hint {
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px;
+}
+
+.hint.info {
+    -fx-background-color: derive(-afx-primary, 90%);
+    -fx-border-color: derive(-afx-primary, 70%);
+}
+
+.hint.info Text, .hint.info .svg {
+    -fx-fill: -afx-primary;
+}
+
+.hint.success {
+    -fx-background-color: derive(#4caf50, 90%);
+    -fx-border-color: derive(#4caf50, 70%);
+}
+
+.hint.success Text, .hint.success .svg {
+    -fx-fill: #2e7d32;
+}
+
+.hint.error {
+    -fx-background-color: -afx-error-container;
+    -fx-border-color: derive(-afx-error, 70%);
+}
+
+.hint.error Text, .hint.error .svg {
+    -fx-fill: -afx-on-error-container;
+}
+
+.hint.warning {
+    -fx-background-color: derive(#ff9800, 90%);
+    -fx-border-color: derive(#ff9800, 70%);
+}
+
+.hint.warning Text, .hint.warning .svg {
+    -fx-fill: #e65100;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Memory Status Bar - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.memory-status-bar .track {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+}
+
+.memory-status-bar .memory-used {
+    -fx-fill: -afx-primary;
+}
+
+.memory-status-bar .memory-allocate {
+    -fx-fill: derive(-afx-primary, 50%);
+    -fx-opacity: 0.5;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Game Crash Window - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.game-crash-window {
+    -fx-background-color: -afx-surface-container;
+}
+
+.game-crash-window .crash-reason-text-flow Text {
+    -fx-fill: -afx-on-surface;
+}
+
+.game-crash-window .crash-reason-text-flow .hyperlink {
+    -fx-fill: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Error & Validation - Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.error-label {
+    -fx-text-fill: -afx-error;
+    -fx-font-size: 12px;
+    -fx-font-weight: 500;
+}
+
+.error-icon {
+    -fx-fill: -afx-error;
+}
+
+.jfx-text-field:error,
+.jfx-password-field:error,
+.jfx-text-area:error,
+.jfx-combo-box:error {
+    -jfx-focus-color: -afx-error;
+    -jfx-unfocus-color: -afx-error;
+    -fx-border-color: -afx-error;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Decorator - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-decorator {
+    -fx-decorator-color: -afx-surface;
+}
+
+.jfx-decorator-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.jfx-tool-bar {
+    -fx-font-size: 13px;
+    -fx-pref-width: 100%;
+    -fx-min-height: 48px;
+    -fx-max-height: 48px;
+    -fx-pref-height: 48px;
+    -fx-background-color: -afx-surface;
+    -fx-padding: 0 8px;
+}
+
+.jfx-tool-bar.background {
+    -fx-background-color: -afx-primary-container;
+}
+
+.jfx-tool-bar-second {
+    -fx-pref-height: 48px;
+    -fx-padding: 0 16px;
+    -fx-background-color: -afx-primary-container;
+    -fx-alignment: CENTER-LEFT;
+    -fx-spacing: 12px;
+}
+
+.jfx-tool-bar-second .label {
+    -fx-text-fill: -afx-on-primary-container;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Snackbar - Flat Style                                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-snackbar-content {
+    -fx-background-color: -afx-surface-container-high;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-spacing: 12px;
+    -fx-effect: -afx-shadow-3;
+}
+
+.jfx-snackbar-toast {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.jfx-snackbar-action {
+    -fx-text-fill: -afx-primary;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+    -fx-cursor: hand;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Popup - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-popup-container {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+    -fx-padding: 8px 0;
+}
+
+.jfx-popup-overlay-pane {
+    -fx-background-color: #00000052;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Tags & Badges - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.two-line-list-item > .first-line .tag {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 8px;
+    -fx-font-weight: 500;
+    -fx-font-size: 11px;
+}
+
+.two-line-list-item > .first-line .tag:warning {
+    -fx-text-fill: -afx-on-error-container;
+    -fx-background-color: -afx-error-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Update Label                                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.update-label {
+    -fx-text-fill: -afx-tertiary;
+    -fx-font-size: 12px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Sponsor Pane                                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.sponsor-pane {
+    -fx-cursor: hand;
+    -fx-background-radius: 8px;
+    -fx-padding: 8px;
+}
+
+.sponsor-pane:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * MD List Cell - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.md-list-cell {
+    -fx-border-color: -afx-outline-variant;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 12px 16px;
+}
+
+.md-list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Multi File Item - Flat Style                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.multi-file-item {
+    -fx-padding: 12px 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Radio Button Title Label                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.radio-button-title-label {
+    -fx-font-size: 16px;
+    -fx-padding: 16px 0 -16px 0;
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-weight: 500;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Class Title - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.class-title {
+    -fx-font-size: 12px;
+    -fx-padding: 8px 16px;
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-weight: 600;
+    -fx-letter-spacing: 0.5px;
+}
+
+.class-title Text {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+.class-title Rectangle {
+    -fx-fill: -afx-outline-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Notice Pane - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.notice-pane > .label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 16px;
+    -fx-wrap-text: true;
+    -fx-text-alignment: CENTER;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Method Title & Desc - Flat Style                                            *
+ *                                                                             *
+ ******************************************************************************/
+
+.method-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-weight: 600;
+    -fx-font-size: 15px;
+}
+
+.method-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 13px;
+    -fx-line-spacing: 4;
+    -fx-wrap-text: true;
+    -fx-text-alignment: center;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Icon Style                                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.icon {
+    -fx-fill: -afx-primary;
+    -fx-padding: 10px;
+    -fx-cursor: hand;
+}
+
+.svg {
+    -fx-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Content Background                                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.content-background {
+    -fx-background-color: -afx-surface;
+}
+
+.gray-background {
+    -fx-background-color: -afx-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Window Style                                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.window {
+    -fx-background-color: transparent;
+    -fx-padding: 8px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Debug Border                                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.debug-border {
+    -fx-border-color: -afx-error;
+    -fx-border-width: 1px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Fit Width                                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.fit-width {
+    -fx-pref-width: 100%;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Padding Utilities                                                           *
+ *                                                                             *
+ ******************************************************************************/
+
+.padding-8 {
+    -fx-padding: 8px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Transparent                                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.transparent {
+    -fx-background-color: null;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Toggle Button - AtlantaFX Compatible Style                              *
+ *                                                                             *
+ * 覆盖 root.css 中的透明背景，确保 AtlantaFX 模式下开关可见                     *
+ ******************************************************************************/
+
+.jfx-toggle-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.jfx-toggle-button .graphic {
+    -fx-cursor: hand;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Toggle Label                                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.toggle-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Update Pane Active                                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.update-pane:active .subtitle-label {
+    -fx-text-fill: -afx-tertiary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Line Select Button Menu                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.line-select-button .menu-container .title-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.line-select-button .menu-container .subtitle-label {
+    -fx-text-fill: -afx-on-surface-variant;
+}
+
+.line-select-button .menu-container:selected .title-label {
+    -fx-text-fill: -afx-primary;
+}
+
+.line-select-button .menu-container:selected .subtitle-label {
+    -fx-text-fill: derive(-afx-primary, 30%);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Line Toggle Button                                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.line-toggle-button .jfx-toggle-button {
+    -fx-padding: 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Terracotta Hint                                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.terracotta-hint Text {
+    -fx-fill: -afx-on-surface;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Wrap Text                                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.wrap-text > HBox > .subtitle {
+    -fx-wrap-text: true;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * No Padding                                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.no-padding .advanced-list-box-content {
+    -fx-padding: 0;
+}
+
+.no-padding .list-cell {
+    -fx-padding: 0;
+}
+
+.no-padding .options-list-item {
+    -fx-padding: 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * No Horizontal Scrollbar                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.no-horizontal-scrollbar .scroll-bar:horizontal {
+    -fx-opacity: 0;
+    -fx-max-height: 0;
+    -fx-min-height: 0;
+    -fx-pref-height: 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Card List                                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.card-list {
+    -fx-padding: 12px;
+    -fx-spacing: 12px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Options Sublist                                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.options-sublist {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 0 0 12px 12px;
+}
+
+.options-sublist .options-list-item {
+    -fx-background-color: -afx-surface-container;
+}
+
+.options-sublist .multi-file-item {
+    -fx-padding: 10px;
+}
+
+.options-sublist-wrapper > .container {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+}
+
+.options-sublist-wrapper .expand-icon .svg {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+.options-sublist-wrapper .expand-icon .svg:disabled {
+    -fx-opacity: 0.4;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Log Toggle - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.log-toggle {
+    -fx-border-width: 1px;
+    -fx-border-radius: 6px;
+    -fx-background-insets: 0;
+    -fx-border-color: -afx-outline;
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-background-color: transparent;
+    -fx-padding: 4px 12px;
+    -fx-cursor: hand;
+}
+
+.log-toggle:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.log-toggle:selected {
+    -fx-border-color: -afx-primary;
+    -fx-text-fill: -afx-primary;
+    -fx-background-color: derive(-afx-primary, 90%);
+}
+
+.log-toggle.fatal {
+    -fx-background-color: derive(#f44336, 90%);
+    -fx-border-color: #f44336;
+    -fx-text-fill: #c62828;
+}
+
+.log-toggle.error {
+    -fx-background-color: derive(#ff5722, 90%);
+    -fx-border-color: #ff5722;
+    -fx-text-fill: #d84315;
+}
+
+.log-toggle.warn {
+    -fx-background-color: derive(#ff9800, 90%);
+    -fx-border-color: #ff9800;
+    -fx-text-fill: #ef6c00;
+}
+
+.log-toggle.info {
+    -fx-background-color: derive(#2196f3, 90%);
+    -fx-border-color: #2196f3;
+    -fx-text-fill: #1565c0;
+}
+
+.log-toggle.debug {
+    -fx-background-color: derive(#9e9e9e, 90%);
+    -fx-border-color: #9e9e9e;
+    -fx-text-fill: #616161;
+}
+
+.log-toggle.trace {
+    -fx-background-color: derive(#bdbdbd, 90%);
+    -fx-border-color: #bdbdbd;
+    -fx-text-fill: #757575;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * HTML Renderer                                                               *
+ *                                                                             *
+ ******************************************************************************/
+
+.html {
+    -fx-font-size: 14px;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.html-hyperlink {
+    -fx-fill: -afx-primary;
+    -fx-cursor: hand;
+}
+
+.html-h1 {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.html-h2 {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.html-h3 {
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-text-fill: -afx-on-surface;
+}
+
+.html-bold {
+    -fx-font-weight: bold;
+}
+
+.html-italic {
+    -fx-font-style: italic;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Hyperlink - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.hyperlink {
+    -fx-text-fill: -afx-primary;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+}
+
+.hyperlink:hover {
+    -fx-text-fill: derive(-afx-primary, 10%);
+    -fx-underline: true;
+}
+
+.hyperlink:pressed {
+    -fx-text-fill: derive(-afx-primary, -10%);
+}
+
+.hyperlink:disabled {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-opacity: 0.5;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Separator - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.separator .line {
+    -fx-border-color: -afx-outline-variant;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.separator:vertical .line {
+    -fx-border-width: 0 1px 0 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Menu Bar - Flat Style                                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.menu-bar {
+    -fx-background-color: -afx-surface;
+    -fx-padding: 0 8px;
+}
+
+.menu-bar > .container > .menu {
+    -fx-padding: 8px 12px;
+    -fx-cursor: hand;
+}
+
+.menu-bar > .container > .menu:hover,
+.menu-bar > .container > .menu:focused,
+.menu-bar > .container > .menu:showing {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-radius: 6px;
+}
+
+.menu-bar > .container > .menu > .label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 13px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Context Menu - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.context-menu {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+    -fx-padding: 8px 0;
+}
+
+.context-menu .menu-item {
+    -fx-padding: 8px 16px;
+    -fx-cursor: hand;
+}
+
+.context-menu .menu-item:hover,
+.context-menu .menu-item:focused {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+    -fx-background-radius: 0;
+}
+
+.context-menu .menu-item > .label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.context-menu .menu-item:hover > .label,
+.context-menu .menu-item:focused > .label {
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+.context-menu .separator-menu-item .line {
+    -fx-border-color: -afx-outline-variant;
+    -fx-padding: 4px 0;
+}
+
+.context-menu .menu-item:disabled > .label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-opacity: 0.5;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Date Picker - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.date-picker {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-border-width: 1px;
+}
+
+.date-picker:hover {
+    -fx-background-color: derive(-afx-surface-container-highest, 5%);
+}
+
+.date-picker:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+    -fx-background-color: -afx-surface;
+}
+
+.date-picker > .text-field {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8px 0 0 8px;
+    -fx-border-radius: 0;
+    -fx-border-color: transparent;
+    -fx-padding: 10px 14px;
+}
+
+.date-picker > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0 8px 8px 0;
+    -fx-padding: 0 12px;
+    -fx-cursor: hand;
+}
+
+.date-picker > .arrow-button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.date-picker > .arrow-button .arrow {
+    -fx-background-color: -afx-on-surface-variant;
+    -fx-shape: "M12 15 7 10H17L12 15Z";
+}
+
+.date-picker-popup {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+}
+
+.date-picker-popup > .month-year-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 8px;
+}
+
+.date-picker-popup > .month-year-pane > .spinner > .button {
+    -fx-background-color: transparent;
+    -fx-padding: 4px;
+    -fx-cursor: hand;
+}
+
+.date-picker-popup > .month-year-pane > .spinner > .button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-radius: 50%;
+}
+
+.date-picker-popup > .month-year-pane > .spinner > .label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.date-picker-popup > .calendar-grid {
+    -fx-background-color: transparent;
+    -fx-padding: 8px;
+}
+
+.date-picker-popup > .calendar-grid .day-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 13px;
+    -fx-padding: 8px;
+    -fx-cursor: hand;
+    -fx-background-radius: 50%;
+}
+
+.date-picker-popup > .calendar-grid .day-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.date-picker-popup > .calendar-grid .day-cell:selected {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+}
+
+.date-picker-popup > .calendar-grid .day-cell:today {
+    -fx-border-color: -afx-primary;
+    -fx-border-radius: 50%;
+    -fx-border-width: 1.5px;
+}
+
+.date-picker-popup > .calendar-grid .week-number-cell {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 11px;
+}
+
+.date-picker-popup > .calendar-grid .day-name-cell {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Spinner - Flat Style                                                        *
+ *                                                                             *
+ ******************************************************************************/
+
+.spinner {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-color: transparent;
+    -fx-border-width: 1px;
+}
+
+.spinner:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+    -fx-background-color: -afx-surface;
+}
+
+.spinner > .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -afx-on-surface;
+    -fx-padding: 10px 14px;
+}
+
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 4px 8px;
+    -fx-cursor: hand;
+}
+
+.spinner .increment-arrow-button:hover,
+.spinner .decrement-arrow-button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.spinner .increment-arrow-button .increment-arrow,
+.spinner .decrement-arrow-button .decrement-arrow {
+    -fx-background-color: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * TitledPane & Accordion - Flat Style                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.titled-pane {
+    -fx-text-fill: -afx-on-surface;
+}
+
+.titled-pane > .title {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-cursor: hand;
+}
+
+.titled-pane > .title:hover {
+    -fx-background-color: derive(-afx-surface-container-low, 5%);
+}
+
+.titled-pane > .title > .arrow-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0 8px 0 0;
+}
+
+.titled-pane > .title > .arrow-button > .arrow {
+    -fx-background-color: -afx-on-surface-variant;
+    -fx-shape: "M7 10L12 15L17 10H7Z";
+    -fx-background-radius: 0;
+    -fx-padding: 6px 4px;
+}
+
+.titled-pane:expanded > .title > .arrow-button > .arrow {
+    -fx-rotate: 180;
+}
+
+.titled-pane > .title > .text {
+    -fx-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+}
+
+.titled-pane > .content {
+    -fx-background-color: -afx-surface;
+    -fx-background-radius: 0 0 8px 8px;
+    -fx-border-color: transparent;
+    -fx-padding: 12px 16px;
+}
+
+.accordion > .titled-pane > .title {
+    -fx-background-radius: 0;
+}
+
+.accordion > .titled-pane:first > .title {
+    -fx-background-radius: 8px 8px 0 0;
+}
+
+.accordion > .titled-pane:last > .content {
+    -fx-background-radius: 0 0 8px 8px;
+}
+
+.accordion > .titled-pane:first:last > .title {
+    -fx-background-radius: 8px;
+}
+
+.accordion > .titled-pane:first:last > .content {
+    -fx-background-radius: 0 0 8px 8px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Pagination - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.pagination {
+    -fx-background-color: transparent;
+    -fx-page-information-visible: false;
+}
+
+.pagination > .pagination-control {
+    -fx-background-color: transparent;
+}
+
+.pagination > .pagination-control > .control-box {
+    -fx-spacing: 4px;
+    -fx-padding: 8px;
+}
+
+.pagination > .pagination-control > .control-box > .button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6px;
+    -fx-padding: 6px 12px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-cursor: hand;
+}
+
+.pagination > .pagination-control > .control-box > .button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.pagination > .pagination-control > .control-box > .button:disabled {
+    -fx-opacity: 0.3;
+}
+
+.pagination > .pagination-control > .control-box > .number-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6px;
+    -fx-padding: 6px 12px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-cursor: hand;
+}
+
+.pagination > .pagination-control > .control-box > .number-button:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.pagination > .pagination-control > .control-box > .number-button:selected {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * SplitPane - Flat Style                                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.split-pane {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.split-pane > .split-pane-divider {
+    -fx-background-color: -afx-outline-variant;
+    -fx-padding: 0 1px;
+}
+
+.split-pane:horizontal > .split-pane-divider {
+    -fx-padding: 0 1px;
+}
+
+.split-pane:vertical > .split-pane-divider {
+    -fx-padding: 1px 0;
+}
+
+.split-pane > .split-pane-divider:hover {
+    -fx-background-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * ToolBar - Flat Style                                                        *
+ *                                                                             *
+ ******************************************************************************/
+
+.tool-bar {
+    -fx-background-color: -afx-surface;
+    -fx-padding: 8px 12px;
+    -fx-spacing: 8px;
+}
+
+.tool-bar:vertical {
+    -fx-padding: 12px 8px;
+    -fx-spacing: 8px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Status Bar & Info Bar - Flat Style                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.status-bar {
+    -fx-background-color: -afx-surface-container;
+    -fx-padding: 8px 16px;
+    -fx-spacing: 12px;
+    -fx-alignment: center-left;
+}
+
+.status-bar .label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.status-bar .separator {
+    -fx-padding: 0 4px;
+}
+
+.info-bar {
+    -fx-background-color: -afx-primary-container;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 16px;
+    -fx-spacing: 8px;
+    -fx-alignment: center-left;
+}
+
+.info-bar .label {
+    -fx-text-fill: -afx-on-primary-container;
+    -fx-font-size: 13px;
+}
+
+.info-bar .svg {
+    -fx-fill: -afx-on-primary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Stepper / Wizard - Flat Style                                               *
+ *                                                                             *
+ ******************************************************************************/
+
+.stepper {
+    -fx-padding: 16px;
+    -fx-spacing: 0;
+    -fx-alignment: center;
+}
+
+.stepper .step {
+    -fx-alignment: center;
+    -fx-spacing: 8px;
+}
+
+.stepper .step .step-circle {
+    -fx-background-radius: 50%;
+    -fx-min-width: 32px;
+    -fx-min-height: 32px;
+    -fx-alignment: center;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.stepper .step:pending .step-circle {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-border-color: -afx-outline;
+    -fx-border-radius: 50%;
+    -fx-border-width: 1.5px;
+}
+
+.stepper .step:active .step-circle {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+}
+
+.stepper .step:completed .step-circle {
+    -fx-background-color: -afx-primary-container;
+    -fx-text-fill: -afx-on-primary-container;
+}
+
+.stepper .step .step-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: -afx-on-surface-variant;
+}
+
+.stepper .step:active .step-label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-weight: 600;
+}
+
+.stepper .step-connector {
+    -fx-background-color: -afx-outline-variant;
+    -fx-pref-height: 2px;
+    -fx-min-width: 40px;
+}
+
+.stepper .step-connector:completed {
+    -fx-background-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * File Chooser & Directory List - Flat Style                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.file-chooser-list {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 4px;
+}
+
+.file-chooser-list .list-cell {
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+}
+
+.file-chooser-list .list-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.file-chooser-list .list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+.file-chooser-list .list-cell .svg {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+.file-chooser-list .list-cell:selected .svg {
+    -fx-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Version List & Game List - Flat Style                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.version-list {
+    -fx-background-color: transparent;
+    -fx-padding: 8px 0;
+}
+
+.version-list .list-cell {
+    -fx-padding: 10px 16px;
+    -fx-background-radius: 0 8px 8px 0;
+    -fx-cursor: hand;
+}
+
+.version-list .list-cell:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.version-list .list-cell:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+.version-list .list-cell .version-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.version-list .list-cell:selected .version-name {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-weight: 600;
+}
+
+.version-list .list-cell .version-type {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 11px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Task List & Download List - Flat Style                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.task-list-item {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-spacing: 8px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.task-list-item .task-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.task-list-item .task-subtitle {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.task-list-item .task-progress {
+    -fx-accent: -afx-primary;
+}
+
+.task-list-item .task-action {
+    -fx-background-color: transparent;
+    -fx-padding: 4px;
+    -fx-background-radius: 50%;
+    -fx-cursor: hand;
+}
+
+.task-list-item .task-action:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Mod List & Resource Pack List - Flat Style                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.mod-list-item {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-cursor: hand;
+}
+
+.mod-list-item:hover {
+    -fx-effect: -afx-shadow-2;
+}
+
+.mod-list-item .mod-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.mod-list-item .mod-version {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.mod-list-item .mod-description {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+    -fx-wrap-text: true;
+}
+
+.mod-list-item .mod-toggle {
+    -fx-padding: 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Server List - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.server-list-item {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-cursor: hand;
+}
+
+.server-list-item:hover {
+    -fx-effect: -afx-shadow-2;
+}
+
+.server-list-item .server-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.server-list-item .server-address {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.server-list-item .server-status {
+    -fx-background-radius: 50%;
+    -fx-min-width: 8px;
+    -fx-min-height: 8px;
+    -fx-max-width: 8px;
+    -fx-max-height: 8px;
+}
+
+.server-list-item .server-status.online {
+    -fx-background-color: #4caf50;
+}
+
+.server-list-item .server-status.offline {
+    -fx-background-color: -afx-error;
+}
+
+.server-list-item .server-status.unknown {
+    -fx-background-color: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Skin & Avatar - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.skin-preview {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 8px;
+    -fx-padding: 8px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.avatar {
+    -fx-background-radius: 50%;
+    -fx-effect: -afx-shadow-1;
+}
+
+.avatar-large {
+    -fx-background-radius: 50%;
+    -fx-effect: -afx-shadow-2;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Animation & Transition Helpers                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.fade-in {
+    -fx-opacity: 1;
+}
+
+.scale-in {
+    -fx-scale-x: 1;
+    -fx-scale-y: 1;
+    -fx-opacity: 1;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Responsive Layout Helpers                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.responsive-container {
+    -fx-padding: 16px;
+    -fx-spacing: 16px;
+}
+
+.responsive-container.compact {
+    -fx-padding: 8px;
+    -fx-spacing: 8px;
+}
+
+.responsive-container.wide {
+    -fx-padding: 24px;
+    -fx-spacing: 24px;
+}
+
+.gap-4  { -fx-spacing: 4px; }
+.gap-8  { -fx-spacing: 8px; }
+.gap-12 { -fx-spacing: 12px; }
+.gap-16 { -fx-spacing: 16px; }
+.gap-24 { -fx-spacing: 24px; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Focus Ring - Accessibility                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.focus-ring {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Skeleton / Placeholder Loading                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.skeleton {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 4px;
+    -fx-opacity: 0.7;
+}
+
+.skeleton.animated {
+    -fx-opacity: 0.55;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Account List Item - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.account-list-item {
+    -fx-padding: 12px 16px;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+}
+
+.account-list-item:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.account-list-item:selected {
+    -fx-background-color: -afx-secondary-container;
+}
+
+.account-list-item:selected .account-name {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-weight: 600;
+}
+
+.account-list-item:selected .account-type {
+    -fx-text-fill: derive(-afx-on-secondary-container, 30%);
+}
+
+.account-list-item .account-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.account-list-item .account-type {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.account-list-item .account-avatar {
+    -fx-background-radius: 50%;
+    -fx-effect: -afx-shadow-1;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Version Select Popup - Flat Style                                           *
+ *                                                                             *
+ ******************************************************************************/
+
+.version-select-popup {
+    -fx-background-color: -afx-surface-container;
+    -fx-background-radius: 12px;
+    -fx-effect: -afx-shadow-3;
+    -fx-padding: 8px 0;
+}
+
+.version-select-popup .version-item {
+    -fx-padding: 10px 16px;
+    -fx-cursor: hand;
+    -fx-background-radius: 0 8px 8px 0;
+}
+
+.version-select-popup .version-item:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.version-select-popup .version-item:selected {
+    -fx-background-color: -afx-secondary-container;
+}
+
+.version-select-popup .version-item .version-label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.version-select-popup .version-item:selected .version-label {
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-weight: 600;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Download Page - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.download-page {
+    -fx-background-color: -afx-surface;
+    -fx-padding: 16px;
+}
+
+.download-category {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 16px;
+    -fx-effect: -afx-shadow-1;
+}
+
+.download-category .category-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-padding: 0 0 12px 0;
+}
+
+.download-item {
+    -fx-padding: 10px 12px;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+}
+
+.download-item:hover {
+    -fx-background-color: derive(-afx-secondary-container, 50%);
+}
+
+.download-item .download-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.download-item .download-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.download-progress {
+    -fx-accent: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Settings Page - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.settings-page {
+    -fx-background-color: -afx-surface;
+}
+
+.settings-group {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-spacing: 8px;
+}
+
+.settings-group .group-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+    -fx-padding: 0 0 8px 0;
+}
+
+.settings-group .group-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 13px;
+    -fx-padding: 0 0 12px 0;
+    -fx-wrap-text: true;
+}
+
+.settings-item {
+    -fx-padding: 10px 0;
+    -fx-border-color: -afx-outline-variant;
+    -fx-border-width: 0 0 1px 0;
+    -fx-alignment: center-left;
+}
+
+.settings-item:last {
+    -fx-border-width: 0;
+}
+
+.settings-item .item-label {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+}
+
+.settings-item .item-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+    -fx-wrap-text: true;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Java Management - Flat Style                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.java-item {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-cursor: hand;
+}
+
+.java-item:hover {
+    -fx-effect: -afx-shadow-2;
+}
+
+.java-item .java-version {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.java-item .java-path {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.java-item .java-vendor {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 11px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Game Directory & Instance - Flat Style                                      *
+ *                                                                             *
+ ******************************************************************************/
+
+.instance-item {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-cursor: hand;
+}
+
+.instance-item:hover {
+    -fx-effect: -afx-shadow-2;
+}
+
+.instance-item .instance-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.instance-item .instance-path {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Auth Method Selector - Flat Style                                           *
+ *                                                                             *
+ ******************************************************************************/
+
+.auth-method-card {
+    -fx-background-color: -afx-surface-container-low;
+    -fx-background-radius: 12px;
+    -fx-padding: 16px;
+    -fx-effect: -afx-shadow-1;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-spacing: 8px;
+}
+
+.auth-method-card:hover {
+    -fx-effect: -afx-shadow-2;
+    -fx-background-color: derive(-afx-surface-container-low, 3%);
+}
+
+.auth-method-card:selected {
+    -fx-border-color: -afx-primary;
+    -fx-border-radius: 12px;
+    -fx-border-width: 2px;
+    -fx-background-color: derive(-afx-primary, 92%);
+}
+
+.auth-method-card .auth-icon {
+    -fx-fill: -afx-primary;
+}
+
+.auth-method-card .auth-name {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 14px;
+    -fx-font-weight: 500;
+}
+
+.auth-method-card .auth-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+    -fx-text-alignment: center;
+    -fx-wrap-text: true;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX List Cell Rippler Override                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-list-cell .rippler {
+    -jfx-rippler-fill: -afx-primary;
+}
+
+.jfx-list-cell:selected .rippler {
+    -jfx-rippler-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Button Rippler Override                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-button .jfx-rippler {
+    -jfx-rippler-fill: -afx-primary;
+}
+
+.jfx-button.button-primary .jfx-rippler {
+    -jfx-rippler-fill: -afx-on-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Toggle Node - Flat Style                                                *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-toggle-node {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 12px;
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-cursor: hand;
+}
+
+.jfx-toggle-node:hover {
+    -fx-background-color: derive(-afx-surface-variant, 10%);
+}
+
+.jfx-toggle-node:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Chip View - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-chip-view {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-padding: 4px;
+}
+
+.jfx-chip-view .chip {
+    -fx-background-color: -afx-secondary-container;
+    -fx-background-radius: 16px;
+    -fx-padding: 4px 12px;
+    -fx-text-fill: -afx-on-secondary-container;
+    -fx-font-size: 13px;
+}
+
+.jfx-chip-view .chip .close-button {
+    -fx-background-color: transparent;
+    -fx-padding: 2px;
+    -fx-cursor: hand;
+}
+
+.jfx-chip-view .chip .close-button:hover {
+    -fx-background-color: derive(-afx-error, 80%);
+    -fx-background-radius: 50%;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Dialog Overlay                                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-dialog-overlay-pane {
+    -fx-background-color: #00000052;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Drawer - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-drawer {
+    -fx-background-color: -afx-surface-container;
+}
+
+.jfx-drawer .jfx-drawer-content {
+    -fx-background-color: -afx-surface-container;
+    -fx-effect: -afx-shadow-3;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Hamburger - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-hamburger {
+    -fx-padding: 8px;
+    -fx-cursor: hand;
+}
+
+.jfx-hamburger StackPane {
+    -fx-background-color: -afx-on-surface;
+    -fx-pref-width: 20px;
+    -fx-pref-height: 2px;
+    -fx-background-radius: 1px;
+}
+
+.jfx-hamburger:hover StackPane {
+    -fx-background-color: -afx-primary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * JFX Nodes List - Flat Style                                                 *
+ *                                                                             *
+ ******************************************************************************/
+
+.jfx-nodes-list {
+    -fx-background-color: transparent;
+}
+
+.jfx-nodes-list .jfx-button {
+    -fx-background-color: -afx-primary;
+    -fx-text-fill: -afx-on-primary;
+    -fx-background-radius: 50%;
+    -fx-min-width: 48px;
+    -fx-min-height: 48px;
+    -fx-effect: -afx-shadow-2;
+}
+
+.jfx-nodes-list .jfx-button:hover {
+    -fx-background-color: derive(-afx-primary, 10%);
+    -fx-effect: -afx-shadow-3;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Notification Badge - Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.notification-badge {
+    -fx-background-color: -afx-error;
+    -fx-background-radius: 50%;
+    -fx-min-width: 18px;
+    -fx-min-height: 18px;
+    -fx-alignment: center;
+}
+
+.notification-badge .text {
+    -fx-fill: -afx-on-error;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Empty State - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.empty-state {
+    -fx-alignment: center;
+    -fx-spacing: 16px;
+    -fx-padding: 48px;
+}
+
+.empty-state .empty-icon {
+    -fx-fill: -afx-on-surface-variant;
+    -fx-opacity: 0.5;
+}
+
+.empty-state .empty-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+}
+
+.empty-state .empty-desc {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 13px;
+    -fx-text-alignment: center;
+    -fx-wrap-text: true;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Search Field - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.search-field {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 24px;
+    -fx-border-radius: 24px;
+    -fx-border-color: transparent;
+    -fx-padding: 10px 16px 10px 40px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-prompt-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 14px;
+}
+
+.search-field:focused {
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 1.5px;
+    -fx-background-color: -afx-surface;
+}
+
+.search-field .search-icon {
+    -fx-fill: -afx-on-surface-variant;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Filter Chip - Flat Style                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.filter-chip {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 16px;
+    -fx-padding: 6px 14px;
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+    -fx-border-radius: 16px;
+}
+
+.filter-chip:hover {
+    -fx-background-color: derive(-afx-surface-container-highest, 5%);
+}
+
+.filter-chip:selected {
+    -fx-background-color: -afx-secondary-container;
+    -fx-text-fill: -afx-on-secondary-container;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Bottom Sheet - Flat Style                                                   *
+ *                                                                             *
+ ******************************************************************************/
+
+.bottom-sheet {
+    -fx-background-color: -afx-surface-container-high;
+    -fx-background-radius: 16px 16px 0 0;
+    -fx-effect: -afx-shadow-4;
+    -fx-padding: 16px;
+}
+
+.bottom-sheet .sheet-handle {
+    -fx-background-color: -afx-outline-variant;
+    -fx-background-radius: 2px;
+    -fx-pref-width: 40px;
+    -fx-pref-height: 4px;
+}
+
+.bottom-sheet .sheet-title {
+    -fx-text-fill: -afx-on-surface;
+    -fx-font-size: 18px;
+    -fx-font-weight: 600;
+    -fx-padding: 8px 0 16px 0;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Floating Action Button - Flat Style                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.fab {
+    -fx-background-color: -afx-primary;
+    -fx-background-radius: 50%;
+    -fx-min-width: 56px;
+    -fx-min-height: 56px;
+    -fx-max-width: 56px;
+    -fx-max-height: 56px;
+    -fx-padding: 0;
+    -fx-effect: -afx-shadow-3;
+    -fx-cursor: hand;
+}
+
+.fab:hover {
+    -fx-background-color: derive(-afx-primary, 10%);
+    -fx-effect: -afx-shadow-4;
+}
+
+.fab:pressed {
+    -fx-background-color: derive(-afx-primary, -10%);
+    -fx-effect: -afx-shadow-2;
+}
+
+.fab .svg {
+    -fx-fill: -afx-on-primary;
+}
+
+.fab-mini {
+    -fx-min-width: 40px;
+    -fx-min-height: 40px;
+    -fx-max-width: 40px;
+    -fx-max-height: 40px;
+    -fx-effect: -afx-shadow-2;
+}
+
+.fab-mini:hover {
+    -fx-effect: -afx-shadow-3;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Image Placeholder - Flat Style                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.image-placeholder {
+    -fx-background-color: -afx-surface-container-highest;
+    -fx-background-radius: 8px;
+    -fx-alignment: center;
+}
+
+.image-placeholder .placeholder-icon {
+    -fx-fill: -afx-on-surface-variant;
+    -fx-opacity: 0.4;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Chart & Graph - Flat Style                                                  *
+ *                                                                             *
+ ******************************************************************************/
+
+.chart {
+    -fx-background-color: transparent;
+    -fx-padding: 8px;
+}
+
+.chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.chart-vertical-grid-lines {
+    -fx-stroke: -afx-outline-variant;
+    -fx-stroke-width: 1px;
+    -fx-opacity: 0.5;
+}
+
+.chart-horizontal-grid-lines {
+    -fx-stroke: -afx-outline-variant;
+    -fx-stroke-width: 1px;
+    -fx-opacity: 0.5;
+}
+
+.chart-series-line {
+    -fx-stroke-width: 2px;
+}
+
+.chart-series-area-fill {
+    -fx-opacity: 0.2;
+}
+
+.axis {
+    -fx-tick-label-fill: -afx-on-surface-variant;
+    -fx-tick-label-font-size: 11px;
+}
+
+.axis-label {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Terminal / Console - Flat Style                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.terminal {
+    -fx-background-color: #1e1e1e;
+    -fx-background-radius: 8px;
+    -fx-padding: 12px;
+    -fx-font-family: "Consolas", "Monaco", "Courier New", monospace;
+    -fx-font-size: 13px;
+}
+
+.terminal .text {
+    -fx-fill: #d4d4d4;
+}
+
+.terminal .prompt {
+    -fx-fill: -afx-primary;
+}
+
+.terminal .error {
+    -fx-fill: -afx-error;
+}
+
+.terminal .success {
+    -fx-fill: #4caf50;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Drag & Drop Overlay                                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.drag-overlay {
+    -fx-background-color: derive(-afx-primary, 90%);
+    -fx-border-color: -afx-primary;
+    -fx-border-width: 2px;
+    -fx-border-style: dashed;
+    -fx-border-radius: 8px;
+}
+
+.drag-overlay .drag-label {
+    -fx-text-fill: -afx-primary;
+    -fx-font-size: 16px;
+    -fx-font-weight: 600;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Transition Overlay                                                          *
+ *                                                                             *
+ ******************************************************************************/
+
+.transition-overlay {
+    -fx-background-color: #0000003D;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * ScrollPane - Flat Style                                                     *
+ *                                                                             *
+ ******************************************************************************/
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Label Variants                                                              *
+ *                                                                             *
+ ******************************************************************************/
+
+.label-primary {
+    -fx-text-fill: -afx-primary;
+}
+
+.label-secondary {
+    -fx-text-fill: -afx-on-surface-variant;
+}
+
+.label-error {
+    -fx-text-fill: -afx-error;
+}
+
+.label-success {
+    -fx-text-fill: #2e7d32;
+}
+
+.label-warning {
+    -fx-text-fill: #e65100;
+}
+
+.label-caption {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 12px;
+}
+
+.label-overline {
+    -fx-text-fill: -afx-on-surface-variant;
+    -fx-font-size: 10px;
+    -fx-font-weight: 600;
+    -fx-letter-spacing: 1px;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Font Size Utilities                                                         *
+ *                                                                             *
+ ******************************************************************************/
+
+.text-xs   { -fx-font-size: 10px; }
+.text-sm   { -fx-font-size: 12px; }
+.text-base { -fx-font-size: 14px; }
+.text-lg   { -fx-font-size: 16px; }
+.text-xl   { -fx-font-size: 18px; }
+.text-2xl  { -fx-font-size: 20px; }
+.text-3xl  { -fx-font-size: 24px; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Font Weight Utilities                                                       *
+ *                                                                             *
+ ******************************************************************************/
+
+.font-normal { -fx-font-weight: normal; }
+.font-medium { -fx-font-weight: 500; }
+.font-semibold { -fx-font-weight: 600; }
+.font-bold { -fx-font-weight: bold; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Opacity Utilities                                                           *
+ *                                                                             *
+ ******************************************************************************/
+
+.opacity-50  { -fx-opacity: 0.5; }
+.opacity-60  { -fx-opacity: 0.6; }
+.opacity-70  { -fx-opacity: 0.7; }
+.opacity-80  { -fx-opacity: 0.8; }
+.opacity-90  { -fx-opacity: 0.9; }
+.opacity-100 { -fx-opacity: 1; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Cursor Utilities                                                            *
+ *                                                                             *
+ ******************************************************************************/
+
+.cursor-hand { -fx-cursor: hand; }
+.cursor-default { -fx-cursor: default; }
+.cursor-text { -fx-cursor: text; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Rounded Utilities                                                           *
+ *                                                                             *
+ ******************************************************************************/
+
+.rounded-sm  { -fx-background-radius: 4px;  -fx-border-radius: 4px; }
+.rounded     { -fx-background-radius: 8px;  -fx-border-radius: 8px; }
+.rounded-lg  { -fx-background-radius: 12px; -fx-border-radius: 12px; }
+.rounded-xl  { -fx-background-radius: 16px; -fx-border-radius: 16px; }
+.rounded-full { -fx-background-radius: 50%;  -fx-border-radius: 50%; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Shadow Utilities                                                            *
+ *                                                                             *
+ ******************************************************************************/
+
+.shadow-1 { -fx-effect: -afx-shadow-1; }
+.shadow-2 { -fx-effect: -afx-shadow-2; }
+.shadow-3 { -fx-effect: -afx-shadow-3; }
+.shadow-4 { -fx-effect: -afx-shadow-4; }
+
+/*******************************************************************************
+ *                                                                             *
+ * Color Utilities                                                             *
+ *                                                                             *
+ ******************************************************************************/
+
+.bg-surface { -fx-background-color: -afx-surface; }
+.bg-surface-variant { -fx-background-color: -afx-surface-variant; }
+.bg-surface-container { -fx-background-color: -afx-surface-container; }
+.bg-surface-container-low { -fx-background-color: -afx-surface-container-low; }
+.bg-surface-container-high { -fx-background-color: -afx-surface-container-high; }
+.bg-primary { -fx-background-color: -afx-primary; }
+.bg-primary-container { -fx-background-color: -afx-primary-container; }
+.bg-secondary-container { -fx-background-color: -afx-secondary-container; }
+.bg-error { -fx-background-color: -afx-error; }
+.bg-error-container { -fx-background-color: -afx-error-container; }
+
+.text-primary { -fx-text-fill: -afx-primary; }
+.text-on-surface { -fx-text-fill: -afx-on-surface; }
+.text-on-surface-variant { -fx-text-fill: -afx-on-surface-variant; }
+.text-on-primary { -fx-text-fill: -afx-on-primary; }
+.text-on-secondary-container { -fx-text-fill: -afx-on-secondary-container; }
+.text-error { -fx-text-fill: -afx-error; }

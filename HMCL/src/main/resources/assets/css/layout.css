@@ -1,0 +1,49 @@
+/* 布局模式通用样式 */
+
+/* 默认布局 */
+.layout-mode-default .launch-button {
+    -fx-background-radius: 5;
+}
+
+.layout-mode-default .game-title {
+    -fx-font-size: 24px;
+}
+
+/* 紧凑布局 */
+.layout-mode-compact {
+    -fx-font-size: 13px;
+}
+
+.layout-mode-compact .game-title {
+    -fx-font-size: 18px;
+}
+
+.layout-mode-compact .launch-button {
+    -fx-background-radius: 4;
+    -fx-padding: 8 16;
+}
+
+.layout-mode-compact .subtitle-label {
+    -fx-font-size: 12px;
+}
+
+/* 现代布局 */
+.layout-mode-modern {
+    -fx-font-size: 15px;
+}
+
+.layout-mode-modern .game-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+}
+
+.layout-mode-modern .launch-button {
+    -fx-background-radius: 30;
+    -fx-padding: 14 32;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 8, 0, 0, 2);
+}
+
+.layout-mode-modern .launch-button:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 12, 0, 0, 4);
+    -fx-translate-y: -1;
+}
