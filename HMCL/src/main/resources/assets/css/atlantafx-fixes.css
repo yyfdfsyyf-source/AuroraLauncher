@@ -80,7 +80,7 @@
 }
 
 .button:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 .button:pressed {
@@ -153,7 +153,7 @@
 }
 
 .button.button-icon:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 /*******************************************************************************
@@ -298,7 +298,7 @@
 }
 
 .toggle-icon4:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 .toggle-icon4:pressed {
@@ -327,7 +327,7 @@
 }
 
 .toggle-icon-tiny:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 .announcement-close-button {
@@ -344,7 +344,7 @@
 }
 
 .announcement-close-button:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 /*******************************************************************************
@@ -366,7 +366,7 @@
 }
 
 .jfx-decorator-button:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 .jfx-decorator-button .svg {
@@ -645,7 +645,7 @@
 }
 
 .combo-box-popup .list-view .list-cell:hover {
-    -fx-background-color: derive(-afx-secondary-container, 50%);
+    -fx-background-color: -monet-on-surface-variant-transparent-38;
 }
 
 .combo-box-popup .list-view .list-cell:selected {
@@ -686,7 +686,7 @@
 }
 
 .list-view .list-cell:hover {
-    -fx-background-color: derive(-afx-secondary-container, 50%);
+    -fx-background-color: -monet-on-surface-variant-transparent-38;
 }
 
 .list-view .list-cell:selected {
@@ -745,7 +745,7 @@
 }
 
 .tab-pane .tab:hover {
-    -fx-background-color: derive(-afx-surface-variant, 10%);
+    -fx-background-color: derive(-afx-surface-variant, 6%);
 }
 
 .tab-pane .tab:selected {
@@ -833,6 +833,9 @@
     -fx-padding: 24px;
     -fx-background-color: -afx-surface-container-high;
     -fx-effect: -afx-shadow-4;
+    -fx-min-width: 280px;
+    -fx-pref-width: 400px;
+    -fx-max-width: 560px;
 }
 
 .jfx-layout-heading {
@@ -840,17 +843,24 @@
     -fx-font-size: 20px;
     -fx-text-fill: -afx-on-surface;
     -fx-padding: 0 0 16px 0;
+    -fx-max-width: infinity;
 }
 
 .jfx-layout-body {
     -fx-text-fill: -afx-on-surface-variant;
     -fx-wrap-text: true;
     -fx-padding: 0 0 24px 0;
+    -fx-min-width: 0;
+    -fx-pref-width: -1;
+    -fx-max-width: infinity;
 }
 
 .jfx-layout-actions {
     -fx-alignment: center-right;
     -fx-spacing: 8px;
+    -fx-min-width: 0;
+    -fx-pref-width: -1;
+    -fx-max-width: infinity;
 }
 
 .dialog-accept {
@@ -1225,8 +1235,8 @@
 
 .options-list-item {
     -fx-background-color: -afx-surface;
-    -fx-border-color: -afx-outline-variant;
-    -fx-border-width: 1px 0 0 0;
+    -fx-border-color: derive(-afx-outline-variant, -35%);
+    -fx-border-width: 0.5px 0 0 0;
     -fx-padding: 12px 16px;
     -fx-font-size: 13px;
 }

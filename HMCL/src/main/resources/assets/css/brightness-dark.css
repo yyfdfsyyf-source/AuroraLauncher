@@ -18,3 +18,39 @@
     -fixed-log-fatal: #842029;
     -fixed-log-selected: #6C757D;
 }
+
+/* Softer dividers */
+.options-list-item {
+    -fx-border-color: derive(-monet-outline-variant, -35%);
+    -fx-border-width: 0.5px 0 0 0;
+}
+
+.md-list-cell {
+    -fx-border-color: derive(-monet-outline-variant, -35%);
+}
+
+.installer-item-wrapper .installer-item:list-item {
+    -fx-border-color: derive(-monet-outline-variant, -35%);
+}
+
+.log-window-list-cell {
+    -fx-border-color: derive(-monet-outline-variant, -35%);
+}
+
+.content-background,
+.gray-background {
+    -fx-background-color: -monet-surface-transparent-80;
+}
+
+/* Subtle hover for list items */
+.combo-box-popup .list-view .list-cell:hover > .jfx-rippler > StackPane {
+    -fx-background-color: -monet-on-surface-variant-transparent-38;
+}
+
+.advanced-list-item:selected > .rippler-container > .container {
+    -fx-background-color: -monet-secondary-container-transparent-50;
+}
+
+.profile-list-item:selected > .rippler-container > BorderPane {
+    -fx-background-color: -monet-secondary-container-transparent-50;
+}
