@@ -51,6 +51,7 @@ import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.animation.ContainerAnimations;
 import org.jackhuang.hmcl.ui.animation.Motion;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
+import org.jackhuang.hmcl.ui.construct.BackgroundDownloadIndicator;
 import org.jackhuang.hmcl.ui.wizard.Navigation;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 
@@ -230,6 +231,11 @@ public class DecoratorSkin extends SkinBase<Decorator> {
             HBox buttonsContainer = new HBox();
             buttonsContainer.setAlignment(Pos.TOP_RIGHT);
             buttonsContainer.setMaxHeight(40);
+
+            // Background download indicator
+            BackgroundDownloadIndicator downloadIndicator = new BackgroundDownloadIndicator();
+            downloadIndicator.visibleProperty().bind(skinnable.backgroundDownloadExecutorProperty().isNotNull());
+
             {
                 JFXButton btnHelp = new JFXButton();
                 btnHelp.setFocusTraversable(false);
@@ -249,8 +255,16 @@ public class DecoratorSkin extends SkinBase<Decorator> {
                 btnClose.getStyleClass().add("jfx-decorator-button");
                 btnClose.setOnAction(e -> skinnable.close());
 
-                buttonsContainer.getChildren().setAll(btnHelp, btnMin, btnClose);
+                buttonsContainer.getChildren().setAll(downloadIndicator, btnHelp, btnMin, btnClose);
             }
+
+            // Bind download indicator to executor
+            skinnable.backgroundDownloadExecutorProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    downloadIndicator.bindTaskExecutor(newVal);
+                }
+            });
+
             AnchorPane layer = new AnchorPane();
             layer.setPickOnBounds(false);
             layer.getChildren().add(buttonsContainer);

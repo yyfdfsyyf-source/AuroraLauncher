@@ -1,19 +1,71 @@
-# Local replacement assets / dev notes (do not commit)
-替换用/
-project_structure.txt
+# ============================================
+# Git Whitelist - Only Source Code
+# ============================================
 
-# Gradle build
+# Block everything by default
+*
+
+# Allow source directories
+!HMCL/src/
+!HMCL/src/**/
+!HMCL/src/**/*
+!HMCLCore/src/
+!HMCLCore/src/**/
+!HMCLCore/src/**/*
+!HMCLBoot/src/
+!HMCLBoot/src/**/
+!HMCLBoot/src/**/*
+!buildSrc/src/
+!buildSrc/src/**/
+!buildSrc/src/**/*
+
+# Allow gradle build scripts
+!build.gradle.kts
+!settings.gradle.kts
+!gradle/libs.versions.toml
+!HMCL/build.gradle.kts
+!HMCLCore/build.gradle.kts
+!HMCLBoot/build.gradle.kts
+!buildSrc/build.gradle.kts
+!buildSrc/settings.gradle.kts
+
+# Allow gradle wrapper
+!gradle/
+!gradle/wrapper/
+!gradle/wrapper/*
+!gradlew
+!gradlew.bat
+
+# Allow config files
+!config/
+!config/**/
+!config/**/*
+
+# Allow documentation
+!LICENSE
+!README.md
+
+# Allow resources (assets)
+!HMCL/src/main/resources/
+!HMCL/src/main/resources/**/
+!HMCL/src/main/resources/**/*
+!HMCLCore/src/main/resources/
+!HMCLCore/src/main/resources/**/
+!HMCLCore/src/main/resources/**/*
+
+# ============================================
+# Exclusions (even within allowed directories)
+# ============================================
+
+# Local replacement assets
+assets-local/
+
+# Build outputs
 .gradle/
 build/
 **/build/
 
-# Gradle wrapper backup (use root gradle/wrapper only)
-HMCL/gradle/wrapper/
-
-# Gradle wrapper
-gradle-9.5.1/
-
-# IDE
+# IDE files
 .idea/
 *.iml
 *.ipr
@@ -24,7 +76,7 @@ gradle-9.5.1/
 .vscode/
 *.code-workspace
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
@@ -43,28 +95,31 @@ Thumbs.db
 .cnb/
 .gemini/
 .trae/
+.comate/
 
 # Logs
 *.log
 *.log.xz
 
-# Lib
+# Libraries
 lib/
 
-# Image directories
+# Images
 HMCL/image/
 HMCLBoot/image/
+_icon_preview.png
 
-# Start scripts (optional)
+# Start scripts
 start-*.bat
 start-*.sh
 
-# Terracotta templates (optional)
-HMCL/terracotta-template.json
-
-# GitHub workflows (optional for Gitee)
+# GitHub/Git workflows
 .github/
 .gitee/
 
-# Minecraft libraries directory (large)
+# Minecraft libraries
 minecraft/
+
+# Gradle wrapper backup
+gradle-9.5.1/
+HMCL/gradle/wrapper/

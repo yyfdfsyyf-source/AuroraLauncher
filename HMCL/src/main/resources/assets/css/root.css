@@ -914,6 +914,11 @@
     -fx-text-fill: -monet-on-surface;
     -jfx-checked-color: -monet-primary;
     -jfx-unchecked-color: transparent;
+    -fx-background-color: transparent;
+}
+
+.jfx-check-box .label {
+    -fx-background-color: transparent;
 }
 
 .table-view .jfx-check-box .jfx-rippler {
@@ -2000,4 +2005,56 @@
 
 .update-pane:active .subtitle-label {
     -fx-text-fill: -monet-tertiary;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Background Download Indicator                                               *
+ *                                                                             *
+ ******************************************************************************/
+
+.background-download-indicator {
+    -fx-background-radius: 4;
+    -fx-background-color: transparent;
+}
+
+.background-download-indicator .track {
+    -fx-background-color: transparent;
+    -fx-background-radius: 4;
+    -fx-border-color: -monet-on-surface-variant;
+    -fx-border-radius: 4;
+    -fx-border-width: 2;
+}
+
+.background-download-indicator .bar {
+    -fx-background-color: -monet-primary;
+    -fx-background-radius: 2;
+    -fx-background-insets: 2;
+}
+
+/*******************************************************************************
+ *                                                                             *
+ * Settings Page Background                                                    *
+ *                                                                             *
+ ******************************************************************************/
+
+.settings-page {
+    -fx-background-color: -monet-surface;
+}
+
+.settings-page .scroll-pane {
+    -fx-background-color: transparent;
+}
+
+.settings-page .scroll-pane .viewport {
+    -fx-background-color: transparent;
+}
+
+.settings-page-content {
+    -fx-background-color: transparent;
+}
+
+/* Settings page background decoration */
+.settings-page-bg {
+    -fx-background-color: linear-gradient(to bottom, -monet-surface-container-high, -monet-surface);
 }

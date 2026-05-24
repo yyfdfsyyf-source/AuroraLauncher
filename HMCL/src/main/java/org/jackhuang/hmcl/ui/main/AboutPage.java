@@ -60,7 +60,7 @@ public final class AboutPage extends SpinnerPane {
 
             var author = LineButton.createExternalLinkButton("https://space.bilibili.com/3493133803325686?spm_id_from=333.1007.0.0");
             author.setLargeTitle(true);
-            author.setLeading(FXUtils.newBuiltinImage("/assets/img/author.png"));
+            author.setLeading(FXUtils.newBuiltinImage("/assets/img/author.png"), 40);
             author.setTitle("YYFDFS");
             author.setSubtitle(i18n("about.author.statement"));
 

@@ -40,6 +40,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.jackhuang.hmcl.Launcher;
+import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.animation.AnimationUtils;
 import org.jackhuang.hmcl.ui.animation.Motion;
@@ -68,6 +69,9 @@ public class Decorator extends Control {
     private final ReadOnlyBooleanWrapper dragging = new ReadOnlyBooleanWrapper();
 
     private boolean playRestoreMinimizeAnimation = false;
+
+    // Background download indicator
+    private final ObjectProperty<TaskExecutor> backgroundDownloadExecutor = new SimpleObjectProperty<>();
 
     public Decorator(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -306,5 +310,18 @@ public class Decorator extends Control {
 
     public void setNavigationDirection(Navigation.NavigationDirection navigationDirection) {
         this.navigationDirection = navigationDirection;
+    }
+
+    // Background download indicator properties
+    public ObjectProperty<TaskExecutor> backgroundDownloadExecutorProperty() {
+        return backgroundDownloadExecutor;
+    }
+
+    public TaskExecutor getBackgroundDownloadExecutor() {
+        return backgroundDownloadExecutor.get();
+    }
+
+    public void setBackgroundDownloadExecutor(TaskExecutor executor) {
+        this.backgroundDownloadExecutor.set(executor);
     }
 }
