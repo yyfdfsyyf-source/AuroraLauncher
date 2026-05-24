@@ -45,13 +45,13 @@ public final class Metadata {
     public static final int MINIMUM_SUPPORTED_JAVA_VERSION = 17;
     public static final int RECOMMENDED_JAVA_VERSION = 21;
 
-    public static final String PUBLISH_URL = "https://github.com/AuroraLauncher";
+    public static final String PUBLISH_URL = "https://gitee.com/YYFDFS/AuroraLauncher/tree/main/";
     public static final String DOWNLOAD_URL = "https://github.com/AuroraLauncher/AuroraLauncher/releases";
     public static final String HMCL_UPDATE_URL = System.getProperty("hmcl.update_source.override", "https://api.github.com/repos/AuroraLauncher/AuroraLauncher/releases/latest");
     public static final String MANUAL_UPDATE_URL = "https://github.com/AuroraLauncher/AuroraLauncher/releases";
 
     public static final String DOCS_URL = "https://github.com/AuroraLauncher/AuroraLauncher/wiki";
-    public static final String CONTACT_URL = "https://github.com/AuroraLauncher/AuroraLauncher/issues";
+    public static final String CONTACT_URL = "https://gitee.com/YYFDFS/AuroraLauncher/issues";
     public static final String CHANGELOG_URL = "https://github.com/AuroraLauncher/AuroraLauncher/releases";
     public static final String EULA_URL = "https://www.gnu.org/licenses/gpl-3.0.html";
     public static final String GROUPS_URL = "https://github.com/AuroraLauncher/AuroraLauncher/discussions";

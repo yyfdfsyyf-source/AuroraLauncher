@@ -58,13 +58,18 @@ public final class AboutPage extends SpinnerPane {
             launcher.setTitle("Aurora Launcher");
             launcher.setSubtitle(Metadata.VERSION);
 
-            var author = LineButton.createExternalLinkButton("https://github.com/YYFDFS");
+            var author = LineButton.createExternalLinkButton("https://space.bilibili.com/3493133803325686?spm_id_from=333.1007.0.0");
             author.setLargeTitle(true);
-            author.setLeading(FXUtils.newBuiltinImage("/assets/img/yellow_fish.png"));
+            author.setLeading(FXUtils.newBuiltinImage("/assets/img/author.png"));
             author.setTitle("YYFDFS");
             author.setSubtitle(i18n("about.author.statement"));
 
-            about.getContent().setAll(launcher, author);
+            var feedback = LineButton.createExternalLinkButton(Metadata.CONTACT_URL);
+            feedback.setLargeTitle(true);
+            feedback.setTitle(i18n("about.feedback"));
+            feedback.setSubtitle(i18n("about.feedback.statement"));
+
+            about.getContent().setAll(launcher, author, feedback);
         }
 
         ComponentList thanks = loadIconedTwoLineList("/assets/about/thanks.json");
@@ -83,12 +88,17 @@ public final class AboutPage extends SpinnerPane {
             claim.setTitle(i18n("about.claim"));
             claim.setSubtitle(i18n("about.claim.statement"));
 
-            var openSource = LineButton.createExternalLinkButton("https://github.com/AuroraLauncher/AuroraLauncher");
+            var disclaimer = new LineButton();
+            disclaimer.setLargeTitle(true);
+            disclaimer.setTitle(i18n("about.disclaimer"));
+            disclaimer.setSubtitle(i18n("about.disclaimer.statement"));
+
+            var openSource = LineButton.createExternalLinkButton(Metadata.PUBLISH_URL);
             openSource.setLargeTitle(true);
             openSource.setTitle(i18n("about.open_source"));
             openSource.setSubtitle(i18n("about.open_source.statement"));
 
-            legal.getContent().setAll(copyright, claim, openSource);
+            legal.getContent().setAll(copyright, disclaimer, claim, openSource);
         }
 
         content.getChildren().setAll(
