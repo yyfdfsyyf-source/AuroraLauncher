@@ -19,9 +19,11 @@ if(MSVC)
 endif()
 
 add_library(aurora_core STATIC
+    src/core/auth.cpp
     src/core/config.cpp
     src/core/hash.cpp
     src/core/http.cpp
+    src/core/http_post.cpp
     src/core/install.cpp
     src/core/java.cpp
     src/core/launch.cpp
@@ -48,7 +50,7 @@ target_compile_definitions(aurora_core PUBLIC
 target_link_libraries(aurora_core PUBLIC aurora_miniz)
 
 if(WIN32)
-    target_link_libraries(aurora_core PUBLIC winhttp bcrypt advapi32 shell32)
+    target_link_libraries(aurora_core PUBLIC winhttp bcrypt advapi32 crypt32 shell32)
 endif()
 
 if(MSVC)
@@ -72,4 +74,11 @@ if(BUILD_TESTING)
         target_compile_options(aurora_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_tests COMMAND aurora_tests)
+
+    add_executable(aurora_auth_tests tests/auth_test.cpp)
+    target_link_libraries(aurora_auth_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_auth_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_auth_tests COMMAND aurora_auth_tests)
 endif()
