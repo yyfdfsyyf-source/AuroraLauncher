@@ -3,13 +3,19 @@ param(
     [string]$CertificateSha1 = $env:AURORA_SIGN_CERT_SHA1,
 
     [Parameter(Mandatory = $false)]
-    [string]$Exe = (Join-Path $PSScriptRoot '..\build\Release\aurora.exe'),
+    [string]$Exe = '',
 
     [Parameter(Mandatory = $false)]
-    [switch]$VerifyOnly
+    [switch]$VerifyOnly,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowUntrusted
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Exe)) {
+    $Exe = Join-Path $PSScriptRoot '..\build\Release\aurora.exe'
+}
 $exePath = (Resolve-Path -LiteralPath $Exe).Path
 
 function Find-SignTool {
@@ -39,7 +45,6 @@ if ($VerifyOnly) {
     & $signTool verify /pa /v $exePath
     exit $LASTEXITCODE
 }
-
 if ([string]::IsNullOrWhiteSpace($CertificateSha1)) {
     throw 'Set AURORA_SIGN_CERT_SHA1 or pass -CertificateSha1. This must identify AuroraLauncher''s own certificate, not another launcher''s certificate.'
 }
@@ -47,6 +52,11 @@ if ([string]::IsNullOrWhiteSpace($CertificateSha1)) {
 & $signTool sign /sha1 $CertificateSha1 /fd SHA256 /tr 'http://timestamp.digicert.com' /td SHA256 /v $exePath
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
+}
+if ($AllowUntrusted) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $exePath
+    Write-Output ("Signature status (untrusted development certificate allowed): {0}" -f $signature.Status)
+    exit 0
 }
 & $signTool verify /pa /v $exePath
 exit $LASTEXITCODE

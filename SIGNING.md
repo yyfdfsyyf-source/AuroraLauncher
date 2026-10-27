@@ -40,7 +40,7 @@ private key. Then sign a Release binary:
 
 ```powershell
 $env:AURORA_SIGN_CERT_SHA1 = "<thumbprint printed by the script>"
-.\scripts\sign-release.ps1
+.\scripts\sign-release.ps1 -AllowUntrusted
 ```
 
 A self-signed signature is not trusted on other machines. For distribution,
