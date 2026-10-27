@@ -29,14 +29,22 @@ struct AssetTask {
     AssetObject object;
 };
 
-std::vector<AssetTask> read_asset_index(const std::filesystem::path& path) {
+struct AssetIndexData {
+    std::vector<AssetTask> tasks;
+    bool virtual_assets = false;
+    bool map_to_resources = false;
+};
+
+AssetIndexData read_asset_index_data(const std::filesystem::path& path) {
     const Json index = read_json_file(path);
     const Json* objects = json_object(index, "objects");
     if (objects == nullptr) {
         fail("Asset index has no objects map: " + path_to_utf8(path));
     }
-    std::vector<AssetTask> tasks;
-    tasks.reserve(objects->size());
+    AssetIndexData data;
+    data.virtual_assets = json_boolean(index, "virtual");
+    data.map_to_resources = json_boolean(index, "map_to_resources");
+    data.tasks.reserve(objects->size());
     for (auto it = objects->begin(); it != objects->end(); ++it) {
         if (!it.value().is_object()) {
             continue;
@@ -50,9 +58,9 @@ std::vector<AssetTask> read_asset_index(const std::filesystem::path& path) {
         if (object.hash.empty()) {
             continue;
         }
-        tasks.push_back(AssetTask{it.key(), std::move(object)});
+        data.tasks.push_back(AssetTask{it.key(), std::move(object)});
     }
-    return tasks;
+    return data;
 }
 
 HttpDownloadOptions http_options_from(const InstallOptions& options) {
@@ -204,6 +212,73 @@ void prepare_natives(const ResolvedVersion& version, const Environment& environm
     }
 }
 
+LegacyAssetLayout legacy_asset_layout(const std::filesystem::path& index_file) {
+    const Json index = read_json_file(index_file);
+    return LegacyAssetLayout{
+        json_boolean(index, "virtual"),
+        json_boolean(index, "map_to_resources"),
+    };
+}
+
+void materialize_legacy_assets(const std::filesystem::path& game_dir,
+                               std::string_view index_id,
+                               const std::filesystem::path& index_file,
+                               bool force) {
+    const AssetIndexData data = read_asset_index_data(index_file);
+    if (!data.virtual_assets && !data.map_to_resources) {
+        return;
+    }
+    const auto objects_dir = game_dir / "assets" / "objects";
+    std::vector<std::filesystem::path> destinations;
+    if (data.virtual_assets) {
+        if (index_id.empty()) {
+            fail("A virtual asset index requires an index id");
+        }
+        destinations.push_back(
+            game_dir / "assets" / "virtual" /
+            checked_relative_path(index_id, "asset index"));
+    }
+    if (data.map_to_resources) {
+        destinations.push_back(game_dir / "resources");
+    }
+
+    std::size_t copied = 0;
+    for (const AssetTask& task : data.tasks) {
+        const auto object_path = objects_dir / checked_relative_path(
+            task.object.hash.substr(0, 2) + "/" + task.object.hash, "asset object");
+        if (!std::filesystem::is_regular_file(object_path)) {
+            fail("Asset object is missing: " + path_to_utf8(object_path));
+        }
+        const auto relative = checked_relative_path(task.name, "asset name");
+        for (const auto& root : destinations) {
+            const auto destination = root / relative;
+            std::error_code error;
+            if (!force && std::filesystem::is_regular_file(destination, error)) {
+                const auto source_size = std::filesystem::file_size(object_path, error);
+                const auto destination_size = error ? 0 : std::filesystem::file_size(destination, error);
+                if (!error && source_size == destination_size) {
+                    continue;
+                }
+            }
+            ensure_directory(destination.parent_path());
+            std::filesystem::copy_file(
+                object_path,
+                destination,
+                std::filesystem::copy_options::overwrite_existing,
+                error);
+            if (error) {
+                fail("Unable to materialize legacy asset '" + task.name + "' at " +
+                     path_to_utf8(destination) + ": " + error.message());
+            }
+            ++copied;
+        }
+    }
+    if (copied > 0) {
+        log_info("Materialized " + std::to_string(copied) + " legacy asset file(s) for index " +
+                 std::string(index_id));
+    }
+}
+
 bool install_logging_config(const VersionMeta& meta,
                             const std::filesystem::path& game_dir,
                             const Environment& environment,
@@ -319,8 +394,13 @@ void install_version(const ResolvedVersion& version,
         if (!std::filesystem::is_regular_file(index_file)) {
             fail("Asset index is missing: " + path_to_utf8(index_file));
         }
-        const auto tasks = read_asset_index(index_file);
-        download_asset_objects(game_dir, tasks, options.force, http_options);
+        const std::string index_name =
+            meta.asset_index && !meta.asset_index->id.empty()
+                ? meta.asset_index->id
+                : (meta.assets.empty() ? "legacy" : meta.assets);
+        const AssetIndexData data = read_asset_index_data(index_file);
+        download_asset_objects(game_dir, data.tasks, options.force, http_options);
+        materialize_legacy_assets(game_dir, index_name, index_file, options.force);
     }
 
     log_info("Version " + meta.id + " is ready");

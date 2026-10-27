@@ -2,6 +2,7 @@
 
 #include "core/branding.hpp"
 #include "core/error.hpp"
+#include "core/proxy.hpp"
 #include "core/strings.hpp"
 
 #include <array>
@@ -164,12 +165,24 @@ HttpResponse http_send(const HttpRequest& request) {
 
     InternetHandle session;
     const std::wstring user_agent = to_wide(kLauncherUserAgent);
-    session.value = WinHttpOpen(
-        user_agent.c_str(),
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS,
-        0);
+    const auto proxy = system_proxy_for_url(request.url);
+    if (proxy) {
+        const std::wstring proxy_server = to_wide(proxy->server);
+        const std::wstring proxy_bypass = to_wide(proxy->bypass);
+        session.value = WinHttpOpen(
+            user_agent.c_str(),
+            WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+            proxy_server.c_str(),
+            proxy_bypass.empty() ? WINHTTP_NO_PROXY_BYPASS : proxy_bypass.c_str(),
+            0);
+    } else {
+        session.value = WinHttpOpen(
+            user_agent.c_str(),
+            WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+            WINHTTP_NO_PROXY_NAME,
+            WINHTTP_NO_PROXY_BYPASS,
+            0);
+    }
     if (session.value == nullptr) {
         fail(win_error("Unable to initialize WinHTTP"));
     }

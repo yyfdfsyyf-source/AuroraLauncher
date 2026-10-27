@@ -3,7 +3,9 @@
 #include "core/branding.hpp"
 #include "core/error.hpp"
 #include "core/hash.hpp"
+#include "core/log.hpp"
 #include "core/paths.hpp"
+#include "core/proxy.hpp"
 #include "core/strings.hpp"
 
 #include <algorithm>
@@ -423,12 +425,24 @@ HttpMetadata perform_request(
 
     InternetHandle session;
     const std::wstring user_agent = to_wide(kLauncherUserAgent);
-    session.value = WinHttpOpen(
-        user_agent.c_str(),
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-        WINHTTP_NO_PROXY_NAME,
-        WINHTTP_NO_PROXY_BYPASS,
-        0);
+    const auto proxy = system_proxy_for_url(url);
+    if (proxy) {
+        const std::wstring proxy_server = to_wide(proxy->server);
+        const std::wstring proxy_bypass = to_wide(proxy->bypass);
+        session.value = WinHttpOpen(
+            user_agent.c_str(),
+            WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+            proxy_server.c_str(),
+            proxy_bypass.empty() ? WINHTTP_NO_PROXY_BYPASS : proxy_bypass.c_str(),
+            0);
+    } else {
+        session.value = WinHttpOpen(
+            user_agent.c_str(),
+            WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+            WINHTTP_NO_PROXY_NAME,
+            WINHTTP_NO_PROXY_BYPASS,
+            0);
+    }
     if (session.value == nullptr) {
         throw RequestError(
             RequestFailure::Transport, 0, std::nullopt, win_error("Unable to initialize WinHTTP"));
@@ -945,11 +959,30 @@ HttpMetadata http_request(std::string_view url,
 }
 
 std::string http_get(std::string_view url) {
-    std::string body;
-    http_request(url, [&body](const void* data, std::size_t size) {
-        body.append(static_cast<const char*>(data), size);
-    });
-    return body;
+    constexpr int kMaxRetries = 3;
+    const HttpDownloadOptions retry_policy;
+    for (int retry = 0;; ++retry) {
+        std::string body;
+        try {
+            http_request(url, [&body](const void* data, std::size_t size) {
+                body.append(static_cast<const char*>(data), size);
+            });
+            return body;
+        } catch (const RequestError& error) {
+            const bool retryable =
+                error.failure() == RequestFailure::Transport ||
+                (error.failure() == RequestFailure::HttpStatus &&
+                 classify_http_status(error.status()) == HttpRetryClass::Retryable);
+            if (!retryable || retry >= kMaxRetries) {
+                throw;
+            }
+            const auto delay =
+                compute_retry_delay(retry, retry_policy, error.retry_after());
+            log_warn("HTTP GET failed, retrying in " +
+                     std::to_string(delay.count()) + " ms: " + display_url(url));
+            std::this_thread::sleep_for(delay);
+        }
+    }
 }
 
 void http_download(std::string_view url,

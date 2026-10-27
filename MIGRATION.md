@@ -27,14 +27,15 @@ D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 | 解压 natives | 完成（Windows） | 仅 `.dll`；已应用 `extract.exclude` |
 | 下载资源索引 | 完成 | SHA-1 |
 | 下载 assets objects | 部分 | 8 线程；真实资源网络未验证 |
-| 旧版 virtual assets | 未开始 | 影响旧版本 |
+| 旧版 virtual assets | 完成 | `virtual`/`map_to_resources` 复制与 `game_assets` |
 | 启动参数生成 | 完成 | `arguments` + 旧 `minecraftArguments` |
-| 下载/注入 logging.client | 未开始 | 未处理 `logging.client` 文件和参数 |
+| 下载/注入 logging.client | 完成 | 下载并注入 `-Dlog4j.configurationFile` |
 | 启动进程 | 部分 | `CreateProcessW`；未做真实游戏启动验证 |
 | 启动前自动修复文件 | 部分 | 需显式 `install` 或 `--install` |
 | 启动失败诊断 | 未开始 | 仅返回退出码/错误 |
-| 版本清单拉取 | 未开始 | 需要本地 JSON |
-| 自动选择 Java | 部分 | 按 major 选最低可用；无 JRE 下载 |
+| 版本清单拉取 | 完成 | `version latest` / `version fetch` |
+| 自动选择 Java | 完成 | 按 major 扫描系统 JDK 和托管运行时 |
+| 托管 Java 下载 | 完成 | Adoptium + SHA-256；大包现场下载待验证 |
 | 内存/窗口配置 | 部分 | CLI/配置文件 |
 | 游戏参数高级选项 | 部分 | 未迁移全部 HMCL 选项 |
 
@@ -43,19 +44,19 @@ D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 | 原能力 | C++ 状态 | 说明 |
 | --- | --- | --- |
 | 离线账号 | 完成 | 离线 UUID、access token `0` |
-| Microsoft 登录 | 未开始 | 无 OAuth/设备码 |
-| Xbox Live / XSTS | 未开始 | 无令牌交换 |
-| 正版皮肤/档案 | 未开始 | 无 API |
-| 刷新令牌持久化 | 未开始 | 无安全存储 |
+| Microsoft 登录 | 完成（需自有 client ID） | 设备码流程；现场登录待验证 |
+| Xbox Live / XSTS | 完成 | 令牌交换和错误处理 |
+| 正版皮肤/档案 | 部分 | 已获取 Minecraft profile；皮肤/披风未迁移 |
+| 刷新令牌持久化 | 完成 | Windows DPAPI 加密的 `auth.dat` |
 | Authlib Injector / 外置登录 | 未开始 | 无 |
-| 多账号管理 | 未开始 | 无 |
+| 多账号管理 | 未开始 | 单会话 |
 
 ## 3. 模组与整合包
 
 | 原能力 | C++ 状态 | 说明 |
 | --- | --- | --- |
-| Fabric/Quilt 安装 | 未开始 | 无 installer 解析 |
-| Forge/NeoForge 安装 | 未开始 | 无 processor/installer |
+| Fabric/Quilt 安装 | 完成 | 官方元数据 + profile JSON |
+| Forge/NeoForge 安装 | 完成（installer bridge） | 官方 installer 下载/校验/执行；现场安装待验证 |
 | 模组依赖解析 | 未开始 | 无 |
 | CurseForge 整合包 | 未开始 | 无 |
 | Modrinth 整合包 | 未开始 | 无 |
@@ -83,8 +84,8 @@ D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 | 启动器自更新 | 未开始 | 无 |
 | 崩溃分析 | 未开始 | 无 |
 | 日志上传 | 未开始 | 无 |
-| 多语言下载镜像 | 未开始 | URL 硬编码 |
-| 代理设置 | 未开始 | 仅 WinHTTP 默认代理 |
+| 多语言下载镜像 | 部分 | 支持自定义镜像 URL 列表，未内置预设 |
+| 代理设置 | 完成 | 环境变量 + WinINET/PAC；无单独 UI |
 | 便携模式 | 未开始 | 配置固定在 `%APPDATA%` |
 
 ## 6. 建议迁移顺序
@@ -100,24 +101,26 @@ flowchart LR
 
 ### 阶段 1：核心稳定化
 
-- 版本清单拉取和版本安装。
-- virtual assets / `map_to_resources`。
-- 下载重试、镜像、限速、代理。
-- 更完整的 Java 选择（版本、位数、内存）。
-- 结构化日志和退出码。
+- 版本清单拉取和版本安装。**已完成**
+- 下载重试、镜像、断点续传、系统代理。**已完成**
+- 版本日志配置。**已完成**
+- virtual assets / `map_to_resources`。**已完成**
+- 更完整的 Java 选择（位数、厂商、内存兼容性）。**部分**
+- 结构化日志和退出码。**部分**
 
 ### 阶段 2：认证
 
-- Microsoft OAuth 设备码。
-- Xbox Live/XSTS/Minecraft 令牌链。
-- 安全保存 refresh token。
-- 正版/离线账号抽象统一。
+- Microsoft OAuth 设备码。**已完成**
+- Xbox Live/XSTS/Minecraft 令牌链。**已完成**
+- DPAPI 保存 refresh token。**已完成**
+- 正版/离线账号抽象统一。**部分**（尚未做多账号）
+- 现场登录和刷新验证。**待验证**
 
 ### 阶段 3：模组加载器
 
-- Fabric/Quilt JSON 安装。
-- Forge/NeoForge installer processors。
-- 启动参数注入和库合并。
+- Fabric/Quilt JSON 安装。**已完成**
+- Forge/NeoForge 官方 installer bridge。**已完成（现场安装待验证）**
+- 启动参数注入和库合并。**沿用 `inheritsFrom`，已完成**
 
 ### 阶段 4：整合包
 
@@ -136,9 +139,9 @@ flowchart LR
 在当前 C++ 代码状态下，不能声称：
 
 - 可以替代 HMCL 的全部功能。
-- 支持 Microsoft 正版登录。
-- 可以直接安装 Forge/Fabric 整合包。
+- 可以直接安装 CurseForge/Modrinth 整合包或解析模组依赖。
 - 已有 GUI、主题、服务端管理。
-- 已通过完整游戏启动、下载和 UI 测试。
+- 已通过完整游戏启动、Microsoft 登录、Forge/NeoForge 完整安装和 UI 测试。
+- 已具备可信发布代码签名（仓库只有自签开发流程）。
 
 这份矩阵会随着实现推进更新；状态以源码和测试为准，不以计划为准。

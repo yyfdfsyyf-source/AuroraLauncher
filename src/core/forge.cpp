@@ -722,6 +722,9 @@ InstallerCommand build_installer_command(const std::filesystem::path& java_execu
     command.arguments = {
         "-Djava.awt.headless=true",
         "-Dfile.encoding=UTF-8",
+        // The installer downloads its own artifacts. On Windows this makes the
+        // JVM honour the same system proxy configuration as the launcher.
+        "-Djava.net.useSystemProxies=true",
         "-jar",
         path_to_utf8(absolute_path(installer_jar)),
         "--installClient",
@@ -1096,7 +1099,7 @@ ForgeInstallResult install_forge(const ForgeInstallRequest& request) {
                  std::to_string(java->major));
         }
     } else {
-        java = find_java_runtime(required_java);
+        java = find_java_runtime(required_java, game_dir);
         if (!java) {
             fail("No Java " + std::to_string(required_java) +
                  "+ runtime was found for the Forge installer");

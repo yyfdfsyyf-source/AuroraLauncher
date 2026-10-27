@@ -1,4 +1,5 @@
 #include "core/hash.hpp"
+#include "core/install.hpp"
 #include "core/json.hpp"
 #include "core/launch.hpp"
 #include "core/maven.hpp"
@@ -155,11 +156,13 @@ void test_launch_plan() {
   "type": "release",
   "mainClass": "com.example.Main",
   "assets": "legacy",
-  "minecraftArguments": "${auth_player_name} ${auth_session} --gameDir ${game_directory}",
+  "minecraftArguments": "${auth_player_name} ${auth_session} --gameDir ${game_directory} ${game_assets}",
   "libraries": []
 })");
     aurora::write_text_file(version_dir / "test.jar", "dummy");
-    aurora::write_text_file(game_dir / "assets" / "indexes" / "legacy.json", "{}");
+    aurora::write_text_file(
+        game_dir / "assets" / "indexes" / "legacy.json",
+        R"({"virtual":true,"objects":{}})");
     const auto java = game_dir / "java.exe";
     aurora::write_text_file(java, "dummy");
 
@@ -185,6 +188,9 @@ void test_launch_plan() {
            "offline UUID in plan");
     expect(contains("--width") && contains("1280"), "width in plan");
     expect(contains("--height") && contains("720"), "height in plan");
+    expect(
+        contains(aurora::path_to_utf8(game_dir / "assets" / "virtual" / "legacy")),
+        "virtual game_assets in legacy plan");
     expect(
         std::any_of(plan.arguments.begin(), plan.arguments.end(), [](const std::string& value) {
             return value.size() >= 8 && value.substr(value.size() - 8) == "test.jar";
@@ -275,6 +281,62 @@ void test_zip() {
 
 } // namespace
 
+void test_legacy_assets() {
+    const std::string payload = "legacy-asset-payload";
+    const std::string hash = aurora::sha1_hex(payload);
+
+    const auto run_case = [&](bool virtual_assets) {
+        const auto game_dir = make_temp_dir(virtual_assets ? "virtual-assets" : "mapped-assets");
+        const auto object = game_dir / "assets" / "objects" / hash.substr(0, 2) / hash;
+        aurora::write_text_file(object, payload);
+
+        aurora::Json index = aurora::Json::object();
+        index["objects"] = aurora::Json::object();
+        index["objects"]["minecraft/test.txt"] =
+            aurora::Json::object({{"hash", hash}, {"size", payload.size()}});
+        index[virtual_assets ? "virtual" : "map_to_resources"] = true;
+        const auto index_file = game_dir / "assets" / "indexes" / "legacy.json";
+        aurora::write_text_file(index_file, index.dump());
+
+        const auto layout = aurora::legacy_asset_layout(index_file);
+        expect(
+            layout.virtual_assets == virtual_assets,
+            "legacy asset layout virtual flag");
+        expect(
+            layout.map_to_resources == !virtual_assets,
+            "legacy asset layout map_to_resources flag");
+
+        aurora::materialize_legacy_assets(game_dir, "legacy", index_file, false);
+        const auto expected = virtual_assets
+            ? game_dir / "assets" / "virtual" / "legacy" / "minecraft" / "test.txt"
+            : game_dir / "resources" / "minecraft" / "test.txt";
+        expect(
+            aurora::read_text_file(expected) == payload,
+            virtual_assets ? "virtual asset materialized" : "mapped asset materialized");
+
+        // A second run without --force must be idempotent.
+        aurora::materialize_legacy_assets(game_dir, "legacy", index_file, false);
+    };
+
+    run_case(true);
+    run_case(false);
+
+    const auto game_dir = make_temp_dir("asset-traversal");
+    const auto object = game_dir / "assets" / "objects" / hash.substr(0, 2) / hash;
+    aurora::write_text_file(object, payload);
+    const auto index_file = game_dir / "assets" / "indexes" / "legacy.json";
+    aurora::write_text_file(
+        index_file,
+        R"({"virtual":true,"objects":{"../escape.txt":{"hash":")" + hash + R"(","size":20}}})");
+    bool rejected = false;
+    try {
+        aurora::materialize_legacy_assets(game_dir, "legacy", index_file, false);
+    } catch (const std::exception&) {
+        rejected = true;
+    }
+    expect(rejected, "asset names cannot escape the virtual asset directory");
+}
+
 int main() {
     test_strings();
     test_maven();
@@ -285,6 +347,7 @@ int main() {
     test_modern_launch_plan();
     test_path_safety();
     test_zip();
+    test_legacy_assets();
 
     if (failures != 0) {
         std::cerr << failures << " test(s) failed\n";

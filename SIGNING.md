@@ -24,7 +24,8 @@ OAuth application.
 Microsoft device-code login requires AuroraLauncher's own Azure application
 client ID. The client ID is a public identifier, but it must belong to this
 project, not copied from HMCL or another launcher. Configure it through the
-`authClientId` setting once the auth module is integrated.
+`microsoftClientId` setting (the legacy `authClientId` key is still read for
+compatibility) before running `aurora auth login`.
 
 ## Local development signature
 

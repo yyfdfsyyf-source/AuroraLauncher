@@ -4,9 +4,12 @@
 #include "core/branding.hpp"
 #include "core/config.hpp"
 #include "core/error.hpp"
+#include "core/forge.hpp"
 #include "core/hash.hpp"
+#include "core/http.hpp"
 #include "core/install.hpp"
 #include "core/java.hpp"
+#include "core/java_install.hpp"
 #include "core/json.hpp"
 #include "core/launch.hpp"
 #include "core/loader.hpp"
@@ -40,9 +43,12 @@ void print_help() {
         << "  aurora version show <id> [--game-dir DIR] [--json]\n"
         << "  aurora version latest [--snapshot] [--json]\n"
         << "  aurora version fetch <id> [--game-dir DIR] [--force] [--json]\n"
-        << "  aurora java list [--json]\n"
+        << "  aurora java list [--game-dir DIR] [--json]\n"
+        << "  aurora java install [--feature-version N] [--game-dir DIR] [--force] [--json]\n"
         << "  aurora loader list <fabric|quilt> <game> [--json]\n"
         << "  aurora loader install <fabric|quilt> <game> [options]\n"
+        << "  aurora forge list <forge|neoforge> <game> [--json]\n"
+        << "  aurora forge install <forge|neoforge> <game> [options]\n"
         << "  aurora auth login [--client-id ID] [--json]\n"
         << "  aurora auth status|refresh|logout [--json]\n"
         << "  aurora install <id> [--game-dir DIR] [--force] [--no-fetch] [--no-assets] [--no-libraries] [--no-natives]\n"
@@ -51,7 +57,8 @@ void print_help() {
         << "Launch options:\n"
         << "  --game-dir DIR       Minecraft directory (default: %USERPROFILE%\\.minecraft)\n"
         << "  --java PATH          Java executable (auto-detected by default)\n"
-        << "  --username NAME      Offline player name\n"
+        << "  --username NAME      Offline player name (also forces offline mode)\n"
+        << "  --offline            Ignore the saved Microsoft session\n"
         << "  --memory MB          Maximum heap in MB (accepts 4G / 4096M)\n"
         << "  --width N --height N Window size\n"
         << "  --demo               Enable demo mode\n"
@@ -63,7 +70,14 @@ void print_help() {
         << "  --game-arg VALUE     Append a game argument (repeatable)\n"
         << "  --config FILE        Configuration file\n"
         << "  --verbose            Enable debug logging\n\n"
-        << "This is a no-UI core. Microsoft authentication and a GUI are not implemented yet.\n";
+        << "Forge install options:\n"
+        << "  --loader VERSION     Pin a loader version (default: recommended/newest)\n"
+        << "  --channel NAME       recommended or latest (Forge only)\n"
+        << "  --java-home DIR      Java runtime used to run the installer\n"
+        << "  --sha1 HEX           Pin the installer SHA-1 instead of fetching its sidecar\n"
+        << "  --allow-unverified   Run the installer without a verified SHA-1\n"
+        << "  --no-fetch           Do not fetch the base game version JSON first\n\n"
+        << "This is a no-UI core. A GUI is not implemented yet.\n";
 }
 
 class ArgParser {
@@ -422,45 +436,109 @@ int command_java(const std::vector<std::string>& arguments) {
         print_help();
         return 0;
     }
-    if (arguments.empty() || arguments.front() != "list") {
-        fail("Usage: aurora java list [--json]");
-    }
-    std::vector<std::string> rest(arguments.begin() + 1, arguments.end());
-    ArgParser parser(rest, {"--json"}, {});
-    parser.parse();
-    if (parser.flag("--help")) {
-        print_help();
+    const bool has_subcommand = !arguments.empty() && arguments.front().rfind("-", 0) != 0;
+    const std::string subcommand = has_subcommand ? arguments.front() : "list";
+    std::vector<std::string> rest =
+        has_subcommand ? std::vector<std::string>(arguments.begin() + 1, arguments.end())
+                       : arguments;
+
+    if (subcommand == "list" || subcommand == "ls") {
+        ArgParser parser(rest, {"--json"}, {"--game-dir"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (!parser.positional().empty()) {
+            fail("Unexpected argument: " + parser.positional().front());
+        }
+        const Config config = Config::load(config_path_from(parser));
+        const auto game_dir = game_dir_from(parser, config);
+        const auto runtimes = detect_java_runtimes(game_dir);
+        if (parser.flag("--json")) {
+            Json output = Json::array();
+            for (const JavaRuntime& runtime : runtimes) {
+                Json entry = Json::object();
+                entry["major"] = runtime.major;
+                entry["version"] = runtime.version;
+                entry["vendor"] = runtime.vendor;
+                entry["home"] = path_to_utf8(runtime.home);
+                entry["executable"] = path_to_utf8(runtime.executable);
+                entry["source"] = runtime.source;
+                entry["managed"] = runtime.source == "managed";
+                output.push_back(std::move(entry));
+            }
+            std::cout << output.dump(2) << '\n';
+        } else if (runtimes.empty()) {
+            std::cout << "No Java runtime detected\n";
+        } else {
+            for (const JavaRuntime& runtime : runtimes) {
+                std::cout << runtime.major << "  " << runtime.version << "  "
+                          << (runtime.vendor.empty() ? "unknown" : runtime.vendor);
+                if (runtime.source == "managed") {
+                    std::cout << "  [managed]";
+                }
+                std::cout << '\n';
+                std::cout << "    home: " << path_to_utf8(runtime.home) << '\n';
+                std::cout << "    exe:  " << path_to_utf8(runtime.executable) << '\n';
+                std::cout << "    from: " << runtime.source << '\n';
+            }
+        }
         return 0;
     }
-    if (!parser.positional().empty()) {
-        fail("Unexpected argument: " + parser.positional().front());
-    }
-    const auto runtimes = detect_java_runtimes();
-    if (parser.flag("--json")) {
-        Json output = Json::array();
-        for (const JavaRuntime& runtime : runtimes) {
-            Json entry = Json::object();
-            entry["major"] = runtime.major;
-            entry["version"] = runtime.version;
-            entry["vendor"] = runtime.vendor;
-            entry["home"] = path_to_utf8(runtime.home);
-            entry["executable"] = path_to_utf8(runtime.executable);
-            entry["source"] = runtime.source;
-            output.push_back(std::move(entry));
+
+    if (subcommand == "install") {
+        ArgParser parser(
+            rest, {"--json", "--force"}, {"--game-dir", "--feature-version", "--api-url"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
         }
-        std::cout << output.dump(2) << '\n';
-    } else if (runtimes.empty()) {
-        std::cout << "No Java runtime detected\n";
-    } else {
-        for (const JavaRuntime& runtime : runtimes) {
-            std::cout << runtime.major << "  " << runtime.version << "  "
-                      << (runtime.vendor.empty() ? "unknown" : runtime.vendor) << '\n';
-            std::cout << "    home: " << path_to_utf8(runtime.home) << '\n';
-            std::cout << "    exe:  " << path_to_utf8(runtime.executable) << '\n';
-            std::cout << "    from: " << runtime.source << '\n';
+        if (parser.positional().size() > 1) {
+            fail("Usage: aurora java install [--feature-version N] [--game-dir DIR] [--force]");
         }
+        const Config config = Config::load(config_path_from(parser));
+        const auto game_dir = game_dir_from(parser, config);
+        JavaInstallOptions options;
+        if (const auto feature = parser.value("--feature-version")) {
+            options.feature_version = parse_int(*feature, "--feature-version");
+        }
+        if (!parser.positional().empty()) {
+            if (parser.value("--feature-version")) {
+                fail("Specify the Java feature version either positionally or with "
+                     "--feature-version, not both");
+            }
+            options.feature_version = parse_int(parser.positional().front(), "java version");
+        }
+        if (options.feature_version <= 0) {
+            fail("Java feature version must be positive");
+        }
+        options.force = parser.flag("--force");
+        if (const auto api_url = parser.value("--api-url")) {
+            options.api_url = *api_url;
+        }
+        const JavaRuntime runtime = install_java_runtime(game_dir, options);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["major"] = runtime.major;
+            output["version"] = runtime.version;
+            output["vendor"] = runtime.vendor;
+            output["home"] = path_to_utf8(runtime.home);
+            output["executable"] = path_to_utf8(runtime.executable);
+            output["source"] = runtime.source;
+            std::cout << output.dump(2) << '\n';
+        } else {
+            std::cout << "Java " << runtime.major << " is ready\n";
+            std::cout << "version: " << runtime.version << '\n';
+            std::cout << "vendor: " << (runtime.vendor.empty() ? "unknown" : runtime.vendor) << '\n';
+            std::cout << "home: " << path_to_utf8(runtime.home) << '\n';
+            std::cout << "exe:  " << path_to_utf8(runtime.executable) << '\n';
+        }
+        return 0;
     }
-    return 0;
+
+    fail("Unknown java subcommand: " + subcommand);
 }
 
 LoaderKind parse_loader_kind(const std::string& value) {
@@ -565,6 +643,201 @@ int command_loader(const std::vector<std::string>& arguments) {
     }
 
     fail("Unknown loader subcommand: " + subcommand);
+}
+
+ForgeKind parse_forge_kind(const std::string& value) {
+    if (value == "forge") {
+        return ForgeKind::Forge;
+    }
+    if (value == "neoforge") {
+        return ForgeKind::NeoForge;
+    }
+    fail("Unknown loader kind: " + value + " (expected forge or neoforge)");
+}
+
+std::string_view forge_kind_token(ForgeKind kind) {
+    return kind == ForgeKind::Forge ? "forge" : "neoforge";
+}
+
+std::string_view forge_kind_display(ForgeKind kind) {
+    return kind == ForgeKind::Forge ? "Forge" : "NeoForge";
+}
+
+std::string_view forge_channel_token(ForgeChannel channel) {
+    return channel == ForgeChannel::Recommended ? "recommended" : "latest";
+}
+
+ForgeChannel parse_forge_channel(const std::string& value) {
+    if (value == "recommended") {
+        return ForgeChannel::Recommended;
+    }
+    if (value == "latest") {
+        return ForgeChannel::Latest;
+    }
+    fail("Unknown Forge channel: " + value + " (expected recommended or latest)");
+}
+
+int command_forge(const std::vector<std::string>& arguments) {
+    if (arguments.empty() || arguments.front() == "--help" || arguments.front() == "-h") {
+        print_help();
+        return 0;
+    }
+    const std::string subcommand = arguments.front();
+    std::vector<std::string> rest(arguments.begin() + 1, arguments.end());
+
+    if (subcommand == "list") {
+        ArgParser parser(rest, {"--json"}, {"--promotions-url", "--metadata-url"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (parser.positional().size() != 2) {
+            fail("Usage: aurora forge list <forge|neoforge> <game> [--json]");
+        }
+        const ForgeKind kind = parse_forge_kind(parser.positional()[0]);
+        const std::string minecraft_version = parser.positional()[1];
+        if (!is_safe_minecraft_version(minecraft_version)) {
+            fail("Invalid Minecraft version: " + minecraft_version);
+        }
+        ForgeEndpoints endpoints;
+        if (const auto url = parser.value("--promotions-url")) {
+            endpoints.forge_promotions_url = *url;
+        }
+        if (const auto url = parser.value("--metadata-url")) {
+            endpoints.neoforge_metadata_url = *url;
+        }
+
+        if (kind == ForgeKind::Forge) {
+            const auto promotions = parse_forge_promotions(
+                http_get(endpoints.forge_promotions_url), minecraft_version);
+            if (parser.flag("--json")) {
+                Json output = Json::array();
+                for (const ForgePromotion& promotion : promotions) {
+                    Json entry = Json::object();
+                    entry["version"] = promotion.version;
+                    entry["channel"] = forge_channel_token(promotion.channel);
+                    output.push_back(std::move(entry));
+                }
+                std::cout << output.dump(2) << '\n';
+            } else if (promotions.empty()) {
+                std::cout << "No Forge promotion found for Minecraft " << minecraft_version
+                          << '\n';
+            } else {
+                for (const ForgePromotion& promotion : promotions) {
+                    std::cout << promotion.version << "  "
+                              << forge_channel_token(promotion.channel) << '\n';
+                }
+            }
+            return 0;
+        }
+
+        const auto versions = select_neoforge_versions(
+            parse_neoforge_metadata(http_get(endpoints.neoforge_metadata_url)),
+            minecraft_version);
+        if (parser.flag("--json")) {
+            Json output = Json::array();
+            for (const std::string& version : versions) {
+                output.push_back(version);
+            }
+            std::cout << output.dump(2) << '\n';
+        } else if (versions.empty()) {
+            std::cout << "No NeoForge version found for Minecraft " << minecraft_version << '\n';
+        } else {
+            for (const std::string& version : versions) {
+                std::cout << version << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (subcommand == "install") {
+        ArgParser parser(rest,
+                         {"--json", "--allow-unverified", "--no-fetch"},
+                         {"--game-dir", "--loader", "--channel", "--java-home", "--sha1",
+                          "--promotions-url", "--metadata-url", "--forge-maven-root",
+                          "--neoforge-maven-root"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (parser.positional().size() != 2) {
+            fail("Usage: aurora forge install <forge|neoforge> <game> [options]");
+        }
+
+        const Config config = Config::load(config_path_from(parser));
+        const auto game_dir = game_dir_from(parser, config);
+        ForgeInstallRequest request;
+        request.kind = parse_forge_kind(parser.positional()[0]);
+        request.minecraft_version = parser.positional()[1];
+        if (!is_safe_minecraft_version(request.minecraft_version)) {
+            fail("Invalid Minecraft version: " + request.minecraft_version);
+        }
+        request.game_dir = game_dir;
+        if (const auto loader = parser.value("--loader")) {
+            request.loader_version = *loader;
+        }
+        if (const auto channel = parser.value("--channel")) {
+            if (request.kind != ForgeKind::Forge) {
+                fail("--channel is only valid for Forge; NeoForge selects the newest matching "
+                     "version automatically");
+            }
+            request.channel = parse_forge_channel(*channel);
+        }
+        if (const auto java_home = parser.value("--java-home")) {
+            request.java_home = absolute_path(path_from_utf8(*java_home));
+        }
+        if (const auto sha1 = parser.value("--sha1")) {
+            request.expected_sha1 = *sha1;
+        }
+        request.allow_unverified_installer = parser.flag("--allow-unverified");
+        if (const auto url = parser.value("--promotions-url")) {
+            request.endpoints.forge_promotions_url = *url;
+        }
+        if (const auto url = parser.value("--metadata-url")) {
+            request.endpoints.neoforge_metadata_url = *url;
+        }
+        if (const auto root = parser.value("--forge-maven-root")) {
+            request.endpoints.forge_maven_root = *root;
+        }
+        if (const auto root = parser.value("--neoforge-maven-root")) {
+            request.endpoints.neoforge_maven_root = *root;
+        }
+
+        if (!parser.flag("--no-fetch")) {
+            const VersionRepository repository(game_dir);
+            (void)resolve_version(repository, request.minecraft_version, true);
+        }
+
+        const ForgeInstallResult result = install_forge(request);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["kind"] = std::string(forge_kind_token(result.kind));
+            output["minecraftVersion"] = result.minecraft_version;
+            output["loaderVersion"] = result.loader_version;
+            output["versionId"] = result.version_id;
+            output["jsonPath"] = path_to_utf8(result.version_json);
+            output["installerJar"] = path_to_utf8(result.installer_jar);
+            output["installerLog"] = path_to_utf8(result.installer_log);
+            output["processLog"] = path_to_utf8(result.process_log);
+            output["sha1Verified"] = result.sha1_verified;
+            output["installerExitCode"] = result.installer_exit_code;
+            std::cout << output.dump(2) << '\n';
+        } else {
+            std::cout << "loader: " << forge_kind_display(result.kind) << " "
+                      << result.loader_version << '\n';
+            std::cout << "minecraft: " << result.minecraft_version << '\n';
+            std::cout << "version id: " << result.version_id << '\n';
+            std::cout << "json: " << path_to_utf8(result.version_json) << '\n';
+            std::cout << "installer: " << path_to_utf8(result.installer_jar) << '\n';
+            std::cout << "installer log: " << path_to_utf8(result.installer_log) << '\n';
+            std::cout << "sha1 verified: " << (result.sha1_verified ? "yes" : "no") << '\n';
+        }
+        return 0;
+    }
+
+    fail("Unknown forge subcommand: " + subcommand);
 }
 
 std::filesystem::path auth_store_path() {
@@ -837,11 +1110,12 @@ int command_launch(const std::vector<std::string>& arguments) {
     }
     if (!java_path) {
         const int required = version.meta.java_major.value_or(8);
-        const auto runtime = find_java_runtime(required);
+        const auto runtime = find_java_runtime(required, game_dir);
         if (!runtime) {
             fail("No Java runtime >= " + std::to_string(required) +
-                 " was found. Install a JDK or pass --java PATH. Run 'aurora java list' to inspect "
-                 "detected runtimes.");
+                 " was found. Run 'aurora java install " + std::to_string(required) +
+                 "', install a JDK, or pass --java PATH. 'aurora java list' shows detected "
+                 "runtimes.");
         }
         java_path = runtime->executable;
     }
@@ -1024,6 +1298,9 @@ int run_cli(const std::vector<std::string>& arguments) {
     }
     if (command == "loader") {
         return command_loader(rest);
+    }
+    if (command == "forge") {
+        return command_forge(rest);
     }
     if (command == "auth") {
         return command_auth(rest);

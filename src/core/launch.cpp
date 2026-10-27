@@ -214,6 +214,15 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
         fail("Asset index is missing: " + path_to_utf8(asset_index_file) +
              ". Run 'aurora install " + meta.id + "' first.");
     }
+    const LegacyAssetLayout asset_layout = legacy_asset_layout(asset_index_file);
+    std::string game_assets_dir = assets_dir;
+    if (asset_layout.virtual_assets) {
+        game_assets_dir = path_to_utf8(
+            version.game_dir / "assets" / "virtual" /
+            checked_relative_path(asset_index_name, "asset index"));
+    } else if (asset_layout.map_to_resources) {
+        game_assets_dir = path_to_utf8(version.game_dir / "resources");
+    }
 
     if (options.username.empty()) {
         fail("A player name is required");
@@ -233,7 +242,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     variables["version_name"] = meta.id;
     variables["game_directory"] = path_to_utf8(version.game_dir);
     variables["assets_root"] = assets_dir;
-    variables["game_assets"] = assets_dir;
+    variables["game_assets"] = game_assets_dir;
     variables["assets_index_name"] = asset_index_name;
     variables["auth_uuid"] = auth_uuid;
     variables["auth_access_token"] = auth_access_token;

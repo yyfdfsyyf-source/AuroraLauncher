@@ -664,22 +664,25 @@ void test_installer_command() {
     const auto installer = root / "forge installer.jar";
 
     const auto command = aurora::build_installer_command(java, installer, game_dir);
-    expect(command.arguments.size() == 6, "installer command argument count");
+    expect(command.arguments.size() == 7, "installer command argument count");
     expect(
         command.arguments[0] == "-Djava.awt.headless=true",
         "installer command is headless");
     expect(
         command.arguments[1] == "-Dfile.encoding=UTF-8",
         "installer command encoding");
-    expect(command.arguments[2] == "-jar", "installer command uses -jar");
     expect(
-        command.arguments[3] == aurora::path_to_utf8(aurora::absolute_path(installer)),
+        command.arguments[2] == "-Djava.net.useSystemProxies=true",
+        "installer command uses system proxies");
+    expect(command.arguments[3] == "-jar", "installer command uses -jar");
+    expect(
+        command.arguments[4] == aurora::path_to_utf8(aurora::absolute_path(installer)),
         "installer command uses absolute JAR path");
     expect(
-        command.arguments[4] == "--installClient",
+        command.arguments[5] == "--installClient",
         "installer command uses --installClient");
     expect(
-        command.arguments[5] == aurora::path_to_utf8(aurora::absolute_path(game_dir)),
+        command.arguments[6] == aurora::path_to_utf8(aurora::absolute_path(game_dir)),
         "installer command uses absolute game directory");
     expect(
         command.working_directory == aurora::absolute_path(game_dir),

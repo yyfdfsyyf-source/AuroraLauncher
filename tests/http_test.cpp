@@ -1,9 +1,11 @@
 #include "core/hash.hpp"
 #include "core/http.hpp"
 #include "core/paths.hpp"
+#include "core/proxy.hpp"
 
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -31,6 +33,34 @@ std::filesystem::path make_temp_dir(const std::string& name) {
 
 std::chrono::milliseconds ms(int value) {
     return std::chrono::milliseconds(value);
+}
+
+void test_system_proxy_environment() {
+#ifdef _WIN32
+    _putenv_s("HTTPS_PROXY", "http://127.0.0.1:31181");
+    _putenv_s("HTTP_PROXY", "http://127.0.0.1:31182");
+    _putenv_s("ALL_PROXY", "");
+    _putenv_s("NO_PROXY", "localhost, .example.com");
+
+    const auto https_proxy = aurora::system_proxy_for_url("https://example.org/data");
+    expect(https_proxy.has_value(), "HTTPS proxy is read from the environment");
+    expect(
+        https_proxy && https_proxy->server == "127.0.0.1:31181",
+        "HTTPS proxy server is normalized");
+    expect(
+        https_proxy && https_proxy->bypass == "localhost;.example.com",
+        "NO_PROXY is converted to a bypass list");
+
+    const auto http_proxy = aurora::system_proxy_for_url("http://example.org/data");
+    expect(http_proxy.has_value(), "HTTP proxy is read from the environment");
+    expect(
+        http_proxy && http_proxy->server == "127.0.0.1:31182",
+        "HTTP proxy uses HTTP_PROXY");
+
+    _putenv_s("HTTPS_PROXY", "");
+    _putenv_s("HTTP_PROXY", "");
+    _putenv_s("NO_PROXY", "");
+#endif
 }
 
 void test_retry_classification() {
@@ -226,6 +256,7 @@ void test_checksum_policy() {
 } // namespace
 
 int main() {
+    test_system_proxy_environment();
     test_retry_classification();
     test_backoff();
     test_retry_after();

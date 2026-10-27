@@ -39,6 +39,7 @@ add_library(aurora_core STATIC
     src/core/manifest.cpp
     src/core/paths.cpp
     src/core/process.cpp
+    src/core/proxy.cpp
     src/core/repository.cpp
     src/core/rules.cpp
     src/core/strings.cpp
