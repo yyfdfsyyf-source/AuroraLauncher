@@ -17,6 +17,6 @@ inline constexpr std::string_view kLauncherWebsite = "";
 
 // Microsoft OAuth client IDs must come from AuroraLauncher's own app
 // registration. Never substitute an ID belonging to HMCL or another launcher.
-inline constexpr std::string_view kMicrosoftClientIdConfigKey = "authClientId";
+inline constexpr std::string_view kMicrosoftClientIdConfigKey = "microsoftClientId";
 
 } // namespace aurora

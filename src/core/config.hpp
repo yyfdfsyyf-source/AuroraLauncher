@@ -13,6 +13,7 @@ struct Config {
     int width = 854;
     int height = 480;
     std::string username;
+    std::string microsoft_client_id;
     std::vector<std::string> jvm_args;
     std::vector<std::string> game_args;
     int download_retries = 3;

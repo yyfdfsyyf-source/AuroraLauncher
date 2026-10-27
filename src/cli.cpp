@@ -1,5 +1,6 @@
 #include "cli.hpp"
 
+#include "core/auth.hpp"
 #include "core/branding.hpp"
 #include "core/config.hpp"
 #include "core/error.hpp"
@@ -42,7 +43,9 @@ void print_help() {
         << "  aurora java list [--json]\n"
         << "  aurora loader list <fabric|quilt> <game> [--json]\n"
         << "  aurora loader install <fabric|quilt> <game> [options]\n"
-        << "  aurora install <id> [--game-dir DIR] [--force] [--no-assets] [--no-libraries] [--no-natives]\n"
+        << "  aurora auth login [--client-id ID] [--json]\n"
+        << "  aurora auth status|refresh|logout [--json]\n"
+        << "  aurora install <id> [--game-dir DIR] [--force] [--no-fetch] [--no-assets] [--no-libraries] [--no-natives]\n"
         << "  aurora launch <id> [options]\n"
         << "  aurora config show|set [--config FILE]\n\n"
         << "Launch options:\n"
@@ -564,6 +567,128 @@ int command_loader(const std::vector<std::string>& arguments) {
     fail("Unknown loader subcommand: " + subcommand);
 }
 
+std::filesystem::path auth_store_path() {
+    return app_data_dir() / "auth.dat";
+}
+
+Json public_session_json(const StoredSession& session) {
+    Json output = Json::object();
+    output["username"] = session.minecraft.username;
+    output["uuid"] = session.minecraft.uuid;
+    output["xuid"] = session.minecraft.xuid;
+    output["userType"] = session.minecraft.user_type;
+    output["expired"] = session.minecraft.expired();
+    if (session.minecraft.expires_at != std::chrono::system_clock::time_point{}) {
+        output["expiresAt"] = std::chrono::duration_cast<std::chrono::seconds>(
+                                  session.minecraft.expires_at.time_since_epoch())
+                                  .count();
+    }
+    return output;
+}
+
+void print_session(const StoredSession& session) {
+    std::cout << "username: " << session.minecraft.username << '\n';
+    std::cout << "uuid: " << session.minecraft.uuid << '\n';
+    if (!session.minecraft.xuid.empty()) {
+        std::cout << "xuid: " << session.minecraft.xuid << '\n';
+    }
+    std::cout << "type: " << session.minecraft.user_type << '\n';
+    std::cout << "expired: " << (session.minecraft.expired() ? "yes" : "no") << '\n';
+}
+
+int command_auth(const std::vector<std::string>& arguments) {
+    if (arguments.empty() || arguments.front() == "--help" || arguments.front() == "-h") {
+        print_help();
+        return 0;
+    }
+    const std::string subcommand = arguments.front();
+    std::vector<std::string> rest(arguments.begin() + 1, arguments.end());
+    ArgParser parser(rest, {"--json", "--refresh"}, {"--client-id"});
+    parser.parse();
+    if (parser.flag("--help")) {
+        print_help();
+        return 0;
+    }
+
+    const auto config_path = config_path_from(parser);
+    Config config = Config::load(config_path);
+    const std::string client_id =
+        trim(parser.value("--client-id").value_or(config.microsoft_client_id));
+    AuthStore store(auth_store_path());
+
+    if (subcommand == "login") {
+        if (!parser.positional().empty()) {
+            fail("Unexpected argument: " + parser.positional().front());
+        }
+        if (client_id.empty()) {
+            fail("No Microsoft client ID is configured. Register AuroraLauncher's own Azure "
+                 "application and run 'aurora config set microsoftClientId <client-id>' or pass "
+                 "--client-id. Do not use another launcher's client ID.");
+        }
+        MicrosoftAuth auth(client_id);
+        const DeviceCode code = auth.request_device_code();
+        std::cout << "Sign in to Microsoft/Xbox using your own account.\n";
+        if (!code.message.empty()) {
+            std::cout << code.message << '\n';
+        } else {
+            std::cout << "Open " << code.verification_uri << " and enter code "
+                      << code.user_code << '\n';
+        }
+        std::cout.flush();
+        const StoredSession session = auth.authenticate_device_code(code);
+        store.save(session);
+        if (parser.flag("--json")) {
+            std::cout << public_session_json(session).dump(2) << '\n';
+        } else {
+            std::cout << "Signed in.\n";
+            print_session(session);
+            std::cout << "stored: " << path_to_utf8(store.path()) << '\n';
+        }
+        return 0;
+    }
+
+    if (subcommand == "status" || subcommand == "refresh") {
+        if (!parser.positional().empty()) {
+            fail("Unexpected argument: " + parser.positional().front());
+        }
+        auto session = store.load();
+        if (!session) {
+            fail("No Microsoft account is signed in");
+        }
+        if (parser.flag("--refresh") || subcommand == "refresh" || session->minecraft.expired()) {
+            if (client_id.empty()) {
+                fail("The saved Microsoft session needs a refresh, but no client ID is "
+                     "configured. Set microsoftClientId or sign in again.");
+            }
+            MicrosoftAuth auth(client_id);
+            session = auth.refresh_session(*session);
+            store.save(*session);
+            std::cout << "Session refreshed.\n";
+        }
+        if (parser.flag("--json")) {
+            std::cout << public_session_json(*session).dump(2) << '\n';
+        } else {
+            print_session(*session);
+        }
+        return 0;
+    }
+
+    if (subcommand == "logout") {
+        if (!parser.positional().empty()) {
+            fail("Unexpected argument: " + parser.positional().front());
+        }
+        store.clear();
+        if (parser.flag("--json")) {
+            std::cout << R"({"loggedOut":true})" << '\n';
+        } else {
+            std::cout << "Signed out.\n";
+        }
+        return 0;
+    }
+
+    fail("Unknown auth subcommand: " + subcommand);
+}
+
 int command_install(const std::vector<std::string>& arguments) {
     ArgParser parser(arguments,
                      {"--force", "--no-fetch", "--no-assets", "--no-libraries", "--no-natives"},
@@ -599,9 +724,37 @@ int command_install(const std::vector<std::string>& arguments) {
     return 0;
 }
 
+std::vector<std::string> redacted_launch_arguments(const std::vector<std::string>& arguments) {
+    std::vector<std::string> result = arguments;
+    bool redact_next = false;
+    for (std::string& argument : result) {
+        if (redact_next) {
+            argument = "<redacted>";
+            redact_next = false;
+            continue;
+        }
+        if (argument == "--accessToken" || argument == "--session") {
+            redact_next = true;
+            continue;
+        }
+        if (argument.rfind("--accessToken=", 0) == 0) {
+            argument = "--accessToken=<redacted>";
+        } else if (argument.rfind("--session=", 0) == 0) {
+            argument = "--session=<redacted>";
+        }
+    }
+    return result;
+}
+
+LaunchPlan redacted_launch_plan(const LaunchPlan& plan) {
+    LaunchPlan copy = plan;
+    copy.arguments = redacted_launch_arguments(copy.arguments);
+    return copy;
+}
+
 int command_launch(const std::vector<std::string>& arguments) {
     ArgParser parser(arguments,
-                     {"--demo", "--dry-run", "--json", "--install", "--detach"},
+                     {"--demo", "--dry-run", "--json", "--install", "--detach", "--offline"},
                      {"--game-dir", "--java", "--username", "--memory", "--width", "--height",
                       "--jvm-arg", "--game-arg"});
     parser.parse();
@@ -622,7 +775,34 @@ int command_launch(const std::vector<std::string>& arguments) {
         resolve_version(repository, id, parser.flag("--install"));
 
     LaunchOptions options;
-    options.username = parser.value("--username").value_or(config.username);
+    const bool explicit_username = parser.value("--username").has_value();
+    const bool offline = parser.flag("--offline") || explicit_username;
+    if (!offline) {
+        AuthStore store(auth_store_path());
+        auto session = store.load();
+        if (session) {
+            if (session->minecraft.expired()) {
+                if (config.microsoft_client_id.empty()) {
+                    fail("The saved Microsoft session has expired and no client ID is "
+                         "configured. Run 'aurora auth refresh' after configuring "
+                         "microsoftClientId, or launch with --offline.");
+                }
+                MicrosoftAuth auth(config.microsoft_client_id);
+                session = auth.refresh_session(*session);
+                store.save(*session);
+            }
+            options.online = true;
+            options.username = session->minecraft.username;
+            options.access_token = session->minecraft.access_token;
+            options.uuid = session->minecraft.uuid;
+            options.user_type = session->minecraft.user_type;
+            options.xuid = session->minecraft.xuid;
+            options.client_id = config.microsoft_client_id;
+        }
+    }
+    if (!options.online) {
+        options.username = parser.value("--username").value_or(config.username);
+    }
     options.memory_mb = parser.value("--memory")
         ? parse_memory_mb(*parser.value("--memory"))
         : config.memory_mb;
@@ -674,15 +854,17 @@ int command_launch(const std::vector<std::string>& arguments) {
     const Environment environment = detect_environment();
     const LaunchPlan plan = build_launch_plan(version, environment, options);
     if (parser.flag("--dry-run") || parser.flag("--json")) {
+        const LaunchPlan safe_plan = redacted_launch_plan(plan);
         if (parser.flag("--json")) {
             Json output = Json::object();
-            output["java"] = path_to_utf8(plan.java);
-            output["workingDirectory"] = path_to_utf8(plan.working_directory);
-            output["arguments"] = plan.arguments;
-            output["commandLine"] = plan.command_line();
+            output["java"] = path_to_utf8(safe_plan.java);
+            output["workingDirectory"] = path_to_utf8(safe_plan.working_directory);
+            output["arguments"] = safe_plan.arguments;
+            output["commandLine"] = safe_plan.command_line();
+            output["online"] = options.online;
             std::cout << output.dump(2) << '\n';
         } else {
-            std::cout << plan.command_line() << '\n';
+            std::cout << safe_plan.command_line() << '\n';
         }
         return 0;
     }
@@ -698,6 +880,7 @@ Json config_to_json(const Config& config) {
     value["width"] = config.width;
     value["height"] = config.height;
     value["username"] = config.username;
+    value["microsoftClientId"] = config.microsoft_client_id;
     value["jvmArgs"] = config.jvm_args;
     value["gameArgs"] = config.game_args;
     value["downloadRetries"] = config.download_retries;
@@ -739,6 +922,7 @@ int command_config(const std::vector<std::string>& arguments) {
             std::cout << "width: " << config.width << '\n';
             std::cout << "height: " << config.height << '\n';
             std::cout << "username: " << config.username << '\n';
+            std::cout << "microsoftClientId: " << config.microsoft_client_id << '\n';
             std::cout << "jvmArgs:";
             for (const std::string& argument : config.jvm_args) {
                 std::cout << ' ' << argument;
@@ -777,6 +961,8 @@ int command_config(const std::vector<std::string>& arguments) {
             config.height = parse_int(value, key);
         } else if (key == "username") {
             config.username = value;
+        } else if (key == "microsoftClientId" || key == "authClientId") {
+            config.microsoft_client_id = trim(value);
         } else if (key == "downloadRetries") {
             config.download_retries = parse_int(value, key);
             if (config.download_retries < 0 || config.download_retries > 32) {
@@ -838,6 +1024,9 @@ int run_cli(const std::vector<std::string>& arguments) {
     }
     if (command == "loader") {
         return command_loader(rest);
+    }
+    if (command == "auth") {
+        return command_auth(rest);
     }
     if (command == "install") {
         return command_install(rest);

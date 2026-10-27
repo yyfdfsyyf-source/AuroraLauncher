@@ -69,6 +69,13 @@ Config Config::load(const std::filesystem::path& path) {
     if (const auto username = json_optional_string(value, "username"); username && !username->empty()) {
         config.username = *username;
     }
+    if (const auto client_id = json_optional_string(value, "microsoftClientId");
+        client_id && !client_id->empty()) {
+        config.microsoft_client_id = trim(*client_id);
+    } else if (const auto legacy = json_optional_string(value, "authClientId");
+               legacy && !legacy->empty()) {
+        config.microsoft_client_id = trim(*legacy);
+    }
     config.jvm_args = string_array(value, "jvmArgs");
     config.game_args = string_array(value, "gameArgs");
     const auto download_retries = json_integer(value, "downloadRetries");
@@ -88,6 +95,7 @@ void Config::save(const std::filesystem::path& path) const {
     value["width"] = width;
     value["height"] = height;
     value["username"] = username;
+    value["microsoftClientId"] = microsoft_client_id;
     value["jvmArgs"] = to_json_array(jvm_args);
     value["gameArgs"] = to_json_array(game_args);
     value["downloadRetries"] = download_retries;

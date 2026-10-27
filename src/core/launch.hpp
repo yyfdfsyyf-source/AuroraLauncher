@@ -15,6 +15,14 @@ struct LaunchOptions {
     int width = 854;
     int height = 480;
     std::string username;
+    // Populated only for an authenticated Microsoft account. The caller is
+    // responsible for keeping these values out of logs and JSON diagnostics.
+    bool online = false;
+    std::string access_token;
+    std::string uuid;
+    std::string user_type = "legacy";
+    std::string xuid;
+    std::string client_id;
     bool demo = false;
     std::vector<std::string> extra_jvm_args;
     std::vector<std::string> extra_game_args;

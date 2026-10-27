@@ -1,5 +1,6 @@
 #include "core/launch.hpp"
 
+#include "core/branding.hpp"
 #include "core/error.hpp"
 #include "core/hash.hpp"
 #include "core/install.hpp"
@@ -214,6 +215,19 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
              ". Run 'aurora install " + meta.id + "' first.");
     }
 
+    if (options.username.empty()) {
+        fail("A player name is required");
+    }
+    const bool online = options.online;
+    if (online && (options.access_token.empty() || options.uuid.empty())) {
+        fail("Authenticated launch requires an access token and Minecraft UUID");
+    }
+    const std::string auth_uuid = online ? options.uuid : offline_uuid(options.username);
+    const std::string auth_access_token = online ? options.access_token : "0";
+    const std::string auth_session = online
+        ? "token:" + options.access_token + ":" + options.uuid
+        : "-";
+
     std::map<std::string, std::string> variables;
     variables["auth_player_name"] = options.username;
     variables["version_name"] = meta.id;
@@ -221,16 +235,17 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     variables["assets_root"] = assets_dir;
     variables["game_assets"] = assets_dir;
     variables["assets_index_name"] = asset_index_name;
-    variables["auth_uuid"] = offline_uuid(options.username);
-    variables["auth_access_token"] = "0";
-    variables["auth_session"] = "-";
-    variables["clientid"] = "";
-    variables["auth_xuid"] = "";
-    variables["user_type"] = "legacy";
+    variables["auth_uuid"] = auth_uuid;
+    variables["auth_access_token"] = auth_access_token;
+    variables["auth_session"] = auth_session;
+    variables["clientid"] = online ? options.client_id : "";
+    variables["auth_xuid"] = online ? options.xuid : "";
+    variables["user_type"] = online ? (options.user_type.empty() ? "msa" : options.user_type)
+                                    : "legacy";
     variables["version_type"] = meta.type.empty() ? "release" : meta.type;
     variables["natives_directory"] = path_to_utf8(natives_dir);
-    variables["launcher_name"] = "AuroraLauncher";
-    variables["launcher_version"] = "0.2.0";
+    variables["launcher_name"] = std::string(kLauncherName);
+    variables["launcher_version"] = std::string(kLauncherVersion);
     variables["classpath"] = classpath;
 #ifdef _WIN32
     variables["classpath_separator"] = ";";
@@ -355,9 +370,15 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     add_option(game, "--assetsDir", assets_dir);
     add_option(game, "--assetIndex", asset_index_name);
     add_option(game, "--uuid", variables["auth_uuid"]);
-    add_option(game, "--accessToken", "0");
-    add_option(game, "--userType", "legacy");
+    add_option(game, "--accessToken", variables["auth_access_token"]);
+    add_option(game, "--userType", variables["user_type"]);
     add_option(game, "--versionType", variables["version_type"]);
+    if (online && !variables["auth_xuid"].empty()) {
+        add_option(game, "--xuid", variables["auth_xuid"]);
+    }
+    if (online && !variables["clientid"].empty()) {
+        add_option(game, "--clientId", variables["clientid"]);
+    }
     if (options.width > 0 && options.height > 0) {
         add_option(game, "--width", std::to_string(options.width));
         add_option(game, "--height", std::to_string(options.height));
@@ -379,7 +400,8 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
 }
 
 int launch_game(const LaunchPlan& plan, bool wait) {
-    log_info("Launching " + plan.command_line());
+    // Never log the command line: it contains the Minecraft access token.
+    log_info("Starting Minecraft process: " + path_to_utf8(plan.java));
     return run_process(plan.java, plan.arguments, plan.working_directory, wait);
 }
 
