@@ -71,6 +71,31 @@ bool has_jvm_option(const std::vector<std::string>& arguments, std::string_view 
     return false;
 }
 
+std::string jvm_property_name(std::string_view argument) {
+    const std::size_t equals = argument.find('=');
+    if (equals == std::string_view::npos) {
+        return std::string(argument);
+    }
+    return std::string(argument.substr(0, equals));
+}
+
+bool has_jvm_property(const std::vector<std::string>& arguments, std::string_view property) {
+    if (property.empty()) {
+        return false;
+    }
+    for (const std::string& argument : arguments) {
+        if (argument == property) {
+            return true;
+        }
+        if (argument.size() > property.size() &&
+            argument.compare(0, property.size(), property) == 0 &&
+            argument[property.size()] == '=') {
+            return true;
+        }
+    }
+    return false;
+}
+
 void add_option(std::vector<std::string>& arguments,
                 std::string_view option,
                 std::string value) {
@@ -217,6 +242,31 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     variables["resolution_height"] = std::to_string(options.height);
     variables["user_properties"] = "{}";
 
+    const bool logging_enabled =
+        meta.logging_client && meta.logging_client->allowed(launch_environment);
+    const bool logging_active =
+        logging_enabled && !meta.logging_client->argument.empty();
+    std::filesystem::path logging_file;
+    if (logging_enabled) {
+        logging_file = meta.logging_config_file(version.game_dir);
+        if (!logging_file.empty()) {
+            logging_file = absolute_path(logging_file);
+            if (std::filesystem::is_regular_file(logging_file)) {
+                variables["path"] = path_to_utf8(logging_file);
+            }
+        }
+    }
+    const auto logging_missing_message = [&meta](const std::filesystem::path& path) {
+        std::string message = "Logging configuration is missing: " + path_to_utf8(path);
+        if (meta.logging_client && meta.logging_client->file &&
+            meta.logging_client->file->has_url()) {
+            message += ". Run 'aurora install " + meta.id + "' first.";
+        } else {
+            message += " and the version provides no download URL for it.";
+        }
+        return message;
+    };
+
     std::vector<std::string> jvm;
     jvm.push_back("-Xmx" + std::to_string(options.memory_mb) + "M");
     jvm.push_back("-Xms" + std::to_string(std::min(options.memory_mb, 512)) + "M");
@@ -231,6 +281,43 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
                 const std::string expanded = substitute(value, variables);
                 jvm.push_back(expanded);
             }
+        }
+    }
+
+    if (logging_active) {
+        const std::string& raw_argument = meta.logging_client->argument;
+        const std::string property = jvm_property_name(raw_argument);
+        if (!has_jvm_property(jvm, property) &&
+            !has_jvm_property(options.extra_jvm_args, property)) {
+            const bool needs_path = raw_argument.find("${path}") != std::string::npos;
+            if (logging_file.empty()) {
+                if (needs_path) {
+                    fail("Version '" + meta.id +
+                         "' uses ${path} in logging.client.argument but has no logging file id");
+                }
+            } else if (!std::filesystem::is_regular_file(logging_file)) {
+                fail(logging_missing_message(logging_file));
+            }
+            if (!logging_file.empty()) {
+                variables["path"] = path_to_utf8(logging_file);
+            }
+            const std::string expanded = substitute(raw_argument, variables);
+            if (!expanded.empty()) {
+                jvm.push_back(expanded);
+            }
+        }
+    }
+
+    if (logging_enabled) {
+        for (const std::string& argument : jvm) {
+            if (argument.find("${path}") == std::string::npos) {
+                continue;
+            }
+            if (logging_file.empty()) {
+                fail("Version '" + meta.id +
+                     "' uses ${path} but has no logging file id");
+            }
+            fail(logging_missing_message(logging_file));
         }
     }
 
