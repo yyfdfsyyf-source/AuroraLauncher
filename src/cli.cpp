@@ -8,6 +8,7 @@
 #include "core/java.hpp"
 #include "core/json.hpp"
 #include "core/launch.hpp"
+#include "core/loader.hpp"
 #include "core/log.hpp"
 #include "core/paths.hpp"
 #include "core/repository.hpp"
@@ -35,6 +36,8 @@ void print_help() {
         << "  aurora version list [--game-dir DIR] [--json]\n"
         << "  aurora version show <id> [--game-dir DIR] [--json]\n"
         << "  aurora java list [--json]\n"
+        << "  aurora loader list <fabric|quilt> <game> [--json]\n"
+        << "  aurora loader install <fabric|quilt> <game> [options]\n"
         << "  aurora install <id> [--game-dir DIR] [--force] [--no-assets] [--no-libraries] [--no-natives]\n"
         << "  aurora launch <id> [options]\n"
         << "  aurora config show|set [--config FILE]\n\n"
@@ -191,6 +194,13 @@ std::filesystem::path config_path_from(const ArgParser& parser) {
 
 std::filesystem::path game_dir_from(const ArgParser& parser, const Config& config) {
     return option_path(parser, "--game-dir", config.game_dir);
+}
+
+InstallOptions install_options_from(const Config& config) {
+    InstallOptions options;
+    options.download_retries = config.download_retries;
+    options.download_mirrors = config.download_mirrors;
+    return options;
 }
 
 void print_library_summary(const ResolvedVersion& version, const Environment& environment) {
@@ -357,10 +367,116 @@ int command_java(const std::vector<std::string>& arguments) {
     return 0;
 }
 
+LoaderKind parse_loader_kind(const std::string& value) {
+    if (value == "fabric") {
+        return LoaderKind::Fabric;
+    }
+    if (value == "quilt") {
+        return LoaderKind::Quilt;
+    }
+    fail("Unknown loader: " + value + " (expected fabric or quilt)");
+}
+
+int command_loader(const std::vector<std::string>& arguments) {
+    if (arguments.empty() || arguments.front() == "--help" || arguments.front() == "-h") {
+        print_help();
+        return 0;
+    }
+    const std::string subcommand = arguments.front();
+    std::vector<std::string> rest(arguments.begin() + 1, arguments.end());
+    if (subcommand == "list") {
+        ArgParser parser(rest, {"--json", "--latest"}, {"--game-dir"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (parser.positional().size() != 2) {
+            fail("Usage: aurora loader list <fabric|quilt> <game> [--json]");
+        }
+        const LoaderKind kind = parse_loader_kind(parser.positional()[0]);
+        const LoaderEndpoints endpoints;
+        const auto versions = fetch_loader_versions(kind, parser.positional()[1], endpoints);
+        if (parser.flag("--json")) {
+            Json output = Json::array();
+            for (const LoaderVersion& version : versions) {
+                Json entry = Json::object();
+                entry["version"] = version.version;
+                entry["stable"] = version.stable;
+                output.push_back(std::move(entry));
+            }
+            std::cout << output.dump(2) << '\n';
+        } else if (versions.empty()) {
+            std::cout << "No loader versions found\n";
+        } else {
+            for (const LoaderVersion& version : versions) {
+                std::cout << version.version << (version.stable ? "  stable" : "  unstable") << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (subcommand == "install") {
+        ArgParser parser(rest,
+                         {"--json", "--force", "--latest"},
+                         {"--game-dir", "--loader", "--channel"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (parser.positional().size() != 2) {
+            fail("Usage: aurora loader install <fabric|quilt> <game> [options]");
+        }
+        const Config config = Config::load(config_path_from(parser));
+        const auto game_dir = game_dir_from(parser, config);
+        const std::string game_version = parser.positional()[1];
+        if (!VersionRepository(game_dir).contains(game_version)) {
+            fail("Parent version '" + game_version +
+                 "' is not installed. Install its version JSON first.");
+        }
+        LoaderInstallOptions options;
+        options.kind = parse_loader_kind(parser.positional()[0]);
+        options.game_version = game_version;
+        if (const auto loader = parser.value("--loader")) {
+            options.loader_version = *loader;
+        }
+        const std::string channel = parser.value("--channel").value_or(
+            parser.flag("--latest") ? "latest" : "stable");
+        if (channel == "latest") {
+            options.channel = LoaderChannel::Latest;
+        } else if (channel == "stable") {
+            options.channel = LoaderChannel::Stable;
+        } else {
+            fail("Unknown loader channel: " + channel);
+        }
+        options.force = parser.flag("--force");
+        const LoaderInstallResult result = install_loader(game_dir, options);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["kind"] = std::string(loader_name(result.kind));
+            output["id"] = result.id;
+            output["gameVersion"] = result.game_version;
+            output["loaderVersion"] = result.loader_version;
+            output["jsonPath"] = path_to_utf8(result.json_path);
+            output["written"] = result.written;
+            std::cout << output.dump(2) << '\n';
+        } else {
+            std::cout << "loader: " << loader_display_name(result.kind) << '\n';
+            std::cout << "version: " << result.id << '\n';
+            std::cout << "json: " << path_to_utf8(result.json_path) << '\n';
+            std::cout << (result.written ? "installed\n" : "already installed\n");
+        }
+        return 0;
+    }
+
+    fail("Unknown loader subcommand: " + subcommand);
+}
+
 int command_install(const std::vector<std::string>& arguments) {
     ArgParser parser(arguments,
                      {"--force", "--no-assets", "--no-libraries", "--no-natives"},
-                     {"--game-dir"});
+                     {"--game-dir", "--retry", "--mirror"});
     parser.parse();
     if (parser.flag("--help")) {
         print_help();
@@ -372,11 +488,21 @@ int command_install(const std::vector<std::string>& arguments) {
     const Config config = Config::load(config_path_from(parser));
     const VersionRepository repository(game_dir_from(parser, config));
     const ResolvedVersion version = repository.resolve(parser.positional().front());
-    InstallOptions options;
+    InstallOptions options = install_options_from(config);
     options.force = parser.flag("--force");
     options.assets = !parser.flag("--no-assets");
     options.libraries = !parser.flag("--no-libraries");
     options.natives = !parser.flag("--no-natives");
+    if (const auto retries = parser.value("--retry")) {
+        options.download_retries = parse_int(*retries, "--retry");
+        if (options.download_retries < 0 || options.download_retries > 32) {
+            fail("--retry must be between 0 and 32");
+        }
+    }
+    const auto mirrors = parser.values("--mirror");
+    if (!mirrors.empty()) {
+        options.download_mirrors = mirrors;
+    }
     install_version(version, detect_environment(), options);
     return 0;
 }
@@ -449,7 +575,7 @@ int command_launch(const std::vector<std::string>& arguments) {
     options.java_path = *java_path;
 
     if (parser.flag("--install")) {
-        install_version(version, detect_environment());
+        install_version(version, detect_environment(), install_options_from(config));
     }
 
     const Environment environment = detect_environment();
@@ -481,6 +607,8 @@ Json config_to_json(const Config& config) {
     value["username"] = config.username;
     value["jvmArgs"] = config.jvm_args;
     value["gameArgs"] = config.game_args;
+    value["downloadRetries"] = config.download_retries;
+    value["downloadMirrors"] = config.download_mirrors;
     value["demo"] = config.demo;
     return value;
 }
@@ -528,6 +656,12 @@ int command_config(const std::vector<std::string>& arguments) {
                 std::cout << ' ' << argument;
             }
             std::cout << '\n';
+            std::cout << "downloadRetries: " << config.download_retries << '\n';
+            std::cout << "downloadMirrors:";
+            for (const std::string& mirror : config.download_mirrors) {
+                std::cout << ' ' << mirror;
+            }
+            std::cout << '\n';
             std::cout << "demo: " << (config.demo ? "true" : "false") << '\n';
         }
         return 0;
@@ -550,6 +684,26 @@ int command_config(const std::vector<std::string>& arguments) {
             config.height = parse_int(value, key);
         } else if (key == "username") {
             config.username = value;
+        } else if (key == "downloadRetries") {
+            config.download_retries = parse_int(value, key);
+            if (config.download_retries < 0 || config.download_retries > 32) {
+                fail("downloadRetries must be between 0 and 32");
+            }
+        } else if (key == "downloadMirrors") {
+            config.download_mirrors.clear();
+            std::size_t start = 0;
+            while (start <= value.size()) {
+                const std::size_t end = value.find_first_of(",;", start);
+                const std::string item = value.substr(
+                    start, end == std::string::npos ? std::string::npos : end - start);
+                if (!item.empty()) {
+                    config.download_mirrors.push_back(item);
+                }
+                if (end == std::string::npos) {
+                    break;
+                }
+                start = end + 1;
+            }
         } else if (key == "demo") {
             config.demo = value == "1" || value == "true" || value == "yes";
         } else {
@@ -588,6 +742,9 @@ int run_cli(const std::vector<std::string>& arguments) {
     }
     if (command == "java") {
         return command_java(rest);
+    }
+    if (command == "loader") {
+        return command_loader(rest);
     }
     if (command == "install") {
         return command_install(rest);
