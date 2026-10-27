@@ -1,0 +1,101 @@
+[
+  {
+    "binary": {
+      "os": "linux",
+      "architecture": "x64",
+      "image_type": "jdk",
+      "jvm_impl": "hotspot",
+      "package": {
+        "name": "OpenJDK21U-jdk_x64_linux_hotspot_21.0.1_12.tar.gz",
+        "link": "https://example.invalid/OpenJDK21U-jdk_x64_linux_hotspot_21.0.1_12.tar.gz",
+        "checksum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "checksum_link": "https://example.invalid/linux.tar.gz.sha256.txt",
+        "size": 190000000
+      }
+    },
+    "release_name": "jdk-21.0.1+12",
+    "vendor": "eclipse",
+    "version": {
+      "semver": "21.0.1+12",
+      "major": 21,
+      "openjdk_version": "21.0.1+12-LTS"
+    }
+  },
+  {
+    "binary": {
+      "os": "windows",
+      "architecture": "x64",
+      "image_type": "jre",
+      "jvm_impl": "hotspot",
+      "package": {
+        "name": "OpenJDK21U-jre_x64_windows_hotspot_21.0.1_12.zip",
+        "link": "https://example.invalid/OpenJDK21U-jre_x64_windows_hotspot_21.0.1_12.zip",
+        "checksum": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "checksum_link": "https://example.invalid/jre.zip.sha256.txt",
+        "size": 45000000
+      }
+    },
+    "release_name": "jdk-21.0.1+12",
+    "vendor": "eclipse",
+    "version": {
+      "semver": "21.0.1+12",
+      "major": 21,
+      "openjdk_version": "21.0.1+12-LTS"
+    }
+  },
+  {
+    "binary": {
+      "os": "windows",
+      "architecture": "x64",
+      "image_type": "jdk",
+      "jvm_impl": "hotspot",
+      "package": {
+        "name": "OpenJDK21U-jdk_x64_windows_hotspot_21.0.1_12.zip",
+        "link": "https://example.invalid/OpenJDK21U-jdk_x64_windows_hotspot_21.0.1_12.zip",
+        "checksum": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "checksum_link": "https://example.invalid/jdk.zip.sha256.txt",
+        "size": 205073461
+      }
+    },
+    "release_name": "jdk-21.0.1+12",
+    "vendor": "eclipse",
+    "version": {
+      "semver": "21.0.1+12",
+      "major": 21,
+      "openjdk_version": "21.0.1+12-LTS"
+    }
+  },
+  {
+    "binary": {
+      "os": "windows",
+      "architecture": "x64",
+      "image_type": "debugimage",
+      "jvm_impl": "hotspot",
+      "package": {
+        "name": "OpenJDK21U-jdk_x64_windows_hotspot_21.0.1_12_debug.zip",
+        "link": "https://example.invalid/OpenJDK21U-jdk_x64_windows_hotspot_21.0.1_12_debug.zip",
+        "checksum": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "size": 305073461
+      }
+    },
+    "release_name": "jdk-21.0.1+12",
+    "vendor": "eclipse",
+    "version": {
+      "semver": "21.0.1+12",
+      "major": 21,
+      "openjdk_version": "21.0.1+12-LTS"
+    }
+  },
+  {
+    "binary": {
+      "os": "windows",
+      "architecture": "x64",
+      "image_type": "jdk",
+      "package": {
+        "name": "broken-package.zip"
+      }
+    },
+    "release_name": "jdk-21.0.1+12",
+    "vendor": "eclipse"
+  }
+]

@@ -167,6 +167,34 @@ void scan_common_directories(
 }
 #endif
 
+void scan_managed_java_runtimes(
+    std::vector<std::pair<std::filesystem::path, std::string>>& candidates,
+    std::set<std::string>& seen,
+    const std::filesystem::path& game_dir) {
+    if (game_dir.empty()) {
+        return;
+    }
+    const auto runtime_dir = absolute_path(game_dir) / "runtime" / "java";
+    std::error_code ec;
+    if (!std::filesystem::is_directory(runtime_dir, ec)) {
+        return;
+    }
+    add_candidate(candidates, seen, runtime_dir, "managed");
+    for (std::filesystem::directory_iterator iterator(runtime_dir, ec);
+         !ec && iterator != std::filesystem::directory_iterator();
+         iterator.increment(ec)) {
+        std::error_code type_error;
+        if (!iterator->is_directory(type_error) || type_error) {
+            continue;
+        }
+        const std::string name = path_to_utf8(iterator->path().filename());
+        if (!name.empty() && name.front() == '.') {
+            continue;
+        }
+        add_candidate(candidates, seen, iterator->path(), "managed");
+    }
+}
+
 } // namespace
 
 std::optional<JavaRuntime> probe_java_home(const std::filesystem::path& home,
@@ -224,6 +252,10 @@ std::optional<JavaRuntime> probe_java_home(const std::filesystem::path& home,
 }
 
 std::vector<JavaRuntime> detect_java_runtimes() {
+    return detect_java_runtimes(default_game_dir());
+}
+
+std::vector<JavaRuntime> detect_java_runtimes(const std::filesystem::path& game_dir) {
     std::vector<std::pair<std::filesystem::path, std::string>> candidates;
     std::set<std::string> seen;
 
@@ -263,6 +295,8 @@ std::vector<JavaRuntime> detect_java_runtimes() {
     }
 #endif
 
+    scan_managed_java_runtimes(candidates, seen, game_dir);
+
     std::vector<JavaRuntime> runtimes;
     std::set<std::string> executable_seen;
     for (const auto& [path, source] : candidates) {
@@ -286,7 +320,12 @@ std::vector<JavaRuntime> detect_java_runtimes() {
 }
 
 std::optional<JavaRuntime> find_java_runtime(int required_major) {
-    const auto runtimes = detect_java_runtimes();
+    return find_java_runtime(required_major, default_game_dir());
+}
+
+std::optional<JavaRuntime> find_java_runtime(int required_major,
+                                             const std::filesystem::path& game_dir) {
+    const auto runtimes = detect_java_runtimes(game_dir);
     for (const JavaRuntime& runtime : runtimes) {
         if (runtime.major > 0 && (required_major <= 0 || runtime.major >= required_major)) {
             return runtime;

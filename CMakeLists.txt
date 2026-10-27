@@ -30,6 +30,7 @@ add_library(aurora_core STATIC
     src/core/http_post.cpp
     src/core/install.cpp
     src/core/java.cpp
+    src/core/java_install.cpp
     src/core/launch.cpp
     src/core/loader.cpp
     src/core/log.cpp
@@ -111,4 +112,14 @@ if(BUILD_TESTING)
         target_compile_options(aurora_auth_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_auth_tests COMMAND aurora_auth_tests)
+
+    add_executable(aurora_java_install_tests tests/java_install_test.cpp)
+    target_link_libraries(aurora_java_install_tests PRIVATE aurora_core)
+    target_compile_definitions(aurora_java_install_tests PRIVATE
+        AURORA_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    if(MSVC)
+        target_compile_options(aurora_java_install_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_java_install_tests COMMAND aurora_java_install_tests)
 endif()
