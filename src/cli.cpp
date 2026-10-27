@@ -10,6 +10,7 @@
 #include "core/launch.hpp"
 #include "core/loader.hpp"
 #include "core/log.hpp"
+#include "core/manifest.hpp"
 #include "core/paths.hpp"
 #include "core/repository.hpp"
 #include "core/rules.hpp"
@@ -23,6 +24,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace aurora {
@@ -35,6 +37,8 @@ void print_help() {
         << "Usage:\n"
         << "  aurora version list [--game-dir DIR] [--json]\n"
         << "  aurora version show <id> [--game-dir DIR] [--json]\n"
+        << "  aurora version latest [--snapshot] [--json]\n"
+        << "  aurora version fetch <id> [--game-dir DIR] [--force] [--json]\n"
         << "  aurora java list [--json]\n"
         << "  aurora loader list <fabric|quilt> <game> [--json]\n"
         << "  aurora loader install <fabric|quilt> <game> [options]\n"
@@ -203,6 +207,29 @@ InstallOptions install_options_from(const Config& config) {
     return options;
 }
 
+ResolvedVersion resolve_version(const VersionRepository& repository,
+                                const std::string& id,
+                                bool allow_fetch,
+                                bool force_json = false,
+                                std::string_view manifest_url = kOfficialVersionManifestUrl) {
+    if (repository.contains(id)) {
+        return repository.resolve(id);
+    }
+    if (!allow_fetch) {
+        fail("Version '" + id +
+             "' is not installed locally. Use 'aurora version fetch " + id +
+             "' or add --install to fetch it.");
+    }
+    log_info("Version '" + id + "' is not local; fetching version JSON");
+    const VersionManifest manifest = fetch_version_manifest(manifest_url);
+    VersionJsonInstallOptions options;
+    options.force = force_json;
+    const VersionJsonInstallResult result =
+        install_version_json(manifest, id, repository.game_dir(), options);
+    log_info("Version JSON is ready: " + path_to_utf8(result.path));
+    return repository.resolve(id);
+}
+
 void print_library_summary(const ResolvedVersion& version, const Environment& environment) {
     std::size_t allowed = 0;
     std::size_t natives = 0;
@@ -318,6 +345,72 @@ int command_version(const std::vector<std::string>& arguments) {
         }
         return 0;
     }
+    if (subcommand == "latest") {
+        ArgParser parser(rest, {"--json", "--snapshot"}, {"--manifest"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (!parser.positional().empty()) {
+            fail("Unexpected argument: " + parser.positional().front());
+        }
+        const std::string url =
+            parser.value("--manifest").value_or(std::string(kOfficialVersionManifestUrl));
+        const VersionManifest manifest = fetch_version_manifest(url);
+        const VersionManifestEntry& entry =
+            parser.flag("--snapshot") ? manifest.latest_snapshot() : manifest.latest_release();
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["id"] = entry.id;
+            output["type"] = entry.type;
+            output["url"] = entry.url;
+            output["sha1"] = entry.sha1;
+            if (entry.release_time) {
+                output["releaseTime"] = *entry.release_time;
+            }
+            std::cout << output.dump(2) << '\n';
+        } else {
+            std::cout << entry.id << '\n';
+        }
+        return 0;
+    }
+    if (subcommand == "fetch") {
+        ArgParser parser(rest, {"--json", "--force"}, {"--game-dir", "--manifest"});
+        parser.parse();
+        if (parser.flag("--help")) {
+            print_help();
+            return 0;
+        }
+        if (parser.positional().size() != 1) {
+            fail("Usage: aurora version fetch <id> [options]");
+        }
+        const Config config = Config::load(config_path_from(parser));
+        const auto game_dir = game_dir_from(parser, config);
+        const std::string url =
+            parser.value("--manifest").value_or(std::string(kOfficialVersionManifestUrl));
+        const VersionManifest manifest = fetch_version_manifest(url);
+        const VersionManifestEntry& entry = manifest.require(parser.positional().front());
+        VersionJsonInstallOptions options;
+        options.force = parser.flag("--force");
+        const VersionJsonInstallResult result =
+            install_version_json(entry, game_dir, options);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["id"] = entry.id;
+            output["path"] = path_to_utf8(result.path);
+            output["downloaded"] = result.downloaded;
+            std::cout << output.dump(2) << '\n';
+        } else {
+            std::cout << entry.id << '\n';
+            if (result.path.empty()) {
+                std::cout << "not installed\n";
+            } else {
+                std::cout << "json: " << path_to_utf8(result.path) << '\n';
+            }
+        }
+        return 0;
+    }
     fail("Unknown version subcommand: " + subcommand);
 }
 
@@ -418,7 +511,7 @@ int command_loader(const std::vector<std::string>& arguments) {
 
     if (subcommand == "install") {
         ArgParser parser(rest,
-                         {"--json", "--force", "--latest"},
+                         {"--json", "--force", "--latest", "--no-fetch"},
                          {"--game-dir", "--loader", "--channel"});
         parser.parse();
         if (parser.flag("--help")) {
@@ -431,10 +524,8 @@ int command_loader(const std::vector<std::string>& arguments) {
         const Config config = Config::load(config_path_from(parser));
         const auto game_dir = game_dir_from(parser, config);
         const std::string game_version = parser.positional()[1];
-        if (!VersionRepository(game_dir).contains(game_version)) {
-            fail("Parent version '" + game_version +
-                 "' is not installed. Install its version JSON first.");
-        }
+        const VersionRepository repository(game_dir);
+        (void)resolve_version(repository, game_version, !parser.flag("--no-fetch"));
         LoaderInstallOptions options;
         options.kind = parse_loader_kind(parser.positional()[0]);
         options.game_version = game_version;
@@ -475,7 +566,7 @@ int command_loader(const std::vector<std::string>& arguments) {
 
 int command_install(const std::vector<std::string>& arguments) {
     ArgParser parser(arguments,
-                     {"--force", "--no-assets", "--no-libraries", "--no-natives"},
+                     {"--force", "--no-fetch", "--no-assets", "--no-libraries", "--no-natives"},
                      {"--game-dir", "--retry", "--mirror"});
     parser.parse();
     if (parser.flag("--help")) {
@@ -487,7 +578,8 @@ int command_install(const std::vector<std::string>& arguments) {
     }
     const Config config = Config::load(config_path_from(parser));
     const VersionRepository repository(game_dir_from(parser, config));
-    const ResolvedVersion version = repository.resolve(parser.positional().front());
+    const ResolvedVersion version = resolve_version(
+        repository, parser.positional().front(), !parser.flag("--no-fetch"), parser.flag("--force"));
     InstallOptions options = install_options_from(config);
     options.force = parser.flag("--force");
     options.assets = !parser.flag("--no-assets");
@@ -526,7 +618,8 @@ int command_launch(const std::vector<std::string>& arguments) {
     const auto game_dir = game_dir_from(parser, config);
     const std::string id = parser.positional().front();
     const VersionRepository repository(game_dir);
-    const ResolvedVersion version = repository.resolve(id);
+    const ResolvedVersion version =
+        resolve_version(repository, id, parser.flag("--install"));
 
     LaunchOptions options;
     options.username = parser.value("--username").value_or(config.username);
