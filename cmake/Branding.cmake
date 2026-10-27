@@ -6,10 +6,10 @@ function(aurora_apply_branding target)
     endif()
 
     target_sources(${target} PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}/../resources/aurora.rc
+        ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../resources/aurora.rc
     )
 
-    set(_manifest ${CMAKE_CURRENT_LIST_DIR}/../resources/aurora.manifest)
+    set(_manifest ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../resources/aurora.manifest)
     target_link_options(${target} PRIVATE
         "/MANIFEST:EMBED"
         "/MANIFESTINPUT:${_manifest}"

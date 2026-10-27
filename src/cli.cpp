@@ -1,5 +1,6 @@
 #include "cli.hpp"
 
+#include "core/branding.hpp"
 #include "core/config.hpp"
 #include "core/error.hpp"
 #include "core/hash.hpp"
@@ -27,11 +28,9 @@ namespace aurora {
 
 namespace {
 
-constexpr const char* kVersion = "0.2.0";
-
 void print_help() {
     std::cout
-        << "AuroraLauncher " << kVersion << " - C++ core\n\n"
+        << kLauncherName << " " << kLauncherVersion << " - C++ core\n\n"
         << "Usage:\n"
         << "  aurora version list [--game-dir DIR] [--json]\n"
         << "  aurora version show <id> [--game-dir DIR] [--json]\n"
@@ -572,7 +571,7 @@ int run_cli(const std::vector<std::string>& arguments) {
         return 0;
     }
     if (arguments.front() == "--version") {
-        std::cout << "AuroraLauncher " << kVersion << "\n";
+        std::cout << kLauncherName << " " << kLauncherVersion << "\n";
         return 0;
     }
     if (std::find(arguments.begin(), arguments.end(), "--verbose") != arguments.end()) {
