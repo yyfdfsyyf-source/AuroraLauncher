@@ -25,6 +25,7 @@ add_library(aurora_core STATIC
     src/core/install.cpp
     src/core/java.cpp
     src/core/launch.cpp
+    src/core/loader.cpp
     src/core/log.cpp
     src/core/maven.cpp
     src/core/paths.cpp
@@ -72,4 +73,11 @@ if(BUILD_TESTING)
         target_compile_options(aurora_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_tests COMMAND aurora_tests)
+
+    add_executable(aurora_loader_tests tests/loader_test.cpp)
+    target_link_libraries(aurora_loader_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_loader_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_loader_tests COMMAND aurora_loader_tests)
 endif()
