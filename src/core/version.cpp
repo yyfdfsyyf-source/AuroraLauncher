@@ -120,6 +120,10 @@ bool Argument::allowed(const Environment& environment) const {
     return rules_allow(rules, environment);
 }
 
+bool LoggingClient::allowed(const Environment& environment) const {
+    return rules_allow(rules, environment);
+}
+
 DownloadInfo parse_download_info(const Json& value) {
     if (!value.is_object()) {
         fail("Download information must be an object");
@@ -183,6 +187,33 @@ VersionMeta VersionMeta::parse(const Json& value, std::string requested_id) {
 
     if (const auto it = value.find("assetIndex"); it != value.end() && it->is_object()) {
         result.asset_index = parse_asset_index(*it);
+    }
+
+    if (const Json* logging = json_object(value, "logging")) {
+        if (const Json* client = json_object(*logging, "client")) {
+            LoggingClient logging_client;
+            logging_client.argument = json_string(*client, "argument");
+            if (const Json* file = json_object(*client, "file")) {
+                LoggingFile logging_file;
+                logging_file.id = json_string(*file, "id");
+                logging_file.url = json_string(*file, "url");
+                logging_file.sha1 = to_lower_ascii(json_string(*file, "sha1"));
+                const auto size = json_integer(*file, "size");
+                if (size > 0) {
+                    logging_file.size = static_cast<std::uint64_t>(size);
+                }
+                logging_client.file = std::move(logging_file);
+            }
+            if (const Json* rules = json_array(*client, "rules")) {
+                for (const Json& rule : *rules) {
+                    logging_client.rules.push_back(parse_rule(rule));
+                }
+            }
+            if (!logging_client.argument.empty() || logging_client.file ||
+                !logging_client.rules.empty()) {
+                result.logging_client = std::move(logging_client);
+            }
+        }
     }
 
     if (const Json* libraries = json_array(value, "libraries")) {
@@ -268,6 +299,15 @@ std::filesystem::path VersionMeta::asset_index_file(
            checked_relative_path(index_id + ".json", "asset index");
 }
 
+std::filesystem::path VersionMeta::logging_config_file(
+    const std::filesystem::path& game_dir) const {
+    if (!logging_client || !logging_client->file || logging_client->file->id.empty()) {
+        return {};
+    }
+    return game_dir / "assets" / "log_configs" /
+           checked_relative_path(logging_client->file->id, "logging configuration");
+}
+
 std::filesystem::path VersionMeta::natives_directory(
     const std::filesystem::path& game_dir) const {
     return version_directory(game_dir) / "natives";
@@ -301,6 +341,20 @@ VersionMeta merge_versions(const VersionMeta& parent, const VersionMeta& child) 
     }
     if (child.asset_index) {
         result.asset_index = child.asset_index;
+    }
+    if (child.logging_client) {
+        if (!result.logging_client) {
+            result.logging_client.emplace();
+        }
+        if (!child.logging_client->argument.empty()) {
+            result.logging_client->argument = child.logging_client->argument;
+        }
+        if (child.logging_client->file) {
+            result.logging_client->file = child.logging_client->file;
+        }
+        if (!child.logging_client->rules.empty()) {
+            result.logging_client->rules = child.logging_client->rules;
+        }
     }
     if (child.minecraft_arguments) {
         result.minecraft_arguments = child.minecraft_arguments;

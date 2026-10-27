@@ -27,6 +27,7 @@ add_library(aurora_core STATIC
     src/core/launch.cpp
     src/core/log.cpp
     src/core/maven.cpp
+    src/core/manifest.cpp
     src/core/paths.cpp
     src/core/process.cpp
     src/core/repository.cpp
@@ -72,4 +73,11 @@ if(BUILD_TESTING)
         target_compile_options(aurora_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_tests COMMAND aurora_tests)
+
+    add_executable(aurora_manifest_tests tests/manifest_test.cpp)
+    target_link_libraries(aurora_manifest_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_manifest_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_manifest_tests COMMAND aurora_manifest_tests)
 endif()

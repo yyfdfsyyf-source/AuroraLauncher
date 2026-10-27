@@ -194,6 +194,46 @@ void prepare_natives(const ResolvedVersion& version, const Environment& environm
     }
 }
 
+bool install_logging_config(const VersionMeta& meta,
+                            const std::filesystem::path& game_dir,
+                            const Environment& environment,
+                            bool force) {
+    if (!meta.logging_client || !meta.logging_client->allowed(environment)) {
+        return false;
+    }
+    const std::filesystem::path destination = meta.logging_config_file(game_dir);
+    if (destination.empty()) {
+        if (!meta.logging_client->argument.empty()) {
+            log_warn("Version " + meta.id +
+                     " defines logging.client.argument without a logging file id");
+        }
+        return false;
+    }
+    const LoggingFile& file = *meta.logging_client->file;
+    std::error_code ec;
+    if (force && file.has_url()) {
+        std::filesystem::remove(destination, ec);
+        ec.clear();
+    }
+    if (file.has_url()) {
+        try {
+            http_download(file.url, destination, file.sha1);
+        } catch (const std::exception& error) {
+            log_warn("Unable to download logging configuration '" + file.id + "' for version '" +
+                     meta.id + "': " + error.what());
+            return std::filesystem::is_regular_file(destination, ec);
+        }
+    }
+    if (!std::filesystem::is_regular_file(destination, ec)) {
+        log_warn("Logging configuration is missing: " + path_to_utf8(destination) +
+                 (file.has_url() ? std::string()
+                                 : std::string(" (the version provides no download URL)")));
+        return false;
+    }
+    log_debug("Logging configuration is ready: " + path_to_utf8(destination));
+    return true;
+}
+
 void install_version(const ResolvedVersion& version,
                      const Environment& environment,
                      const InstallOptions& options) {
@@ -209,6 +249,10 @@ void install_version(const ResolvedVersion& version,
     } else if (!std::filesystem::is_regular_file(meta.client_jar(game_dir))) {
         fail("Client jar is missing and the version has no client download URL: " +
              path_to_utf8(meta.client_jar(game_dir)));
+    }
+
+    if (options.logging) {
+        install_logging_config(meta, game_dir, environment, options.force);
     }
 
     if (options.libraries) {

@@ -54,6 +54,23 @@ struct Argument {
     bool allowed(const Environment& environment) const;
 };
 
+struct LoggingFile {
+    std::string id;
+    std::string url;
+    std::string sha1;
+    std::uint64_t size = 0;
+
+    bool has_url() const { return !url.empty(); }
+};
+
+struct LoggingClient {
+    std::string argument;
+    std::optional<LoggingFile> file;
+    std::vector<Rule> rules;
+
+    bool allowed(const Environment& environment) const;
+};
+
 struct VersionMeta {
     std::string id;
     std::string type;
@@ -64,6 +81,7 @@ struct VersionMeta {
     std::optional<int> java_major;
     std::optional<DownloadInfo> client;
     std::optional<AssetIndex> asset_index;
+    std::optional<LoggingClient> logging_client;
     std::vector<Library> libraries;
     std::vector<Argument> game_arguments;
     std::vector<Argument> jvm_arguments;
@@ -74,6 +92,7 @@ struct VersionMeta {
     std::filesystem::path version_directory(const std::filesystem::path& game_dir) const;
     std::filesystem::path client_jar(const std::filesystem::path& game_dir) const;
     std::filesystem::path asset_index_file(const std::filesystem::path& game_dir) const;
+    std::filesystem::path logging_config_file(const std::filesystem::path& game_dir) const;
     std::filesystem::path natives_directory(const std::filesystem::path& game_dir) const;
     std::string client_jar_name() const;
 };
