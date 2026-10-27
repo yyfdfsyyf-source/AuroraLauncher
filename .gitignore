@@ -1,0 +1,34 @@
+# Build output
+/build/
+/out/
+/.vs/
+/cmake-build-*/
+CMakeUserPresets.json
+
+# IDE
+/.idea/
+/.vscode/
+*.user
+*.suo
+*.sln
+*.vcxproj
+
+# Binaries and debugging
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.obj
+*.exp
+*.hprof
+
+# Logs and temporary files
+*.log
+*.tmp
+*.part
+/tests/fixtures/tmp-*/
+
+# Local configuration
+/config.local.json
+/.aurora/
