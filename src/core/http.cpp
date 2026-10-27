@@ -1,5 +1,6 @@
 #include "core/http.hpp"
 
+#include "core/branding.hpp"
 #include "core/error.hpp"
 #include "core/hash.hpp"
 #include "core/paths.hpp"
@@ -421,8 +422,9 @@ HttpMetadata perform_request(
         : (secure ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT);
 
     InternetHandle session;
+    const std::wstring user_agent = to_wide(kLauncherUserAgent);
     session.value = WinHttpOpen(
-        L"AuroraLauncher/0.2",
+        user_agent.c_str(),
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
         WINHTTP_NO_PROXY_NAME,
         WINHTTP_NO_PROXY_BYPASS,
