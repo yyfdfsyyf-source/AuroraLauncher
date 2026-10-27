@@ -4,6 +4,8 @@
 #include "core/rules.hpp"
 
 #include <filesystem>
+#include <string>
+#include <vector>
 
 namespace aurora {
 
@@ -12,6 +14,8 @@ struct InstallOptions {
     bool assets = true;
     bool libraries = true;
     bool natives = true;
+    int download_retries = 3;
+    std::vector<std::string> download_mirrors;
 };
 
 void install_version(const ResolvedVersion& version,

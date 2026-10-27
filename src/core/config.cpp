@@ -71,6 +71,11 @@ Config Config::load(const std::filesystem::path& path) {
     }
     config.jvm_args = string_array(value, "jvmArgs");
     config.game_args = string_array(value, "gameArgs");
+    const auto download_retries = json_integer(value, "downloadRetries");
+    if (download_retries >= 0 && download_retries <= 32) {
+        config.download_retries = static_cast<int>(download_retries);
+    }
+    config.download_mirrors = string_array(value, "downloadMirrors");
     config.demo = json_boolean(value, "demo");
     return config;
 }
@@ -85,6 +90,8 @@ void Config::save(const std::filesystem::path& path) const {
     value["username"] = username;
     value["jvmArgs"] = to_json_array(jvm_args);
     value["gameArgs"] = to_json_array(game_args);
+    value["downloadRetries"] = download_retries;
+    value["downloadMirrors"] = to_json_array(download_mirrors);
     value["demo"] = demo;
     write_text_file(path, json_pretty(value) + "\n");
 }

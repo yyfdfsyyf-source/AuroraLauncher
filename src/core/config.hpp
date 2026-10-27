@@ -15,6 +15,8 @@ struct Config {
     std::string username;
     std::vector<std::string> jvm_args;
     std::vector<std::string> game_args;
+    int download_retries = 3;
+    std::vector<std::string> download_mirrors;
     bool demo = false;
 
     static Config defaults();

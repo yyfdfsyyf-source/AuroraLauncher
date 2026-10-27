@@ -55,20 +55,29 @@ std::vector<AssetTask> read_asset_index(const std::filesystem::path& path) {
     return tasks;
 }
 
+HttpDownloadOptions http_options_from(const InstallOptions& options) {
+    HttpDownloadOptions http_options;
+    http_options.max_retries = std::max(0, options.download_retries);
+    http_options.mirrors = options.download_mirrors;
+    return http_options;
+}
+
 void download_file(const std::string& url,
                    const std::filesystem::path& destination,
                    const std::string& sha1,
-                   bool force) {
+                   bool force,
+                   const HttpDownloadOptions& http_options) {
     if (force) {
         std::error_code ec;
         std::filesystem::remove(destination, ec);
     }
-    http_download(url, destination, sha1);
+    http_download(url, destination, http_options, sha1);
 }
 
 void download_asset_objects(const std::filesystem::path& game_dir,
                             const std::vector<AssetTask>& tasks,
-                            bool force) {
+                            bool force,
+                            const HttpDownloadOptions& http_options) {
     if (tasks.empty()) {
         return;
     }
@@ -98,7 +107,8 @@ void download_asset_objects(const std::filesystem::path& game_dir,
                     "https://resources.download.minecraft.net/" + prefix + "/" + task.object.hash,
                     destination,
                     task.object.hash,
-                    force);
+                    force,
+                    http_options);
                 const std::size_t done = completed.fetch_add(1) + 1;
                 if (done % 250 == 0 || done == tasks.size()) {
                     log_info("Assets: " + std::to_string(done) + "/" + std::to_string(tasks.size()));
@@ -200,12 +210,14 @@ void install_version(const ResolvedVersion& version,
     const auto& meta = version.meta;
     const auto game_dir = version.game_dir;
     const auto libraries_dir = game_dir / "libraries";
+    const auto http_options = http_options_from(options);
 
     log_info("Installing version " + meta.id + " into " + path_to_utf8(game_dir));
 
     if (meta.client && meta.client->has_url()) {
         download_file(
-            meta.client->url, meta.client_jar(game_dir), meta.client->sha1, options.force);
+            meta.client->url, meta.client_jar(game_dir), meta.client->sha1, options.force,
+            http_options);
     } else if (!std::filesystem::is_regular_file(meta.client_jar(game_dir))) {
         fail("Client jar is missing and the version has no client download URL: " +
              path_to_utf8(meta.client_jar(game_dir)));
@@ -223,7 +235,8 @@ void install_version(const ResolvedVersion& version,
                     libraries_dir / checked_relative_path(relative, "library " + library.name);
                 if (library.artifact->has_url()) {
                     download_file(
-                        library.artifact->url, destination, library.artifact->sha1, options.force);
+                        library.artifact->url, destination, library.artifact->sha1, options.force,
+                        http_options);
                 } else if (!std::filesystem::is_regular_file(destination)) {
                     fail("Library is missing and has no download URL: " + library.name);
                 }
@@ -237,7 +250,8 @@ void install_version(const ResolvedVersion& version,
                     libraries_dir / checked_relative_path(download->path, "native " + library.name);
                 if (download->has_url()) {
                     download_file(
-                        download->url, destination, download->sha1, options.force);
+                        download->url, destination, download->sha1, options.force,
+                        http_options);
                 } else if (!std::filesystem::is_regular_file(destination)) {
                     fail("Native library is missing and has no download URL: " + library.name);
                 }
@@ -254,14 +268,15 @@ void install_version(const ResolvedVersion& version,
                 meta.asset_index->url,
                 meta.asset_index_file(game_dir),
                 meta.asset_index->sha1,
-                options.force);
+                options.force,
+                http_options);
         }
         const auto index_file = meta.asset_index_file(game_dir);
         if (!std::filesystem::is_regular_file(index_file)) {
             fail("Asset index is missing: " + path_to_utf8(index_file));
         }
         const auto tasks = read_asset_index(index_file);
-        download_asset_objects(game_dir, tasks, options.force);
+        download_asset_objects(game_dir, tasks, options.force, http_options);
     }
 
     log_info("Version " + meta.id + " is ready");
