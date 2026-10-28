@@ -6,7 +6,7 @@
 D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 ```
 
-当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 只有首屏（实例列表 + 启动/停止 + 日志）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
+当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖主页（游玩热力图与统计）与实例封面墙/详情抽屉（启动、停止、设置、日志）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
 
 ## 1. 状态定义
 
@@ -55,7 +55,7 @@ flowchart LR
 - 输入是用户已有的 `.minecraft` 目录；版本 JSON 可由 `version fetch` 显式从 Mojang 清单获取，`--no-fetch` 可关闭该行为。
 - Microsoft 登录只使用项目自己的 Azure 应用 client ID；未配置时拒绝登录，不冒用其他启动器。
 - Forge/NeoForge 使用官方 installer；本项目不重新实现其处理器逻辑，也不在启动时隐式联网。
-- Modrinth/CurseForge 模组搜索、安装、启停、指纹/哈希更新检查，以及可启动整合包实例、升级备份、资源包兼容性管理已接入；主题包和服务端模块不在当前边界内，GUI 目前只覆盖首屏。
+- Modrinth/CurseForge 模组搜索、安装、启停、指纹/哈希更新检查，以及可启动整合包实例、升级备份、资源包兼容性管理已接入；主题包和服务端模块不在当前边界内，GUI 目前覆盖主页与实例页。
 
 ## 3. 分层与模块
 
@@ -69,6 +69,7 @@ flowchart TB
         Config[config.cpp]
         Install[install.cpp]
         Launch[launch.cpp]
+        Activity[activity.cpp]
         Repo[repository.cpp]
         Manifest[manifest.cpp]
         Auth[auth.cpp]
@@ -102,6 +103,8 @@ flowchart TB
     GUI --> Launch
     GUI --> Config
     GUI --> Java
+    GUI --> Activity
+    Launch --> Activity
     CLI --> Config
     CLI --> Repo
     CLI --> Manifest
@@ -142,7 +145,7 @@ flowchart TB
 | --- | --- |
 | `src/cli.cpp` | 命令、参数、JSON/文本输出、敏感参数脱敏 |
 | `src/gui/main.cpp` | WebView2 宿主、JS↔C++ JSON 消息桥、进程轮询与日志尾部推送 |
-| `src/gui/ui/index.html` | 首屏界面（单文件 HTML/CSS/JS，无前端构建步骤） |
+| `src/gui/ui/index.html` | 主页热力图与实例封面墙（单文件 HTML/CSS/JS，无前端构建步骤） |
 | `src/core/repository.cpp` | 扫描 `versions`，加载并递归解析 `inheritsFrom` |
 | `src/core/version.cpp` | 版本 JSON 模型、库、参数、下载信息、合并规则 |
 | `src/core/rules.cpp` | OS/arch/version/features 规则判断 |
@@ -151,7 +154,8 @@ flowchart TB
 | `src/core/java.cpp` | Windows Java 候选发现、`release` 解析、托管运行时扫描 |
 | `src/core/java_install.cpp` | Adoptium API、SHA-256、ZIP 解压与原子安装 |
 | `src/core/install.cpp` | 客户端、库、natives、资源索引和资源对象下载 |
-| `src/core/launch.cpp` | 类路径、变量替换、JVM/游戏参数、启动计划 |
+| `src/core/launch.cpp` | 类路径、变量替换、JVM/游戏参数、启动计划；阻塞启动结束时记录游玩会话 |
+| `src/core/activity.cpp` | 游玩会话写入 `activity.json`、按天聚合、从启动横幅回填历史启动 |
 | `src/core/auth.cpp` | 设备码、Xbox Live、XSTS、Minecraft 登录、DPAPI 存储 |
 | `src/core/loader.cpp` | Fabric/Quilt 元数据查询和 profile JSON 安装 |
 | `src/core/forge.cpp` | Forge/NeoForge 版本查询、installer 下载/校验/执行、产物定位 |
@@ -429,6 +433,10 @@ classDiagram
 路径约定：
 
 ```text
+%APPDATA%/AuroraLauncher/
+  config.json                     # 用户设置
+  activity.json                   # 游玩会话（实例 id、本地开始时间、秒数）
+  WebView2/                       # WebView2 用户数据
 <gameDir>/
   versions/<id>/<id>.json
   versions/<id>/<id>.jar          # client jar；版本 JSON 的 jar 字段可覆盖名字
@@ -466,7 +474,8 @@ classDiagram
 | 整合包 | 已实现 | `.mrpack` / CurseForge manifest、自动加载器、可启动实例、overrides 哈希、升级/备份 |
 | PCL 实例兼容 | 已实现 | `Setup.ini`/`config.v1.yml`、版本隔离、内存档位、JVM/游戏参数、指定 Java；`launch` 与 `run_dir` 自动采用 |
 | 自签开发签名 | 已实现 | 脚本 + Windows 资源/清单；公开发布需可信证书 |
-| GUI | 首屏已实现 | WebView2 宿主 + 实例列表/启动/停止/日志；下载与安装仍在 CLI |
+| GUI | 主页与实例页已实现 | WebView2 宿主 + 主页游玩热力图/统计 + 实例封面墙/详情抽屉（启动、停止、设置、日志）；下载与安装仍在 CLI |
+| 游玩活动 | 已实现 | GUI 与 CLI 启动都写入 `activity.json`；热力图还会读取各实例 `logs/aurora-launcher.log` 的启动横幅回填旧启动 |
 | 主题包/服务端 | 未接入 | 原 Java 功能尚未迁移 |
 
 ## 11. 关键设计决策
@@ -522,7 +531,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 结果：
 
-- Debug 和 Release 编译通过；13 个测试目标全部通过：核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL。
+- Debug 和 Release 编译通过；14 个测试目标全部通过：核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL、活动记录。
 - 现场联网：`version latest` 拉取 Mojang 清单成功；`forge list forge 1.21.1`（52.1.20）和 `forge list neoforge 1.21.1`（260 个版本，最新 21.1.265）经 BMCLAPI 元数据镜像成功，单次约 0.6 秒；`loader list fabric` 经 BMCLAPI 成功。
 - Modrinth 现场联网：`mod search sodium` 经 MCIM API 镜像返回结果；`mod install sodium` 和 `mod install sodium-extra` 完成下载、SHA-1 校验和 Sodium 依赖识别。
 - 模组管理现场验证：`mod list`、`mod disable/enable` 在临时目录往返成功；安装 Sodium 0.6.0 后 `mod update` 报告 0.8.13 可用，`mod update --apply` 下载、校验并删除旧 JAR，再次检查为 up to date。
@@ -533,7 +542,7 @@ ctest --test-dir build -C Debug --output-on-failure
 - PCL 实例现场验证：合成 `PCL/Setup.ini`（隔离、内存 tick 25、`-Xss1M`、`--width 1280`、长路径 Java）下 `launch --dry-run --json` 的工作目录切到实例目录、内存 8192 MB、额外参数和 java 全部生效；`config.v1.yml`、自动隔离、显式关闭隔离、无效 Java 回退和参数引号拆分有测试覆盖。
 - 启动计划测试覆盖空 `clientid`/`auth_xuid` 参数保留和单次变量替换。
 - 真实游戏启动（离线账号）已从 `--dry-run` 走到进程实跑：从 `D:\PCL\.minecraft` 复制出 1.5 GB 独立冒烟目录，原版 1.19.2 到达 `Sound engine started`（LWJGL 3.3.1 build 7、OpenAL 初始化、无 crash-report/hs_err、干净 `Stopping!`）；真实 PCL CE 隔离实例 `1.19.4-Fabric_0.18.4` 的工作目录按 `VersionArgumentIndieV2: true` 切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`，`mod install sodium` 写入实例自己的 `mods` 后重启即出现 `sodium 0.4.10+build.24`。1.19.2/1.19.4 清单里 `natives` 映射为 0 条，LWJGL3 从类路径自解压，因此 `versions/<id>/natives` 为空是正确行为；旧版（≤1.16.x）的 natives 解压仍只有单测覆盖。
-- 桌面首屏 `aurora_gui` 真机点击验证：启动后 `javaw.exe` 工作集 191 MB → 627 MB、31 秒仍在运行，状态转「运行中 · PID」，停止后进程消失并显示「已手动停止」；日志面板过滤了 log4j 的 XML 脚手架与自身 banner，只保留 latest.log 没有的 JVM 级输出。截图用 PrintWindow + PW_RENDERFULLCONTENT 取真实像素（均亮 31.9，纯黑占比 2.6%）。
+- 桌面 GUI 真机验证：1180×760 下用真实鼠标走完「主页 → 实例封面墙 → 详情抽屉 → 启动 → 游戏标题界面 → 停止」。启动后 `javaw.exe` 工作集 676 MB → 1.15 GB，顶栏出现运行胶囊、封面出现运行徽标，抽屉状态为「运行中 · PID」；停止后进程消失、状态转中性灰「已手动停止」，`activity.json` 写入 51 秒会话，主页统计与热力图立即刷新，抽屉日志尾部出现「已手动停止」。日志面板过滤 log4j 的 XML 脚手架与自身 banner，只保留 latest.log 没有的 JVM 级输出。热力图分级、月份标签与悬浮提示另用 148 天临时活动数据核对后还原。截图取窗口真实像素（PrintWindow + PW_RENDERFULLCONTENT）。
 - `launch --log FILE` 实测捕获子进程输出（50 条 log4j 事件 + JVM 的 `JDK_JAVA_OPTIONS` 提示），并确认头部不含参数：`--accessToken`/`-cp` 命中 0 次；`test_process_log_redacts_command_line` 用 `cmd.exe /c echo` 断言日志里有子进程输出但没有命令行片段。
 - 路径安全测试覆盖绝对路径、盘符、`..`、ADS/冒号和危险尾随点/空格。
 - 使用归档中的 `1.0` 版本执行了 `version list`、`version show` 和 `launch --dry-run`；中文路径、用户名和版本 id 已验证。
@@ -543,7 +552,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 14. 后续阶段
 
-1. **GUI**：首屏（实例列表 + 启动/停止 + 日志）已用 WebView2 落地；后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
+1. **GUI**：主页（游玩热力图/统计）与实例页（封面墙 + 详情抽屉）已用 WebView2 落地；后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
 2. **CurseForge 完善**：依赖关系展示、有效 key 下的真实现场验证。
 3. **整合包完善**：完整游戏文件下载与真实启动的端到端验证、实例级配置编辑。
 4. **资源包完善**：下载源、光影包统一管理。

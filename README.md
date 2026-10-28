@@ -1,6 +1,6 @@
 # AuroraLauncher C++ Core
 
-这是 AuroraLauncher 的 C++ 重写工程，当前是 **Windows-first 的启动核心**，不是 HMCL/Java 版的完整功能等价实现。CLI 覆盖全部功能面，GUI 目前只有首屏（实例列表 + 启动/停止 + 日志），两者调用同一套核心模块。
+这是 AuroraLauncher 的 C++ 重写工程，当前是 **Windows-first 的启动核心**，不是 HMCL/Java 版的完整功能等价实现。CLI 覆盖全部功能面，GUI 提供主页（游玩热力图与统计）和实例封面墙/详情抽屉（启动、停止、设置、日志），两者调用同一套核心模块。
 
 原 Java 工程和未提交的 JFoenix 移除/UI 迁移工作已完整归档，未直接删除：
 
@@ -17,7 +17,7 @@
 
 已执行：
 
-- Debug 和 Release 构建通过，`ctest` 13 个测试目标全部通过（核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL）。
+- Debug 和 Release 构建通过，`ctest` 14 个测试目标全部通过（核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL、活动记录）。
 - 现场联网验证：Mojang 版本清单 `version latest`、Fabric loader 列表（经 BMCLAPI 镜像）、Forge promotions 和 NeoForge 版本列表（`forge list forge|neoforge 1.21.1`，经 BMCLAPI 元数据镜像，约 0.6 秒）。
 - Modrinth 现场验证：`mod search sodium` 经 MCIM API 镜像返回结果；`mod install sodium` 下载并校验 SHA-1；`mod install sodium-extra` 自动解析并识别已安装的 Sodium 依赖。
 - 模组管理现场验证：`mod list`、`mod disable/enable` 往返成功；`mod update` 对旧版 Sodium 报告 0.8.13 可用，`--apply` 下载、校验并替换旧 JAR，再查为 up to date。
@@ -28,7 +28,7 @@
 - 镜像优先/官方回退：用 `install 1.0 --no-assets` 实测客户端和库经 BMCLAPI 下载，并在镜像慢节点出现后回退官方；客户端和 7 个适用库的 SHA-1 全部匹配。
 - 真实游戏启动（离线账号）：本机 `D:\PCL\.minecraft` 复制出的独立冒烟目录（1.5 GB，不写回真实游戏目录）实跑两次。① 原版 1.19.2：`install` 校验 3390 个资源后 `launch` 起来，日志出现 `Backend library: LWJGL version 3.3.1 build 7`、逐张 atlas 拼接、`OpenAL initialized on device ... 扬声器 (Realtek(R) Audio)`、`Sound engine started`，无 crash-report、无 `hs_err`，退出为干净的 `Stopping!`。② Fabric 1.19.4（真实 PCL CE 实例，带 BOM 的 `config.v1.yml`、`VersionArgumentIndieV2: true`）：工作目录切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`；再用 `mod install sodium` 装进实例自己的 `mods`，重启后模组列表出现 `sodium 0.4.10+build.24` 及其 fabric-* 传递依赖并再次到达 `Sound engine started`（进程 RSS 1.13 GB，确认存活后由我们主动结束）。离线启动下 `Failed to verify authentication Status: 401` 属预期（伪造 token 无法通过 authlib 校验，与其他启动器离线模式一致）。
 - `--log FILE` 真机复核：同一次 1.19.2 启动下文件收到 50 条游戏 log4j 事件和 JVM 自身的 stderr（例如 `NOTE: Picked up JDK_JAVA_OPTIONS: ...`，这行只在子进程输出里可见），头部只保留时间戳与 java 可执行路径；同一文件里 `--accessToken` 与 `-cp` 命中均为 0 次。第一版曾把整条命令行写进日志，联网登录时会泄露 access token，已修正并加了回归测试。
-- 桌面首屏真机验证：`aurora_gui` 指向冒烟目录后用真实鼠标点击走完「启动 → 运行中 → 停止」。点击启动后 `javaw.exe` 起来（工作集 191 MB → 627 MB，31 秒后仍在跑），界面状态变为「运行中 · PID 386196」、启动转灰、停止转亮；点停止后 `javaw` 消失、状态显示中性灰「已手动停止」，日志尾部保留 `OpenAL initialized ... 扬声器 (Realtek(R) Audio)`、`Sound engine started` 与逐张 atlas 记录。第一版把 log4j 的 XML 脚手架和自身 banner 一起显示在日志里（与 latest.log 重复），已在启动器流侧按行过滤，只保留 JVM 提示与早期失败；长行撑出横向滚动条也已用 `overflow-wrap` 修掉。截图取的是窗口真实像素（PrintWindow + PW_RENDERFULLCONTENT，均亮 31.9、纯黑占比 2.6%）。
+- 桌面 GUI 真机验证：`aurora_gui` 在 1180×760 下用真实鼠标走完「主页热力图 → 实例封面墙 → 详情抽屉 → 启动 → 游戏标题界面（javaw 工作集 676 MB → 1.15 GB）→ 停止」。停止后 `%APPDATA%\AuroraLauncher\activity.json` 写入 51 秒会话，主页立即变为「今天已游玩 51 秒 / 总游戏时长 51 秒 / 启动 5 次」，热力图当天格与悬浮提示同步更新；运行中封面显示绿色徽标、顶栏运行胶囊可点开抽屉，停止后状态为中性灰「已手动停止」。日志面板过滤 log4j 的 XML 脚手架与自身 banner，只保留 latest.log 没有的 JVM 级输出，长行用 `overflow-wrap` 换行。热力图的分级、月份标签与悬浮提示另用 148 天临时活动数据核对，截图后已还原真实数据。截图取窗口真实像素（PrintWindow + PW_RENDERFULLCONTENT）。
 - 用本地临时 HTTP 服务验证过客户端 JAR、库、资源索引、native ZIP 下载、SHA-1 校验和 `.dll` 解压；中文路径/用户名也已通过 CLI 验证。
 
 尚未现场验证：
@@ -66,7 +66,7 @@
 | 资源包管理 | 已实现 | `resourcepack list/enable/disable`，读写 `options.txt` 的 `resourcePacks`；pack.mcmeta 兼容性、pack.png 检测、新旧 options 格式 |
 | 整合包 | 已实现 | Modrinth `.mrpack` / CurseForge manifest、SHA-1、overrides、自动安装加载器、安装原版文件、生成可启动实例、升级/备份 |
 | PCL 实例兼容 | 已实现 | 读取 `PCL/Setup.ini` 与 `PCL/config.v1.yml`：版本隔离（含 PCL 自动隔离规则）、内存档位、JVM/游戏参数、指定 Java；`launch` 自动采用 |
-| GUI | 首屏已实现 | `aurora_gui`：WebView2 宿主 + 实例列表/详情 + 启动与停止 + 日志实时尾部；安装与下载仍在 CLI |
+| GUI | 主页与实例页已实现 | `aurora_gui`：WebView2 宿主 + 主页游玩热力图/统计 + 实例封面墙/详情抽屉（启动、停止、设置、日志）；安装与下载仍在 CLI |
 | 主题包/UI/服务端模块 | 未开始 | 未迁移 |
 
 ## 构建
@@ -192,7 +192,7 @@ Windows 11 自带 WebView2 运行时；旧版 Windows 10 缺少时程序会弹�
 - 发布二进制应使用项目自己的代码签名证书。仓库只提供自签开发流程，不包含可信证书私钥；见 `SIGNING.md`。
 - 资源索引支持 `objects` 以及旧版 `virtual`/`map_to_resources` 布局；`game_assets` 会指向实际资源目录。
 - 启动前要求客户端 JAR、资源索引和所有带 artifact 的 allow 库已经存在；`install` 会尝试补齐。
-- GUI 目前只有首屏（实例列表/启动/日志），没有资源包下载源、服务器管理、主题包；Modrinth 和 CurseForge 的必需依赖已支持递归安装，模组启停、Modrinth/CurseForge 更新检查、整合包安装/升级已接入。
+- GUI 覆盖主页与实例页，但没有资源包下载源、服务器管理、主题包；Modrinth 和 CurseForge 的必需依赖已支持递归安装，模组启停、Modrinth/CurseForge 更新检查、整合包安装/升级已接入。
 - Forge/NeoForge 支持以官方 installer 为准；本项目不重新实现其安装逻辑，也不在启动时隐式联网。
 
 ## 目录

@@ -32,6 +32,7 @@ struct LaunchPlan {
     std::filesystem::path java;
     std::filesystem::path working_directory;
     std::vector<std::string> arguments;
+    std::string instance_id;
 
     std::string command_line() const;
 };

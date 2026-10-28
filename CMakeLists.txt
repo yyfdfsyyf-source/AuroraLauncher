@@ -23,6 +23,7 @@ if(MSVC)
 endif()
 
 add_library(aurora_core STATIC
+    src/core/activity.cpp
     src/core/auth.cpp
     src/core/config.cpp
     src/core/curseforge.cpp
@@ -173,6 +174,13 @@ if(BUILD_TESTING)
         target_compile_options(aurora_resourcepacks_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_resourcepacks_tests COMMAND aurora_resourcepacks_tests)
+
+    add_executable(aurora_activity_tests tests/activity_test.cpp)
+    target_link_libraries(aurora_activity_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_activity_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_activity_tests COMMAND aurora_activity_tests)
 
     add_executable(aurora_modpack_tests tests/modpack_test.cpp)
     target_link_libraries(aurora_modpack_tests PRIVATE aurora_core)

@@ -1,5 +1,6 @@
 #include "core/launch.hpp"
 
+#include "core/activity.hpp"
 #include "core/branding.hpp"
 #include "core/error.hpp"
 #include "core/hash.hpp"
@@ -11,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ctime>
 #include <map>
 #include <set>
 #include <string_view>
@@ -405,6 +407,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     plan.arguments = std::move(jvm);
     plan.arguments.push_back(meta.main_class);
     plan.arguments.insert(plan.arguments.end(), game.begin(), game.end());
+    plan.instance_id = meta.id;
     return plan;
 }
 
@@ -413,7 +416,14 @@ int launch_game(const LaunchPlan& plan,
                 const std::filesystem::path& output_log) {
     // Never log the command line: it contains the Minecraft access token.
     log_info("Starting Minecraft process: " + path_to_utf8(plan.java));
-    return run_process(plan.java, plan.arguments, plan.working_directory, wait, output_log);
+    const std::time_t started = std::time(nullptr);
+    const int exit_code =
+        run_process(plan.java, plan.arguments, plan.working_directory, wait, output_log);
+    if (wait) {
+        record_play_session(plan.instance_id, started,
+                            static_cast<int>(std::difftime(std::time(nullptr), started)));
+    }
+    return exit_code;
 }
 
 } // namespace aurora

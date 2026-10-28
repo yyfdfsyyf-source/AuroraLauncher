@@ -1,3 +1,4 @@
+#include "core/activity.hpp"
 #include "core/config.hpp"
 #include "core/error.hpp"
 #include "core/java.hpp"
@@ -26,10 +27,13 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <ctime>
 #include <cwchar>
 #include <fstream>
+#include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #pragma comment(lib, "ole32.lib")
@@ -66,6 +70,8 @@ struct AppState {
     std::string launched_id;
     int game_exit_code = 0;
     bool stopped_by_user = false;
+    std::time_t session_started = 0;
+    bool session_open = false;
     Tail launcher_log;
     Tail game_log;
 };
@@ -262,6 +268,66 @@ Json state_json() {
     return payload;
 }
 
+Json activity_payload() {
+    const ActivitySummary summary = collect_activity(state.config.game_dir);
+    Json days = Json::array();
+    for (const ActivityDay& day : summary.days) {
+        Json entry = Json::object();
+        entry["date"] = day.date;
+        entry["seconds"] = day.seconds;
+        entry["launches"] = day.launches;
+        days.push_back(std::move(entry));
+    }
+    Json result = Json::object();
+    result["days"] = std::move(days);
+    result["totalSeconds"] = summary.total_seconds;
+    result["totalLaunches"] = summary.total_launches;
+    result["daysPlayed"] = summary.days_played;
+    result["firstDate"] = summary.first_date;
+    result["lastDate"] = summary.last_date;
+    result["today"] = local_date_key(std::time(nullptr));
+
+    // Latest session per instance, so the home shelf can order by recency.
+    std::map<std::string, std::pair<std::string, long long>> latest;
+    for (const PlaySession& session : read_play_sessions()) {
+        auto& entry = latest[session.instance];
+        if (session.start > entry.first) {
+            entry.first = session.start;
+        }
+        entry.second += session.seconds;
+    }
+    std::vector<std::pair<std::string, std::pair<std::string, long long>>> ordered(
+        latest.begin(), latest.end());
+    std::sort(ordered.begin(), ordered.end(),
+              [](const auto& left, const auto& right) {
+                  return left.second.first > right.second.first;
+              });
+    Json recent = Json::array();
+    for (std::size_t index = 0; index < ordered.size() && index < 8; ++index) {
+        Json item = Json::object();
+        item["id"] = ordered[index].first;
+        item["lastStart"] = ordered[index].second.first;
+        item["seconds"] = ordered[index].second.second;
+        recent.push_back(std::move(item));
+    }
+    result["recent"] = std::move(recent);
+    return result;
+}
+
+// Closes the current play session, writes it to activity.json and refreshes
+// the heatmap. Safe to call when no session is open.
+void finish_session() {
+    if (!state.session_open) {
+        return;
+    }
+    state.session_open = false;
+    const int seconds =
+        static_cast<int>(std::difftime(std::time(nullptr), state.session_started));
+    record_play_session(state.launched_id, state.session_started, seconds);
+    state.session_started = 0;
+    post_event("activity", activity_payload());
+}
+
 void poll_process_state() {
     if (!state.game.valid() || state.game_exit_code != 0) {
         return;
@@ -269,6 +335,7 @@ void poll_process_state() {
     const int exit_code = state.game.wait(0);
     if (exit_code != -1) {
         state.game_exit_code = exit_code;
+        finish_session();
         post_event("state", state_json());
     }
 }
@@ -371,6 +438,7 @@ void handle_launch(const Json& message) {
         post_error("Minecraft is already running: " + state.launched_id);
         return;
     }
+    finish_session();
     const VersionRepository repository(state.config.game_dir);
     if (!repository.contains(id)) {
         post_error("Version not found: " + id);
@@ -416,6 +484,8 @@ void handle_launch(const Json& message) {
     state.stopped_by_user = false;
     state.game =
         spawn_process(plan.java, plan.arguments, plan.working_directory, state.launcher_log.path);
+    state.session_started = std::time(nullptr);
+    state.session_open = true;
     post_event("launched", state_json());
 }
 
@@ -432,6 +502,7 @@ void handle_stop() {
     }
     const int exit_code = state.game.wait(5000);
     state.game_exit_code = exit_code < 0 ? 1 : exit_code;
+    finish_session();
     post_event("state", state_json());
 }
 
@@ -477,6 +548,7 @@ void handle_message(const std::string& json_text) {
             payload["runtimes"] = runtimes_payload();
             payload["settings"] = settings_payload();
             payload["state"] = state_json();
+            payload["activity"] = activity_payload();
             payload["version"] = std::string(AURORA_GUI_VERSION);
             if (reply_to != 0) {
                 payload["replyTo"] = reply_to;
@@ -488,6 +560,8 @@ void handle_message(const std::string& json_text) {
             post_event("runtimes", runtimes_payload());
         } else if (action == "settings") {
             post_event("settings", settings_payload());
+        } else if (action == "activity") {
+            post_event("activity", activity_payload());
         } else if (action == "launch") {
             handle_launch(message);
         } else if (action == "stop") {
@@ -529,6 +603,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
         }
         break;
     case WM_DESTROY:
+        finish_session();
         KillTimer(hwnd, k_poll_timer);
         PostQuitMessage(0);
         return 0;

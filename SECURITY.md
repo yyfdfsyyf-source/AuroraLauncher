@@ -19,6 +19,14 @@
 - Downloads use `.part` files and verify hashes before replacing the final
   file. Do not disable verification for official metadata.
 
+## Local data
+
+- `%APPDATA%\AuroraLauncher\activity.json` stores only instance ids, local
+  start times, and play durations. It must never contain access tokens,
+  command lines, or account credentials.
+- The GUI stays offline-only, so Microsoft credentials never reach the web
+  view.
+
 ## Release integrity
 
 - Release binaries should be signed with the project's own trusted

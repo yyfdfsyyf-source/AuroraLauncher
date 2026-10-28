@@ -21,11 +21,16 @@
     --r-sm: 8px;
     --r-md: 12px;
     --r-lg: 16px;
+    --l0: #1b1f27;
+    --l1: #1f3a56;
+    --l2: #2b5f96;
+    --l3: #3f83c9;
+    --l4: #63a4ff;
   }
 
   * { box-sizing: border-box; }
-
   html, body { height: 100%; margin: 0; }
+  [hidden] { display: none !important; }
 
   body {
     display: flex;
@@ -37,15 +42,25 @@
     user-select: none;
   }
 
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: #2a303c; border-radius: 6px;
+    border: 2px solid transparent; background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #37404f; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
   header {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     height: 52px;
     padding: 0 16px;
     border-bottom: 1px solid var(--line);
     background: var(--panel);
     flex: none;
+    position: relative;
+    z-index: 30;
   }
 
   .mark {
@@ -57,10 +72,22 @@
   .wordmark { font-size: 14px; font-weight: 600; letter-spacing: .2px; }
   .wordmark span { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
 
-  header .grow { flex: 1; }
+  .grow { flex: 1; }
+
+  .tabs {
+    display: flex; gap: 2px; margin-left: 10px;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 2px;
+  }
+  .tabs button {
+    background: transparent; border: 0; border-radius: 7px;
+    padding: 4px 14px; color: var(--muted);
+    font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
+  }
+  .tabs button.on { background: #2a303c; color: var(--text); }
 
   .path {
-    max-width: 46ch;
+    max-width: 40ch;
     color: var(--muted);
     font-size: 12px;
     overflow: hidden;
@@ -70,111 +97,306 @@
     text-align: left;
   }
 
+  .runpill {
+    display: flex; align-items: center; gap: 7px;
+    background: rgba(74,210,149,.1); border: 1px solid rgba(74,210,149,.35);
+    color: var(--good); border-radius: 999px; padding: 4px 12px;
+    font: inherit; font-size: 12px; cursor: pointer; max-width: 28ch;
+  }
+  .runpill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .runpill .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+    padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer;
+    transition: filter 120ms ease, transform 90ms ease, opacity 120ms ease;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.16); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.ghost { background: transparent; font-weight: 500; color: var(--muted); }
+  button.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  button.danger { color: var(--bad); border-color: rgba(255,107,107,.4); background: transparent; }
+
   main { flex: 1; display: flex; min-height: 0; }
+  .view { flex: 1; min-width: 0; overflow-y: auto; }
+  .view[hidden] { display: none; }
 
-  aside {
-    width: 292px; flex: none;
-    border-right: 1px solid var(--line);
-    background: var(--panel);
-    display: flex; flex-direction: column; min-height: 0;
+  .home {
+    max-width: 1080px; margin: 0 auto; padding: 20px 26px 30px;
+    display: flex; flex-direction: column; gap: 14px;
   }
 
-  .aside-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 14px 8px;
-    color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
+  .hello h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: .2px; }
+  .hello p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--r-md); padding: 11px 15px;
+  }
+  .stat .k { color: var(--muted); font-size: 11.5px; letter-spacing: .3px; }
+  .stat b {
+    display: block; margin-top: 4px;
+    font-size: 19px; font-weight: 650; letter-spacing: .2px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .stat .s { display: block; color: var(--muted); font-size: 11px; margin-top: 3px;
+             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--r-lg);
   }
 
-  #list { overflow-y: auto; padding: 0 8px 12px; flex: 1; }
+  .heat { padding: 14px 18px 10px; }
+  .heat-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .heat-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .heat-head p { margin: 3px 0 0; color: var(--muted); font-size: 11.5px; }
+  .legend { margin-left: auto; display: flex; align-items: center; gap: 4px;
+            color: var(--muted); font-size: 11px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .legend i.l0 { background: var(--l0); }
+  .legend i.l1 { background: var(--l1); }
+  .legend i.l2 { background: var(--l2); }
+  .legend i.l3 { background: var(--l3); }
+  .legend i.l4 { background: var(--l4); }
 
-  .card {
-    padding: 10px 12px;
-    border-radius: var(--r-md);
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  .heat-scroll { overflow-x: auto; padding-bottom: 2px; }
+  .months {
+    display: grid; gap: 3px; margin-left: 28px; height: 14px;
+    color: var(--muted); font-size: 10.5px;
+  }
+  .months span { grid-row: 1; white-space: nowrap; }
+  .heat-body { display: flex; gap: 6px; }
+  .days {
+    display: grid; grid-template-rows: repeat(7, 12px); gap: 3px;
+    width: 22px; color: var(--muted); font-size: 10px;
+  }
+  .days span { line-height: 12px; }
+  .grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; }
+  .grid i { width: 12px; height: 12px; border-radius: 3px; background: var(--l0); }
+  .grid i.l1 { background: var(--l1); }
+  .grid i.l2 { background: var(--l2); }
+  .grid i.l3 { background: var(--l3); }
+  .grid i.l4 { background: var(--l4); }
+  .grid i.future { background: transparent; }
+  .grid i.today { box-shadow: 0 0 0 1px var(--accent) inset; }
+
+  .heat-foot {
+    margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 11px;
   }
 
-  .card:hover { background: var(--panel-2); }
-  .card.sel { background: var(--panel-2); border-color: var(--line-strong); }
+  .shelf-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .shelf-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .link {
+    background: none; border: 0; padding: 0; color: var(--accent);
+    font: inherit; font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .shelf-row { display: flex; gap: 14px; overflow-x: auto; padding: 2px 2px 8px; }
+  .shelf-row .cover { width: 118px; flex: none; }
 
-  .card b { display: block; font-weight: 600; font-size: 13px; margin-bottom: 3px;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .card .sub { color: var(--muted); font-size: 11.5px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .wall-page { max-width: 1180px; margin: 0 auto; padding: 24px 28px 44px; }
+  .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .page-head h1 { margin: 0; font-size: 21px; font-weight: 650; }
+  .count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .wall {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 18px 16px;
+  }
 
-  .tag { border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 7px; line-height: 17px; font-size: 11px; }
-  .tag.fabric, .tag.quilt { color: #cbb28e; }
-  .tag.neoforge, .tag.forge { color: #9fd3a6; }
-  .tag.iso { color: var(--accent); }
-  .tag.bad { color: var(--bad); }
+  .cover {
+    --h1: 212deg; --h2: 250deg;
+    position: relative; aspect-ratio: 3 / 4; width: 100%;
+    border: 1px solid var(--line); border-radius: 14px; padding: 0;
+    overflow: hidden; cursor: pointer; text-align: left;
+    color: var(--text); font: inherit;
+    background:
+      radial-gradient(120% 80% at 85% 0%, hsl(var(--h2) 62% 44% / .75), transparent 58%),
+      radial-gradient(130% 90% at 15% 105%, hsl(var(--h1) 58% 34% / .9), transparent 62%),
+      linear-gradient(165deg, #232838, #10131a 70%);
+    transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .cover::before {
+    content: ""; position: absolute; inset: -35% 10% 28% -25%;
+    background: conic-gradient(from 205deg at 55% 100%,
+      transparent 0deg, hsl(var(--h2) 85% 74% / .16) 55deg, transparent 130deg);
+    transform: rotate(-7deg); pointer-events: none;
+  }
+  .cover::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(45deg,
+      rgba(255,255,255,.028) 0 2px, transparent 2px 9px);
+  }
+  .cover:hover { transform: translateY(-3px); border-color: var(--line-strong);
+                 box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+  .cover:active { transform: translateY(-1px); }
+  .cover.sel { border-color: rgba(99,164,255,.8);
+               box-shadow: 0 0 0 1px rgba(99,164,255,.45), 0 8px 22px rgba(0,0,0,.35); }
 
-  section.detail { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .cover .chip {
+    position: absolute; top: 10px; left: 10px; z-index: 3;
+    background: rgba(10,13,18,.62); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 999px; padding: 1px 8px; font-size: 10.5px; color: #dfe6f2;
+    backdrop-filter: none;
+  }
+  .cover .chip.fabric, .cover .chip.quilt { color: #e7cda7; }
+  .cover .chip.forge, .cover .chip.neoforge { color: #b7e0bd; }
 
-  .hero { padding: 20px 22px 14px; border-bottom: 1px solid var(--line); }
-  .hero h1 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: .1px; }
-  .hero .meta { color: var(--muted); margin-top: 5px; font-size: 12px; }
+  .cover .runbadge {
+    position: absolute; top: 10px; right: 10px; z-index: 3;
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(9, 32, 22, .72); border: 1px solid rgba(74,210,149,.45);
+    color: var(--good); border-radius: 999px; padding: 1px 8px; font-size: 10.5px;
+  }
+  .cover .runbadge i { width: 6px; height: 6px; border-radius: 50%; background: var(--good);
+                       animation: pulse 1.6s ease-in-out infinite; }
 
-  .status { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
-            font-size: 12px; color: var(--muted); }
+  .cover .initial {
+    position: absolute; right: 8px; bottom: 52px; z-index: 1;
+    font-size: 66px; line-height: 1; font-weight: 800; letter-spacing: -3px;
+    color: rgba(255,255,255,.12); text-transform: uppercase;
+  }
+  .cover .veil {
+    position: absolute; inset: auto 0 0 0; z-index: 2;
+    padding: 34px 12px 11px;
+    background: linear-gradient(transparent, rgba(11,13,18,.9) 58%);
+  }
+  .cover .veil b {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-size: 13.5px; font-weight: 600; line-height: 1.35;
+    word-break: break-word;
+  }
+  .cover .veil span {
+    display: block; margin-top: 3px; color: var(--muted); font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cover .veil em { font-style: normal; color: var(--warn); }
+  .cover .veil .bad { color: var(--bad); }
+
+  .empty {
+    border: 1px dashed var(--line-strong); border-radius: var(--r-lg);
+    padding: 30px 24px; color: var(--muted); font-size: 12.5px; line-height: 2;
+  }
+  .empty b { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; }
+  .empty p { margin: 0; }
+  .empty code {
+    display: inline-block; color: var(--text); background: var(--panel-2);
+    padding: 1px 7px; border-radius: 6px; margin-top: 4px;
+  }
+
+  .scrim {
+    position: fixed; inset: 52px 0 0 0; z-index: 20;
+    background: rgba(6, 8, 12, .45);
+    opacity: 0; pointer-events: none; transition: opacity 160ms ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed; top: 52px; right: 0; bottom: 0; z-index: 25;
+    width: 410px; max-width: 92vw;
+    display: flex; flex-direction: column;
+    background: var(--panel); border-left: 1px solid var(--line-strong);
+    transform: translateX(102%); transition: transform 180ms ease;
+    box-shadow: -18px 0 40px rgba(0,0,0,.28);
+  }
+  .drawer.open { transform: none; }
+
+  .d-band {
+    --h1: 212deg; --h2: 250deg;
+    position: relative; height: 126px; flex: none; overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 85% 0%, hsl(var(--h2) 62% 44% / .7), transparent 60%),
+      radial-gradient(130% 100% at 10% 110%, hsl(var(--h1) 58% 34% / .85), transparent 62%),
+      linear-gradient(165deg, #232838, #10131a 75%);
+  }
+  .d-band::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(45deg,
+      rgba(255,255,255,.028) 0 2px, transparent 2px 9px);
+  }
+  .d-band .initial {
+    position: absolute; right: 14px; bottom: 2px;
+    font-size: 82px; line-height: 1; font-weight: 800; letter-spacing: -3px;
+    color: rgba(255,255,255,.1); text-transform: uppercase;
+  }
+  .d-band-text { position: absolute; left: 18px; right: 18px; bottom: 12px; }
+  .d-band-text h2 { margin: 0; font-size: 19px; font-weight: 650;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .d-band-text div { margin-top: 3px; color: #b7c0d0; font-size: 11.5px;
+                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .iconbtn {
+    position: absolute; top: 10px; right: 10px; z-index: 3;
+    width: 28px; height: 28px; padding: 0; border-radius: 8px;
+    background: rgba(10,13,18,.55); border: 1px solid rgba(255,255,255,.16);
+    color: #dfe6f2; font-size: 17px; line-height: 1; cursor: pointer;
+  }
+
+  .d-statusline { padding: 12px 18px 0; flex: none; }
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .status.run .dot { background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
   .status.run { color: var(--good); }
   .status.stop .dot { background: var(--bad); }
   .status.stop { color: var(--bad); }
   .status.idle .dot { background: #4a5262; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,210,149,.55); } 50% { box-shadow: 0 0 0 5px rgba(74,210,149,0); } }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(74,210,149,.55); }
+    50% { box-shadow: 0 0 0 5px rgba(74,210,149,0); }
+  }
 
-  .controls { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 22px; align-items: flex-end; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
+  .d-controls {
+    display: grid; grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 10px 12px; padding: 14px 18px 12px; flex: none;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field.wide { grid-column: 1 / -1; }
   .field label { font-size: 11px; color: var(--muted); letter-spacing: .4px; }
-
   input, select {
     background: var(--panel-2); color: var(--text);
     border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-    padding: 7px 9px; font: inherit; outline: none;
+    padding: 7px 9px; font: inherit; outline: none; min-width: 0;
     transition: border-color 120ms ease, box-shadow 120ms ease;
   }
   input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,164,255,.18); }
-  #username { width: 150px; }
-  #memory { width: 110px; }
-  #java { width: 260px; }
+  #java { width: 100%; }
+  .d-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
 
-  button {
-    background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-    padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer;
-    transition: filter 120ms ease, transform 90ms ease, opacity 120ms ease;
+  .logs {
+    flex: 1; min-height: 150px; display: flex; flex-direction: column;
+    border-top: 1px solid var(--line); background: #0f1116; position: relative;
   }
-  button:hover:not(:disabled) { filter: brightness(1.16); }
-  button:active:not(:disabled) { transform: translateY(1px); }
-  button:disabled { opacity: .45; cursor: default; }
-  button.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
-  button.danger { color: var(--bad); border-color: rgba(255,107,107,.4); }
-  button.ghost { background: transparent; }
-
-  .spacer { flex: 1; }
-
-  .logs { flex: 1; min-height: 0; display: flex; flex-direction: column;
-          border-top: 1px solid var(--line); background: #0f1116; }
-  .logs .bar { display: flex; align-items: center; gap: 10px; padding: 8px 22px;
-               color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
-               border-bottom: 1px solid var(--line); }
-  #log { flex: 1; overflow: auto; padding: 10px 22px 18px;
-         font: 11.5px/1.55 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
-         user-select: text; color: #b9c2d0; }
+  .logs .bar {
+    display: flex; align-items: center; gap: 10px; padding: 8px 18px;
+    color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
+    border-bottom: 1px solid var(--line); flex: none;
+  }
+  #log {
+    flex: 1; overflow: auto; padding: 9px 18px 16px;
+    font: 11px/1.55 "Cascadia Mono", Consolas, monospace;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    user-select: text; color: #b9c2d0;
+  }
   #log .l { display: block; }
-  #log .hint { position: absolute; inset: 0; display: grid; place-content: center;
-               color: #5d6675; font-size: 12.5px; text-align: center; line-height: 1.9;
-               pointer-events: none; }
-  #log .hint kbd { color: var(--text); }
-  .logs { position: relative; }
+  #log .hint {
+    position: absolute; inset: 34px 0 0 0; display: grid; place-content: center;
+    color: #5d6675; font-size: 12.5px; text-align: center; line-height: 1.9;
+    pointer-events: none;
+  }
   #log .warn { color: var(--warn); }
   #log .err { color: var(--bad); }
   #log .sys { color: var(--accent); }
   #log .jvm { color: #86b7d6; }
 
   .toast {
-    position: fixed; right: 18px; bottom: 18px; max-width: 52ch;
+    position: fixed; right: 18px; bottom: 18px; z-index: 40; max-width: 52ch;
     background: #242833; border: 1px solid var(--line-strong); border-left: 3px solid var(--bad);
     border-radius: var(--r-md); padding: 10px 14px; font-size: 12.5px;
     box-shadow: 0 10px 30px rgba(0,0,0,.5);
@@ -183,71 +405,162 @@
   }
   .toast.show { opacity: 1; transform: none; }
 
-  .empty { padding: 26px 16px; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
-  .empty code { color: var(--text); background: var(--panel-2); padding: 1px 5px; border-radius: 5px; }
+  .tip {
+    position: fixed; z-index: 50; pointer-events: none;
+    background: #262b36; border: 1px solid var(--line-strong); border-radius: 7px;
+    padding: 5px 9px; font-size: 11.5px; color: var(--text);
+    box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    opacity: 0; transition: opacity 100ms ease;
+  }
+  .tip.show { opacity: 1; }
+
+  @media (max-width: 980px) {
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 </head>
 <body>
 <header>
   <div class="mark"></div>
   <div class="wordmark">Aurora<span id="version"></span></div>
+  <nav class="tabs" id="tabs">
+    <button data-view="home" class="on">主页</button>
+    <button data-view="instances">实例</button>
+  </nav>
   <div class="grow"></div>
+  <button class="runpill" id="runpill" hidden><i class="dot"></i><span id="runtext"></span></button>
   <div class="path" id="gamedir" title="游戏目录"></div>
-  <button class="ghost" id="refresh" title="重新扫描实例">刷新</button>
+  <button class="ghost" id="refresh" title="重新扫描实例与活动">刷新</button>
 </header>
 
 <main>
-  <aside>
-    <div class="aside-head"><span>实例</span><span id="count"></span></div>
-    <div id="list"></div>
-  </aside>
-
-  <section class="detail">
-    <div class="hero">
-      <h1 id="name">选择一个实例</h1>
-      <div class="meta" id="meta"></div>
-      <div class="status" id="status"><i class="dot"></i><span id="statustext">未运行</span></div>
-    </div>
-
-    <div class="controls">
-      <div class="field"><label for="username">用户名</label><input id="username" spellcheck="false"></div>
-      <div class="field"><label for="memory">最大内存</label>
-        <select id="memory">
-          <option value="1024">1 GB</option><option value="2048">2 GB</option>
-          <option value="3072">3 GB</option><option value="4096">4 GB</option>
-          <option value="6144">6 GB</option><option value="8192">8 GB</option>
-        </select>
+  <section class="view" id="view-home">
+    <div class="home">
+      <div class="hello">
+        <h1 id="hello">欢迎回来</h1>
+        <p id="hellosub">正在读取本地活动记录…</p>
       </div>
-      <div class="field"><label for="java">Java</label><select id="java"></select></div>
-      <div class="field"><label>&nbsp;</label><button class="ghost" id="save">保存设置</button></div>
-      <div class="spacer"></div>
-      <div class="field"><label>&nbsp;</label><button class="danger" id="stop" disabled>停止</button></div>
-      <div class="field"><label>&nbsp;</label><button class="primary" id="launch" disabled>启动</button></div>
-    </div>
 
-    <div class="logs">
-      <div class="bar"><span>日志</span><span class="spacer"></span><span id="logsrc"></span></div>
-      <div id="log"><div class="hint" id="loghint">点「启动」后，这里会实时显示游戏日志<br>
-      安装版本、下载模组和整合包目前仍在命令行</div></div>
+      <div class="stats">
+        <div class="stat"><span class="k">总游戏时长</span><b id="stat-total">—</b><span class="s" id="stat-total-sub"></span></div>
+        <div class="stat"><span class="k">本周游玩</span><b id="stat-week">—</b><span class="s">最近 7 天</span></div>
+        <div class="stat"><span class="k">连续游玩</span><b id="stat-streak">—</b><span class="s" id="stat-streak-sub"></span></div>
+        <div class="stat"><span class="k">启动次数</span><b id="stat-launch">—</b><span class="s" id="stat-launch-sub"></span></div>
+      </div>
+
+      <div class="panel heat">
+        <div class="heat-head">
+          <div><h2>游玩热力图</h2><p id="heat-sub">最近一年</p></div>
+          <div class="legend"><span>少</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>多</span></div>
+        </div>
+        <div class="heat-scroll">
+          <div class="months" id="months"></div>
+          <div class="heat-body">
+            <div class="days"><span></span><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span></div>
+            <div class="grid" id="heatgrid"></div>
+          </div>
+        </div>
+        <div class="heat-foot"><span id="heat-foot"></span></div>
+      </div>
+
+      <div class="shelf" id="shelf" hidden>
+        <div class="shelf-head">
+          <h2 id="shelf-title">继续游玩</h2>
+          <button class="link" id="shelf-all">查看全部实例</button>
+        </div>
+        <div class="shelf-row" id="shelf-row"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-instances" hidden>
+    <div class="wall-page">
+      <div class="page-head">
+        <h1>实例</h1><span class="count" id="count"></span>
+        <div class="grow"></div>
+        <button class="ghost" id="refresh2">重新扫描</button>
+      </div>
+      <div class="wall" id="wall"></div>
+      <div class="empty" id="wall-empty" hidden>
+        <b>还没有实例</b>
+        <p>用命令行安装一个版本或整合包，然后点「重新扫描」：</p>
+        <code>aurora install 1.21.1</code><br>
+        <code>aurora modpack install 包.mrpack</code>
+      </div>
     </div>
   </section>
 </main>
 
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="d-band" id="d-band">
+    <span class="initial" id="d-initial"></span>
+    <button class="iconbtn" id="d-close" aria-label="关闭">×</button>
+    <div class="d-band-text">
+      <h2 id="d-name">选择一个实例</h2>
+      <div id="d-meta"></div>
+    </div>
+  </div>
+
+  <div class="d-statusline">
+    <div class="status idle" id="status"><i class="dot"></i><span id="statustext">未运行</span></div>
+  </div>
+
+  <div class="d-controls">
+    <div class="field"><label for="username">用户名</label><input id="username" spellcheck="false" autocomplete="off"></div>
+    <div class="field"><label for="memory">最大内存</label>
+      <select id="memory">
+        <option value="1024">1 GB</option><option value="2048">2 GB</option>
+        <option value="3072">3 GB</option><option value="4096">4 GB</option>
+        <option value="6144">6 GB</option><option value="8192">8 GB</option>
+      </select>
+    </div>
+    <div class="field wide"><label for="java">Java</label><select id="java"></select></div>
+    <div class="d-actions">
+      <button class="ghost" id="save">保存设置</button>
+      <div class="grow"></div>
+      <button class="danger" id="stop" disabled>停止</button>
+      <button class="primary" id="launch" disabled>启动</button>
+    </div>
+  </div>
+
+  <div class="logs">
+    <div class="bar"><span>日志</span><div class="grow"></div><span id="logsrc"></span></div>
+    <div id="log"><div class="hint" id="loghint">启动游戏后，这里会实时显示日志<br>安装版本与下载模组仍在命令行</div></div>
+  </div>
+</aside>
+
 <div class="toast" id="toast"></div>
+<div class="tip" id="tip"></div>
 
 <script>
 const native = window.chrome?.webview ?? null;
 const els = {};
-for (const id of ['version','gamedir','list','count','name','meta','status','statustext',
-                  'username','memory','java','save','launch','stop','log','logsrc','toast','refresh']) {
+for (const id of ['version','tabs','runpill','runtext','gamedir','refresh',
+                  'hello','hellosub','stat-total','stat-total-sub','stat-week',
+                  'stat-streak','stat-streak-sub','stat-launch','stat-launch-sub',
+                  'heat-sub','months','heatgrid','heat-foot','shelf','shelf-title','shelf-row','shelf-all',
+                  'count','wall','wall-empty','refresh2','scrim','drawer','d-band','d-initial',
+                  'd-close','d-name','d-meta','status','statustext','username','memory','java',
+                  'save','stop','launch','log','logsrc','loghint','toast','tip']) {
   els[id] = document.getElementById(id);
 }
 
-let instances = [];
-let selectedId = null;
-let running = false;
-let seq = 0;
+const state = {
+  instances: [],
+  selectedId: null,
+  activity: null,
+  running: false,
+  runningId: null,
+  launchedId: '',
+  pid: 0,
+  lastExit: null,
+  stoppedByUser: false,
+  view: 'home',
+};
 
+let seq = 0;
 function send(action, extra) {
   if (!native) { return; }
   native.postMessage(Object.assign({ action, id: ++seq }, extra || {}));
@@ -261,8 +574,10 @@ function toast(text) {
   toastTimer = setTimeout(() => els.toast.classList.remove('show'), 5200);
 }
 
+/* ---------- logs ---------- */
+
 function line(text, kind) {
-  const hint = document.getElementById('loghint');
+  const hint = els.loghint;
   if (hint) { hint.remove(); }
   const node = document.createElement('span');
   node.className = 'l' + (kind ? ' ' + kind : '');
@@ -286,153 +601,486 @@ function feedLog(source, text) {
   if (tail.trim()) { line(tail, kindOf(tail)); }
 }
 
-function renderList() {
-  els.list.textContent = '';
-  els.count.textContent = instances.length ? String(instances.length) : '';
-  if (!instances.length) {
-    const box = document.createElement('div');
-    box.className = 'empty';
-    box.innerHTML = '这里还没有实例。<br>用命令行装一个：<br><code>aurora install 1.21.1</code><br>' +
-                    '<code>aurora modpack install 包.mrpack</code>';
-    els.list.appendChild(box);
-    return;
-  }
-  for (const item of instances) {
-    const card = document.createElement('div');
-    card.className = 'card' + (item.id === selectedId ? ' sel' : '');
-    card.dataset.id = item.id;
-    const title = document.createElement('b');
-    title.textContent = item.modpack || item.id;
-    const sub = document.createElement('div');
-    sub.className = 'sub';
-    const tags = [kindLabel(item.kind), item.minecraftVersion];
-    if (item.modCount) { tags.push(item.modCount + ' 模组'); }
-    for (const t of tags) {
-      const s = document.createElement('span');
-      s.className = 'tag ' + (['fabric','quilt','forge','neoforge'].includes(t) ? t : '');
-      s.textContent = t;
-      sub.appendChild(s);
-    }
-    if (item.isolated) {
-      const s = document.createElement('span'); s.className = 'tag iso'; s.textContent = '隔离';
-      sub.appendChild(s);
-    }
-    if (!item.ready) {
-      const s = document.createElement('span'); s.className = 'tag bad'; s.textContent = '缺客户端';
-      sub.appendChild(s);
-    }
-    if (item.error) {
-      const s = document.createElement('span'); s.className = 'tag bad'; s.textContent = 'JSON 有问题';
-      sub.appendChild(s);
-    }
-    card.append(title, sub);
-    card.addEventListener('click', () => select(item.id));
-    els.list.appendChild(card);
-  }
-}
+/* ---------- covers ---------- */
 
 function kindLabel(kind) {
   return { vanilla: '原版', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge',
            neoforge: 'NeoForge' }[kind] || kind;
 }
 
-function renderDetail() {
-  const item = instances.find(x => x.id === selectedId);
-  els.launch.disabled = !item || running || item.error || !item.ready;
-  els.stop.disabled = !running;
+function hashHue(text) {
+  let hash = 0;
+  for (const ch of String(text)) { hash = (hash * 31 + ch.codePointAt(0)) % 3600; }
+  return hash % 44;
+}
+
+const loaderHue = { vanilla: 212, fabric: 32, quilt: 278, forge: 142, neoforge: 108 };
+
+function coverStyle(item) {
+  const base = loaderHue[item.kind] ?? 212;
+  const h1 = ((base + hashHue(item.id) - 22) % 360 + 360) % 360;
+  const h2 = (h1 + 38) % 360;
+  return `--h1:${h1}deg;--h2:${h2}deg`;
+}
+
+function coverInitial(item) {
+  const text = (item.modpack || item.id).trim();
+  const letter = Array.from(text).find(ch => /[A-Za-z一-鿿]/.test(ch));
+  return (letter || Array.from(kindLabel(item.kind))[0]).toUpperCase();
+}
+
+function makeCover(item, mini) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'cover' + (item.id === state.selectedId ? ' sel' : '');
+  card.style.cssText = coverStyle(item);
+  card.title = item.modpack || item.id;
+
+  const chip = document.createElement('span');
+  chip.className = 'chip ' + (loaderHue[item.kind] !== undefined && item.kind !== 'vanilla' ? item.kind : '');
+  chip.textContent = kindLabel(item.kind);
+
+  const initial = document.createElement('span');
+  initial.className = 'initial';
+  initial.textContent = coverInitial(item);
+
+  card.append(chip, initial);
+
+  if (state.running && state.runningId === item.id) {
+    const badge = document.createElement('span');
+    badge.className = 'runbadge';
+    badge.innerHTML = '<i></i>运行中';
+    card.appendChild(badge);
+  }
+
+  const veil = document.createElement('div');
+  veil.className = 'veil';
+  const title = document.createElement('b');
+  title.textContent = item.modpack || item.id;
+  const sub = document.createElement('span');
+  if (item.error) {
+    sub.textContent = 'JSON 有问题';
+    sub.className = 'bad';
+  } else if (!item.ready) {
+    sub.textContent = 'MC ' + item.minecraftVersion + ' · 缺客户端';
+    sub.className = 'bad';
+  } else {
+    sub.textContent = 'MC ' + item.minecraftVersion + (mini || !item.modCount ? '' : ' · ' + item.modCount + ' 模组');
+  }
+  veil.append(title, sub);
+  card.appendChild(veil);
+
+  card.addEventListener('click', () => openDrawer(item.id));
+  return card;
+}
+
+function renderWall() {
+  els.wall.textContent = '';
+  const count = state.instances.length;
+  els.count.textContent = count ? count + ' 个' : '';
+  els['wall-empty'].hidden = count > 0;
+  for (const item of state.instances) { els.wall.appendChild(makeCover(item, false)); }
+}
+
+function renderShelf() {
+  const items = new Map(state.instances.map(item => [item.id, item]));
+  const recent = (state.activity?.recent) || [];
+  const quick = [];
+  const seen = new Set();
+  for (const entry of recent) {
+    const item = items.get(entry.id);
+    if (item && !seen.has(item.id)) { quick.push(item); seen.add(item.id); }
+  }
+  const hasHistory = quick.length > 0;
+  if (!hasHistory) {
+    for (const item of state.instances.slice(0, 6)) { quick.push(item); seen.add(item.id); }
+  }
+  els.shelf.hidden = quick.length === 0;
+  els['shelf-title'].textContent = hasHistory ? '继续游玩' : '开始一局';
+  els['shelf-row'].textContent = '';
+  for (const item of quick.slice(0, 8)) { els['shelf-row'].appendChild(makeCover(item, true)); }
+}
+
+/* ---------- heatmap ---------- */
+
+function pad2(value) { return String(value).padStart(2, '0'); }
+function keyOf(date) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+function parseKey(key) {
+  const parts = String(key).split('-').map(Number);
+  return new Date(parts[0], (parts[1] || 1) - 1, parts[2] || 1);
+}
+function addDays(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function dur(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  if (value < 60) { return Math.round(value) + ' 秒'; }
+  const minutes = Math.round(value / 60);
+  if (minutes < 60) { return minutes + ' 分钟'; }
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? hours + ' 小时 ' + rest + ' 分' : hours + ' 小时';
+}
+
+function levelOf(day) {
+  if (!day) { return 0; }
+  const minutes = (day.seconds || 0) / 60;
+  let level = 0;
+  if (day.seconds > 0) {
+    level = minutes >= 120 ? 4 : minutes >= 60 ? 3 : minutes >= 30 ? 2 : 1;
+  }
+  const byLaunches = day.launches >= 5 ? 4 : day.launches >= 3 ? 3 : day.launches >= 2 ? 2 : day.launches >= 1 ? 1 : 0;
+  return Math.max(level, byLaunches);
+}
+
+const LEVELS = ['l0', 'l1', 'l2', 'l3', 'l4'];
+
+function renderHeatmap() {
+  const activity = state.activity || {};
+  const map = new Map((activity.days || []).map(day => [day.date, day]));
+  const todayKey = activity.today || keyOf(new Date());
+  const today = parseKey(todayKey);
+  const start = addDays(today, -364);
+  const gridStart = addDays(start, -((start.getDay() + 6) % 7));
+  const totalDays = Math.round((today - gridStart) / 86400000) + 1;
+  const weeks = Math.ceil(totalDays / 7);
+
+  els.months.textContent = '';
+  els.months.style.gridTemplateColumns = `repeat(${weeks}, 12px)`;
+  let lastMonth = -1;
+  let lastLabelWeek = -10;
+  for (let week = 0; week < weeks; week++) {
+    const monday = addDays(gridStart, week * 7);
+    const month = monday.getMonth();
+    if (month !== lastMonth && week - lastLabelWeek >= 3) {
+      const label = document.createElement('span');
+      label.textContent = (month + 1) + '月';
+      label.style.gridColumn = String(week + 1);
+      els.months.appendChild(label);
+      lastMonth = month;
+      lastLabelWeek = week;
+    }
+  }
+
+  els.heatgrid.textContent = '';
+  let activeDays = 0;
+  for (let week = 0; week < weeks; week++) {
+    for (let day = 0; day < 7; day++) {
+      const date = addDays(gridStart, week * 7 + day);
+      const key = keyOf(date);
+      const entry = map.get(key);
+      const future = date > today;
+      const cell = document.createElement('i');
+      cell.className = future ? 'c future' : 'c ' + LEVELS[levelOf(entry)];
+      if (!future && key === todayKey) { cell.classList.add('today'); }
+      if (entry && !future) { activeDays++; }
+      cell.dataset.date = key;
+      cell.dataset.seconds = entry ? String(entry.seconds || 0) : '0';
+      cell.dataset.launches = entry ? String(entry.launches || 0) : '0';
+      els.heatgrid.appendChild(cell);
+    }
+  }
+
+  const daysPlayed = activity.daysPlayed || 0;
+  els['heat-sub'].textContent = daysPlayed
+    ? `过去一年 ${activeDays} 天有记录`
+    : '过去一年';
+  if (!daysPlayed) {
+    els['heat-foot'].textContent = '还没有游玩记录，启动一次游戏就会亮起第一格。';
+  } else {
+    const first = activity.firstDate ? parseKey(activity.firstDate) : null;
+    els['heat-foot'].textContent =
+      (first ? `自 ${first.getFullYear()} 年 ${first.getMonth() + 1} 月 ${first.getDate()} 日起 · ` : '') +
+      `共 ${daysPlayed} 天有记录 · 悬停查看当天详情`;
+  }
+}
+
+function tipText(cell) {
+  const date = parseKey(cell.dataset.date);
+  const launches = Number(cell.dataset.launches) || 0;
+  const seconds = Number(cell.dataset.seconds) || 0;
+  const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 · 周${'日一二三四五六'[date.getDay()]}`;
+  if (!launches) { return label + ' · 无记录'; }
+  return label + ' · ' + (seconds > 0 ? dur(seconds) : '时长未记录') + ' · ' + launches + ' 次启动';
+}
+
+function placeTip(x, y) {
+  const tip = els.tip;
+  const rect = tip.getBoundingClientRect();
+  let left = x + 14;
+  if (left + rect.width > window.innerWidth - 8) { left = x - rect.width - 14; }
+  let top = y - rect.height - 12;
+  if (top < 58) { top = y + 18; }
+  tip.style.left = Math.max(8, left) + 'px';
+  tip.style.top = top + 'px';
+}
+
+els.heatgrid.addEventListener('mouseover', event => {
+  const cell = event.target.closest('i.c');
+  if (!cell || cell.classList.contains('future')) { return; }
+  els.tip.textContent = tipText(cell);
+  els.tip.classList.add('show');
+  placeTip(event.clientX, event.clientY);
+});
+els.heatgrid.addEventListener('mousemove', event => {
+  if (els.tip.classList.contains('show')) { placeTip(event.clientX, event.clientY); }
+});
+els.heatgrid.addEventListener('mouseleave', () => els.tip.classList.remove('show'));
+
+/* ---------- stats ---------- */
+
+function setText(id, text) { els[id].textContent = text; }
+
+function renderStats() {
+  const activity = state.activity || {};
+  const days = activity.days || [];
+  const map = new Map(days.map(day => [day.date, day]));
+  const todayKey = activity.today || keyOf(new Date());
+  const today = parseKey(todayKey);
+
+  let weekSeconds = 0;
+  for (let offset = 0; offset < 7; offset++) {
+    const entry = map.get(keyOf(addDays(today, -offset)));
+    if (entry) { weekSeconds += entry.seconds || 0; }
+  }
+
+  let streak = 0;
+  let cursor = today;
+  if (!map.has(keyOf(cursor))) { cursor = addDays(cursor, -1); }
+  while (map.has(keyOf(cursor))) { streak++; cursor = addDays(cursor, -1); }
+
+  let longest = 0;
+  let run = 0;
+  let previous = null;
+  for (const day of [...days].sort((a, b) => a.date < b.date ? -1 : 1)) {
+    const date = parseKey(day.date);
+    run = previous && Math.round((date - previous) / 86400000) === 1 ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    previous = date;
+  }
+
+  const todayEntry = map.get(todayKey);
+  const daysPlayed = activity.daysPlayed || 0;
+  const totalSeconds = Number(activity.totalSeconds) || 0;
+  setText('stat-total', totalSeconds > 0 ? dur(totalSeconds) : (daysPlayed ? '—' : '0 分钟'));
+  setText('stat-total-sub', daysPlayed
+    ? (totalSeconds > 0 ? `共 ${daysPlayed} 天有记录` : '仅有启动记录')
+    : '还没有记录');
+  setText('stat-week', weekSeconds > 0 ? dur(weekSeconds) : '—');
+  setText('stat-streak', streak ? streak + ' 天' : '—');
+  setText('stat-streak-sub', longest ? `最长 ${longest} 天` : '连续游玩会累计');
+  setText('stat-launch', (activity.totalLaunches || 0) + ' 次');
+  setText('stat-launch-sub', todayEntry ? `今天 ${todayEntry.launches} 次` : '今天 0 次');
+
+  const name = els.username.value.trim();
+  setText('hello', name ? `欢迎回来，${name}` : '欢迎回来');
+  setText('hellosub', todayEntry && todayEntry.seconds > 0
+    ? `今天已游玩 ${dur(todayEntry.seconds)}`
+    : (todayEntry ? `今天启动了 ${todayEntry.launches} 次` : '今天还没有开游戏'));
+}
+
+function renderHome() {
+  renderStats();
+  renderHeatmap();
+}
+
+/* ---------- drawer ---------- */
+
+function itemById(id) { return state.instances.find(item => item.id === id) || null; }
+
+function renderDrawer() {
+  const item = itemById(state.selectedId);
   if (!item) {
-    els.name.textContent = '选择一个实例';
-    els.meta.textContent = '';
+    setText('d-name', '选择一个实例');
+    setText('d-meta', '');
+    setText('d-initial', '');
+    els['d-band'].style.cssText = '';
+    els.launch.disabled = true;
+    renderStatus();
     return;
   }
-  els.name.textContent = item.modpack || item.id;
+  els['d-band'].style.cssText = coverStyle(item);
+  setText('d-initial', coverInitial(item));
+  setText('d-name', item.modpack || item.id);
   const bits = [kindLabel(item.kind), 'MC ' + item.minecraftVersion];
   if (item.javaMajor) { bits.push('Java ' + item.javaMajor + '+'); }
   if (item.modCount) { bits.push(item.modCount + ' 个模组'); }
   bits.push(item.isolated ? '独立目录' : '共享目录');
-  els.meta.textContent = bits.join(' · ');
+  setText('d-meta', bits.join(' · '));
+  els.launch.disabled = state.running || !!item.error || !item.ready;
+  els.stop.disabled = !state.running;
+  renderStatus();
 }
 
 function renderStatus() {
-  els.status.classList.toggle('run', running);
-  els.status.classList.toggle('stop', !running && lastExit !== null && !stoppedByUser);
-  els.status.classList.toggle('idle', !running && lastExit === null);
-  els.statustext.textContent = running
-    ? '运行中 · PID ' + pid
-    : stoppedByUser ? '已手动停止'
-    : (lastExit === null ? '未运行' : '已退出，返回码 ' + lastExit);
-  renderDetail();
+  const running = state.running;
+  const exited = !running && state.launchedId && state.lastExit !== null;
+  els.status.className = 'status ' +
+    (running ? 'run' : (exited && !state.stoppedByUser ? 'stop' : 'idle'));
+  const text = running
+    ? `运行中 · ${state.runningId} · PID ${state.pid}`
+    : state.stoppedByUser && state.launchedId ? '已手动停止'
+    : exited ? `已退出，返回码 ${state.lastExit}`
+    : '未运行';
+  setText('statustext', text);
 }
 
-let pid = 0;
-let lastExit = null;
-let stoppedByUser = false;
+function openDrawer(id) {
+  if (id) { selectInstance(id); }
+  els.drawer.classList.add('open');
+  els.drawer.setAttribute('aria-hidden', 'false');
+  els.scrim.classList.add('open');
+}
+
+function closeDrawer() {
+  els.drawer.classList.remove('open');
+  els.drawer.setAttribute('aria-hidden', 'true');
+  els.scrim.classList.remove('open');
+  els.tip.classList.remove('show');
+}
+
+function selectInstance(id) {
+  state.selectedId = id;
+  renderWall();
+  renderShelf();
+  renderDrawer();
+}
+
+/* ---------- state ---------- */
+
+function renderRunPill() {
+  els.runpill.hidden = !state.running;
+  if (state.running) { setText('runtext', state.runningId + ' 运行中'); }
+}
 
 function applyState(data) {
-  const wasRunning = running;
-  running = !!data.running;
-  pid = data.pid || 0;
-  stoppedByUser = !!data.stoppedByUser;
-  lastExit = running ? null : (data.exitCode || 0);
-  if (running && !wasRunning) {
-    line('— ' + data.id + ' 已启动，PID ' + pid + ' —', 'sys');
-  } else if (!running && wasRunning) {
-    line(stoppedByUser
-      ? '— ' + data.id + ' 已手动停止 —'
-      : '— ' + data.id + ' 已退出，返回码 ' + lastExit + ' —', stoppedByUser ? 'sys' : 'err');
+  const wasRunning = state.running;
+  const previousId = state.runningId;
+  state.running = !!data.running;
+  state.pid = data.pid || 0;
+  if (data.id) { state.launchedId = data.id; }
+  state.runningId = state.running ? data.id : null;
+  state.stoppedByUser = !!data.stoppedByUser;
+  if (state.running) {
+    state.lastExit = null;
+  } else if (data.id) {
+    state.lastExit = Number(data.exitCode) || 0;
   }
-  renderStatus();
+
+  if (state.running && !wasRunning) {
+    line('— ' + data.id + ' 已启动，PID ' + state.pid + ' —', 'sys');
+  } else if (!state.running && wasRunning) {
+    line(state.stoppedByUser
+      ? '— ' + previousId + ' 已手动停止 —'
+      : '— ' + previousId + ' 已退出，返回码 ' + state.lastExit + ' —',
+      state.stoppedByUser ? 'sys' : 'err');
+  }
+
+  renderRunPill();
+  renderWall();
+  renderShelf();
+  renderDrawer();
 }
 
-function select(id) {
-  selectedId = id;
-  renderList();
-  renderDetail();
-  renderStatus();
+/* ---------- views ---------- */
+
+function setView(view) {
+  state.view = view;
+  document.getElementById('view-home').hidden = view !== 'home';
+  document.getElementById('view-instances').hidden = view !== 'instances';
+  for (const button of els.tabs.querySelectorAll('button')) {
+    button.classList.toggle('on', button.dataset.view === view);
+  }
+  if (view === 'home') { closeDrawer(); }
 }
+
+els.tabs.addEventListener('click', event => {
+  const button = event.target.closest('button[data-view]');
+  if (button) { setView(button.dataset.view); }
+});
+
+/* ---------- runtimes and settings ---------- */
 
 function renderRuntimes(list, chosen) {
   els.java.textContent = '';
   const auto = document.createElement('option');
-  auto.value = ''; auto.textContent = '自动（按实例要求的 Java 版本）';
+  auto.value = '';
+  auto.textContent = '自动（按实例要求的 Java 版本）';
   els.java.appendChild(auto);
-  for (const r of list || []) {
-    const o = document.createElement('option');
-    o.value = r.path;
-    o.textContent = 'Java ' + r.major + ' · ' + (r.vendor || '') + ' · ' + r.path;
-    els.java.appendChild(o);
+  for (const runtime of list || []) {
+    const option = document.createElement('option');
+    option.value = runtime.path;
+    option.textContent = 'Java ' + runtime.major + ' · ' + (runtime.vendor || '') + ' · ' + runtime.path;
+    els.java.appendChild(option);
   }
   if (chosen) { els.java.value = chosen; }
 }
 
+function setMemory(value) {
+  if (!value) { return; }
+  const text = String(value);
+  if (!Array.from(els.memory.options).some(option => option.value === text)) {
+    const option = document.createElement('option');
+    option.value = text;
+    option.textContent = Math.round(Number(value) / 1024) + ' GB';
+    els.memory.appendChild(option);
+  }
+  els.memory.value = text;
+}
+
+function currentInputs() {
+  return {
+    username: els.username.value.trim(),
+    memoryMb: Number(els.memory.value),
+    javaPath: els.java.value,
+  };
+}
+
+/* ---------- events ---------- */
+
 if (native) {
-  native.addEventListener('message', (event) => {
-    const msg = event.data || {};
-    const data = msg.data || {};
-    switch (msg.event) {
+  native.addEventListener('message', event => {
+    const message = event.data || {};
+    const data = message.data || {};
+    switch (message.event) {
       case 'boot':
-        els.version.textContent = 'v' + (data.version || '');
-        instances = (data.instances && data.instances.instances) || [];
-        els.gamedir.textContent = (data.instances && data.instances.gameDir) || '';
-        renderRuntimes(data.runtimes && data.runtimes.runtimes,
-                       data.settings && data.settings.javaPath);
+        setText('version', 'v' + (data.version || ''));
+        state.instances = data.instances?.instances || [];
+        state.activity = data.activity || null;
+        setText('gamedir', data.instances?.gameDir || '');
+        renderRuntimes(data.runtimes?.runtimes, data.settings?.javaPath);
         if (data.settings) {
           els.username.value = data.settings.username || '';
-          if (data.settings.memoryMb) { els.memory.value = String(data.settings.memoryMb); }
+          setMemory(data.settings.memoryMb);
         }
-        selectedId = instances.length ? instances[0].id : null;
-        renderList(); renderDetail(); applyState(data.state || {});
+        state.selectedId = state.instances.length ? state.instances[0].id : null;
+        renderWall();
+        renderShelf();
+        renderHome();
+        renderDrawer();
+        applyState(data.state || {});
+        setView('home');
         break;
       case 'instances':
-        instances = data.instances || [];
-        els.gamedir.textContent = data.gameDir || '';
-        if (!instances.some(x => x.id === selectedId)) {
-          selectedId = instances.length ? instances[0].id : null;
+        state.instances = data.instances || [];
+        setText('gamedir', data.gameDir || '');
+        if (!itemById(state.selectedId)) {
+          state.selectedId = state.instances.length ? state.instances[0].id : null;
         }
-        renderList(); renderDetail(); renderStatus();
+        renderWall();
+        renderShelf();
+        renderDrawer();
         break;
       case 'runtimes':
         renderRuntimes(data.runtimes, null);
+        break;
+      case 'activity':
+        state.activity = data;
+        renderHome();
+        renderShelf();
         break;
       case 'launched':
       case 'state':
@@ -440,6 +1088,7 @@ if (native) {
         break;
       case 'saved':
         toast('设置已保存');
+        renderStats();
         break;
       case 'log':
         feedLog(data.source, data.text || '');
@@ -453,21 +1102,31 @@ if (native) {
 }
 
 els.launch.addEventListener('click', () => {
-  line('→ 启动 ' + selectedId, 'sys');
-  send('launch', {
-  id: selectedId,
-  username: els.username.value.trim(),
-  memoryMb: Number(els.memory.value),
-  javaPath: els.java.value,
-  });
+  if (!state.selectedId) { return; }
+  line('→ 启动 ' + state.selectedId, 'sys');
+  send('launch', Object.assign({ id: state.selectedId }, currentInputs()));
 });
 els.stop.addEventListener('click', () => send('stop'));
-els.save.addEventListener('click', () => send('saveSettings', {
-  username: els.username.value.trim(),
-  memoryMb: Number(els.memory.value),
-  javaPath: els.java.value,
-}));
-els.refresh.addEventListener('click', () => { send('instances'); send('runtimes'); });
+els.save.addEventListener('click', () => send('saveSettings', currentInputs()));
+els.refresh.addEventListener('click', () => {
+  send('instances');
+  send('runtimes');
+  send('activity');
+});
+els.refresh2.addEventListener('click', () => {
+  send('instances');
+  send('runtimes');
+  send('activity');
+});
+els['shelf-all'].addEventListener('click', () => setView('instances'));
+els.runpill.addEventListener('click', () => {
+  if (state.runningId) { openDrawer(state.runningId); }
+});
+els['d-close'].addEventListener('click', closeDrawer);
+els.scrim.addEventListener('click', closeDrawer);
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { closeDrawer(); }
+});
 
 send('boot');
 </script>
