@@ -7,12 +7,16 @@ OAuth application.
 ## Two different things
 
 1. **Product identity** is defined in `src/core/branding.hpp` and the Windows
-   resource script `resources/aurora.rc`:
+   resource scripts `resources/aurora.rc` / `resources/aurora_gui.rc`:
    - product name: `AuroraLauncher`
-   - executable: `aurora.exe`
+   - executables: `aurora.exe` (CLI) and `aurora_gui.exe` (desktop UI)
    - WinHTTP user agent: `AuroraLauncher/<version>`
    - launcher brand passed to Minecraft: `AuroraLauncher`
    - config directory: `%APPDATA%\AuroraLauncher`
+
+   `aurora_gui.exe` hosts the system Microsoft Edge WebView2 runtime. It does
+   not bundle Chromium or another launcher's frontend, and it does not share
+   another launcher's application identity.
 
 2. **Code signing** proves that a release binary was signed by the holder of a
    certificate. A trusted distribution signature requires a code-signing
@@ -49,9 +53,18 @@ purchase or obtain a trusted code-signing certificate and use its thumbprint
 with the same script. Never commit a `.pfx`, `.p12`, `.pvk`, private key, or
 certificate password.
 
+Sign every binary that ships. `signtool` signs one file per call, so a release
+that includes the desktop UI needs a second run:
+
+```powershell
+.\scripts\sign-release.ps1
+.\scripts\sign-release.ps1 -Exe .\build\Release\aurora_gui.exe
+```
+
 ## Verification
 
 ```powershell
 Get-AuthenticodeSignature .\build\Release\aurora.exe | Format-List
 .\scripts\sign-release.ps1 -VerifyOnly
+.\scripts\sign-release.ps1 -VerifyOnly -Exe .\build\Release\aurora_gui.exe
 ```

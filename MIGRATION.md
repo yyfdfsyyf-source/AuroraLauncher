@@ -26,14 +26,15 @@ D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 | 下载 natives | 完成 | classifier + SHA-1 |
 | 解压 natives | 完成（Windows） | 仅 `.dll`；已应用 `extract.exclude` |
 | 下载资源索引 | 完成 | SHA-1 |
-| 下载 assets objects | 部分 | 8 线程；真实资源网络未验证 |
+| 下载 assets objects | 完成 | 8 线程；已用 1.19.2（3390 个）与 1.19.4（3579 个）真实资源验证，已有文件按 SHA-1 复核 |
 | 旧版 virtual assets | 完成 | `virtual`/`map_to_resources` 复制与 `game_assets` |
 | 启动参数生成 | 完成 | `arguments` + 旧 `minecraftArguments` |
 | 下载/注入 logging.client | 完成 | 下载并注入 `-Dlog4j.configurationFile` |
-| 启动进程 | 部分 | `CreateProcessW`；未做真实游戏启动验证 |
+| 启动进程 | 完成 | `CreateProcessW`；原版 1.19.2 与 Fabric 1.19.4 隔离实例已实跑到主界面（离线账号） |
 | 启动前自动修复文件 | 部分 | 需显式 `install` 或 `--install` |
-| 启动失败诊断 | 未开始 | 仅返回退出码/错误 |
+| 启动失败诊断 | 部分 | `launch --log FILE` 捕获子进程 stdout/stderr（含 JVM 自身输出）；崩溃报告解析与自动归因未做 |
 | 版本清单拉取 | 完成 | `version latest` / `version fetch` |
+| 下载源选择 | 完成 | 内置 BMCLAPI 优先，失败回退官方；认证/Adoptium 不镜像 |
 | 自动选择 Java | 完成 | 按 major 扫描系统 JDK 和托管运行时 |
 | 托管 Java 下载 | 完成 | Adoptium + SHA-256；大包现场下载待验证 |
 | 内存/窗口配置 | 部分 | CLI/配置文件 |
@@ -57,23 +58,26 @@ D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 | --- | --- | --- |
 | Fabric/Quilt 安装 | 完成 | 官方元数据 + profile JSON |
 | Forge/NeoForge 安装 | 完成（installer bridge） | 官方 installer 下载/校验/执行；现场安装待验证 |
-| 模组依赖解析 | 未开始 | 无 |
-| CurseForge 整合包 | 未开始 | 无 |
-| Modrinth 整合包 | 未开始 | 无 |
-| 资源包/光影包 | 未开始 | 无 |
-| 模组更新/禁用 | 未开始 | 无 |
+| Modrinth 模组搜索/安装 | 完成 | 搜索、版本选择、必需依赖递归、SHA-1；MCIM API 镜像 |
+| CurseForge 模组 | 完成（需用户 API key） | 搜索、文件选择、必需依赖递归、SHA-1；有效 key 现场验证待做 |
+| 模组依赖解析 | 部分 | Modrinth/CurseForge required 依赖已实现；整合包内依赖由包 manifest 自身提供 |
+| CurseForge 整合包 | 完成 | manifest 解析、必需文件、overrides、自动加载器、可启动实例、升级/备份 |
+| Modrinth 整合包 | 完成 | `.mrpack`、SHA-1、overrides、自动加载器、可启动实例、升级/备份 |
+| 资源包/光影包 | 完成（基础） | 资源包扫描、pack.mcmeta 兼容性、新旧 options 格式与启停；光影包未单独管理 |
+| PCL 实例兼容 | 完成 | 读取 `PCL/Setup.ini` 与 `PCL/config.v1.yml`：版本隔离、内存档位、JVM/游戏参数、指定 Java |
+| 模组更新/禁用 | 完成 | `mod list/enable/disable`、jar 元数据；Modrinth SHA-1 更新检查与 `--apply`；CurseForge fingerprint 更新检查与 `--apply` |
 
 ## 4. UI 与主题
 
 | 原能力 | C++ 状态 | 说明 |
 | --- | --- | --- |
-| JavaFX 主窗口 | 未开始 | 当前只有 CLI |
-| 页面导航/向导 | 未开始 | 无 |
+| JavaFX 主窗口 | 部分 | 首屏已实现：`aurora_gui`（WebView2 宿主 + 实例列表 + 启动/停止 + 日志），其余页面仍为 CLI |
+| 页面导航/向导 | 未开始 | 首屏是单页，无导航 |
 | JFoenix 组件 | 不迁移 | 原 Java 工作树正在移除 JFoenix |
-| CSS 主题包 | 未开始 | 无 |
-| 深色/浅色模式 | 未开始 | 无 |
-| 国际化 | 未开始 | CLI 英文，文档中文 |
-| 下载进度 UI | 未开始 | 仅日志 |
+| CSS 主题包 | 未开始 | 首屏用内置深色样式，未做主题包 |
+| 深色/浅色模式 | 部分 | 首屏固定深色（含 DWM 深色标题栏），浅色未做 |
+| 国际化 | 未开始 | CLI 英文，GUI 文案中文硬编码 |
+| 下载进度 UI | 未开始 | 安装/下载仍在 CLI，GUI 首屏不触发 |
 
 ## 5. 服务端与其他
 
@@ -116,17 +120,21 @@ flowchart LR
 - 正版/离线账号抽象统一。**部分**（尚未做多账号）
 - 现场登录和刷新验证。**待验证**
 
-### 阶段 3：模组加载器
+### 阶段 3：模组加载器与模组
 
 - Fabric/Quilt JSON 安装。**已完成**
 - Forge/NeoForge 官方 installer bridge。**已完成（现场安装待验证）**
 - 启动参数注入和库合并。**沿用 `inheritsFrom`，已完成**
+- Modrinth 模组搜索/安装、必需依赖递归。**已完成（现场验证）**
+- 模组扫描、启用/禁用、Modrinth 更新检查与替换。**已完成（现场验证）**
+- CurseForge 模组搜索/安装、必需依赖、fingerprint 更新检查。**已完成（需用户 API key；有效 key 现场验证待做）**
 
 ### 阶段 4：整合包
 
-- CurseForge/Modrinth 解析。
-- 文件覆盖、依赖、下载源。
-- 实例隔离。
+- CurseForge/Modrinth 整合包解析、必需文件下载、overrides。**已完成**
+- 加载器自动安装、原版文件下载、可启动实例 JSON、实例隔离运行目录。**已完成（Fabric 空包实测；完整游戏下载待现场验证）**
+- 整合包升级/差异更新与升级前备份。**已完成（测试覆盖）**
+- 资源包扫描、pack.mcmeta 兼容性与新旧 options 格式。**已完成（测试覆盖）**
 
 ### 阶段 5：GUI
 
@@ -139,9 +147,9 @@ flowchart LR
 在当前 C++ 代码状态下，不能声称：
 
 - 可以替代 HMCL 的全部功能。
-- 可以直接安装 CurseForge/Modrinth 整合包或解析模组依赖。
+- 可以保证整合包的完整端到端流程；自动安装加载器和生成实例已完成，Fabric 空包实测通过，真实游戏启动已用原版 1.19.2 与 Fabric 1.19.4 隔离实例（离线账号）验证，但“整合包安装 → 真启动”这一步还没串起来跑过。模组依赖只支持 Modrinth/CurseForge 的 required 依赖。
 - 已有 GUI、主题、服务端管理。
-- 已通过完整游戏启动、Microsoft 登录、Forge/NeoForge 完整安装和 UI 测试。
+- 已通过 Microsoft 登录、Forge/NeoForge 完整安装和 UI 测试。
 - 已具备可信发布代码签名（仓库只有自签开发流程）。
 
 这份矩阵会随着实现推进更新；状态以源码和测试为准，不以计划为准。

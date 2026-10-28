@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/error.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -10,6 +12,21 @@
 #include <vector>
 
 namespace aurora {
+
+// Thrown by http_get after every candidate returned the same non-retryable
+// HTTP status (for example 404 for an unknown API resource).
+class HttpStatusError : public Error {
+public:
+    HttpStatusError(int status, const std::string& message)
+        : Error(message), status_(status) {}
+
+    int status() const {
+        return status_;
+    }
+
+private:
+    int status_;
+};
 
 using ProgressCallback = std::function<void(std::uint64_t received, std::uint64_t total)>;
 using CancelCallback = std::function<bool()>;
@@ -28,8 +45,8 @@ struct HttpDownloadOptions {
     std::chrono::milliseconds max_retry_after{30000};
     // Resume an existing .part file with a Range request when possible.
     bool resumable = true;
-    // Ordered fallback URLs. They are tried after the primary URL and are never
-    // hardcoded by the downloader.
+    // Ordered fallback URLs. They are tried after the built-in mirror and
+    // before the primary URL, and are never hardcoded by the downloader.
     std::vector<std::string> mirrors;
     std::chrono::milliseconds resolve_timeout{30000};
     std::chrono::milliseconds connect_timeout{30000};
@@ -102,7 +119,16 @@ HttpMetadata http_request(std::string_view url,
                           const std::function<void(const void*, std::size_t)>& sink,
                           const ProgressCallback& progress = {});
 
+struct HttpGetOptions {
+    int max_retries = 3;
+    std::chrono::milliseconds resolve_timeout{30000};
+    std::chrono::milliseconds connect_timeout{30000};
+    std::chrono::milliseconds send_timeout{30000};
+    std::chrono::milliseconds receive_timeout{60000};
+};
+
 std::string http_get(std::string_view url);
+std::string http_get(std::string_view url, const HttpGetOptions& options);
 
 void http_download(std::string_view url,
                    const std::filesystem::path& destination,

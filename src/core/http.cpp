@@ -4,6 +4,7 @@
 #include "core/error.hpp"
 #include "core/hash.hpp"
 #include "core/log.hpp"
+#include "core/mirrors.hpp"
 #include "core/paths.hpp"
 #include "core/proxy.hpp"
 #include "core/strings.hpp"
@@ -11,8 +12,11 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <condition_variable>
 #include <fstream>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <thread>
 #include <utility>
 
@@ -831,6 +835,8 @@ void fetch_to_partial(
     }
 }
 
+bool ensure_builtin_mirror_probed(std::string_view url);
+
 void download_impl(
     std::string_view url,
     const std::filesystem::path& destination,
@@ -873,22 +879,56 @@ void download_impl(
         std::filesystem::remove(partial, error);
     }
 
-    const std::vector<std::string> sources = build_download_sources(url, options.mirrors);
+    std::vector<std::string> sources =
+        download_url_candidates(url, options.mirrors);
     if (sources.empty()) {
         fail("No download URL was provided");
+    }
+    const MirrorProvider first_provider =
+        builtin_mirror_provider(sources.front());
+    if (first_provider != MirrorProvider::NoProvider &&
+        builtin_mirror_health(first_provider) == BuiltinMirrorHealth::Unknown) {
+        log_debug("Probing the built-in mirror with " + display_url(sources.front()));
+        if (!ensure_builtin_mirror_probed(sources.front())) {
+            sources = download_url_candidates(url, options.mirrors);
+        }
     }
 
     const int max_retries = std::max(0, options.max_retries);
     std::string last_error;
+    bool first_source = true;
     for (const std::string& source : sources) {
+        const bool builtin_mirror = is_builtin_mirror_url(source);
+        HttpDownloadOptions source_options = options;
+        if (builtin_mirror) {
+            source_options.resolve_timeout = std::min(
+                source_options.resolve_timeout, std::chrono::milliseconds(3000));
+            source_options.connect_timeout = std::min(
+                source_options.connect_timeout, std::chrono::milliseconds(3000));
+            source_options.send_timeout = std::min(
+                source_options.send_timeout, std::chrono::milliseconds(3000));
+            source_options.receive_timeout = std::min(
+                source_options.receive_timeout, std::chrono::milliseconds(5000));
+            log_debug("Downloading through the built-in mirror: " + display_url(source));
+        }
+        if (!first_source) {
+            // The partial file may contain bytes from another host. Resuming
+            // it against a different source could mix two artifacts.
+            std::filesystem::remove(partial, error);
+            error.clear();
+        }
+        first_source = false;
+
         bool range_restarted = false;
+        bool checksum_restarted = false;
+        bool source_failed = false;
         int retries_used = 0;
         while (true) {
             if (options.cancelled && options.cancelled()) {
                 fail("Download cancelled: " + display_url(source));
             }
             try {
-                fetch_to_partial(source, partial, options, progress);
+                fetch_to_partial(source, partial, source_options, progress);
                 if (!expected.empty() && !checksum_matches(expected, sha1_file(partial))) {
                     std::filesystem::remove(partial, error);
                     throw DownloadError(
@@ -910,26 +950,41 @@ void download_impl(
                 if (download_error.failure() == DownloadFailure::Cancelled) {
                     fail("Download cancelled: " + display_url(source));
                 }
+                if (download_error.failure() == DownloadFailure::Checksum) {
+                    std::filesystem::remove(partial, error);
+                    if (!checksum_restarted) {
+                        checksum_restarted = true;
+                        continue;
+                    }
+                    source_failed = true;
+                    break;
+                }
                 if (download_error.failure() == DownloadFailure::RangeRestart) {
                     std::filesystem::remove(partial, error);
                     if (!range_restarted) {
                         range_restarted = true;
                         continue;
                     }
+                    source_failed = true;
                     break;
                 }
 
                 const bool retryable =
                     download_error.failure() == DownloadFailure::Transient;
-                if (retryable && retries_used < max_retries) {
+                const int source_retries = builtin_mirror ? 0 : max_retries;
+                if (retryable && retries_used < source_retries) {
                     const auto delay = compute_retry_delay(
-                        retries_used, options, download_error.retry_after());
+                        retries_used, source_options, download_error.retry_after());
                     ++retries_used;
                     sleep_with_cancel(delay, options.cancelled);
                     continue;
                 }
+                source_failed = true;
                 break;
             }
+        }
+        if (source_failed) {
+            report_download_source_failure(source);
         }
     }
 
@@ -938,6 +993,150 @@ void download_impl(
         message += ": " + last_error;
     }
     fail(message);
+}
+
+std::string fetch_text_once(std::string_view url, const RequestTimeouts& timeouts) {
+    std::string body;
+    perform_request(
+        url,
+        {},
+        {},
+        [&body](const void* data, std::size_t size) {
+            body.append(static_cast<const char*>(data), size);
+        },
+        {},
+        {},
+        timeouts);
+    return body;
+}
+
+struct TextAttempt {
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool finished = false;
+    bool succeeded = false;
+    bool http_status = false;
+    int status = 0;
+    std::string body;
+    std::string error;
+};
+
+class ProbeComplete : public std::exception {
+public:
+    const char* what() const noexcept override {
+        return "mirror probe complete";
+    }
+};
+
+// Checks that the mirror can serve this URL through its redirect chain. The
+// Range request keeps the transfer tiny even when the server ignores Range.
+// The probe runs on its own thread because WinHTTP applies timeouts per
+// operation, and a chain of dead redirect targets can multiply them well past
+// a useful fallback budget.
+bool probe_builtin_mirror(std::string_view url) {
+    struct ProbeAttempt {
+        std::mutex mutex;
+        std::condition_variable cv;
+        bool finished = false;
+        bool succeeded = false;
+    };
+
+    const auto attempt = std::make_shared<ProbeAttempt>();
+    const std::string probe_url(url);
+    std::thread([attempt, probe_url]() {
+        bool succeeded = false;
+        try {
+            RequestTimeouts timeouts;
+            timeouts.resolve = std::chrono::milliseconds(3000);
+            timeouts.connect = std::chrono::milliseconds(3000);
+            timeouts.send = std::chrono::milliseconds(3000);
+            timeouts.receive = std::chrono::milliseconds(4000);
+            perform_request(
+                probe_url,
+                {"Range: bytes=0-0"},
+                {},
+                [](const void*, std::size_t) { throw ProbeComplete(); },
+                {},
+                {},
+                timeouts);
+            succeeded = true;
+        } catch (const ProbeComplete&) {
+            succeeded = true;
+        } catch (const std::exception&) {
+            succeeded = false;
+        }
+        {
+            std::lock_guard<std::mutex> lock(attempt->mutex);
+            attempt->finished = true;
+            attempt->succeeded = succeeded;
+        }
+        attempt->cv.notify_all();
+    }).detach();
+
+    std::unique_lock<std::mutex> lock(attempt->mutex);
+    if (!attempt->cv.wait_for(
+            lock, std::chrono::milliseconds(5000), [&attempt]() {
+                return attempt->finished;
+            })) {
+        return false;
+    }
+    return attempt->succeeded;
+}
+
+bool ensure_builtin_mirror_probed(std::string_view url) {
+    static std::mutex probe_mutex;
+    std::lock_guard<std::mutex> lock(probe_mutex);
+
+    const MirrorProvider provider = builtin_mirror_provider(url);
+    if (provider == MirrorProvider::NoProvider) {
+        return false;
+    }
+    const BuiltinMirrorHealth health = builtin_mirror_health(provider);
+    if (health == BuiltinMirrorHealth::Available) {
+        return true;
+    }
+    if (health == BuiltinMirrorHealth::Failed) {
+        return false;
+    }
+    if (probe_builtin_mirror(url)) {
+        report_builtin_mirror_success(url);
+        return true;
+    }
+    report_download_source_failure(url);
+    return false;
+}
+
+void run_text_attempt(const std::shared_ptr<TextAttempt>& attempt,
+                      std::string_view url,
+                      const RequestTimeouts& timeouts) {
+    std::string body;
+    std::string error;
+    bool succeeded = false;
+    bool http_status = false;
+    int status = 0;
+    try {
+        body = fetch_text_once(url, timeouts);
+        succeeded = true;
+    } catch (const RequestError& exception) {
+        error = exception.what();
+        http_status = exception.failure() == RequestFailure::HttpStatus;
+        status = exception.status();
+    } catch (const std::exception& exception) {
+        error = exception.what();
+    } catch (...) {
+        error = "unknown error";
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(attempt->mutex);
+        attempt->finished = true;
+        attempt->succeeded = succeeded;
+        attempt->http_status = http_status;
+        attempt->status = status;
+        attempt->body = std::move(body);
+        attempt->error = std::move(error);
+    }
+    attempt->cv.notify_all();
 }
 
 } // namespace
@@ -958,31 +1157,169 @@ HttpMetadata http_request(std::string_view url,
 #endif
 }
 
-std::string http_get(std::string_view url) {
-    constexpr int kMaxRetries = 3;
+std::string http_get(std::string_view url, const HttpGetOptions& options) {
+#ifdef _WIN32
+    const int max_retries = std::max(0, options.max_retries);
+    constexpr auto kMirrorHeadStart = std::chrono::milliseconds(1500);
     const HttpDownloadOptions retry_policy;
-    for (int retry = 0;; ++retry) {
-        std::string body;
-        try {
-            http_request(url, [&body](const void* data, std::size_t size) {
-                body.append(static_cast<const char*>(data), size);
+    const RequestTimeouts fallback_timeouts{
+        options.resolve_timeout,
+        options.connect_timeout,
+        options.send_timeout,
+        options.receive_timeout,
+    };
+    const std::vector<std::string> candidates = download_url_candidates(url);
+    if (candidates.empty()) {
+        fail("HTTP URL is empty");
+    }
+
+    std::shared_ptr<TextAttempt> mirror_attempt;
+    std::size_t fallback_start = 0;
+    if (candidates.size() > 1 && is_builtin_mirror_url(candidates.front())) {
+        fallback_start = 1;
+        RequestTimeouts mirror_timeouts;
+        mirror_timeouts.resolve =
+            std::min(options.resolve_timeout, std::chrono::milliseconds(5000));
+        mirror_timeouts.connect =
+            std::min(options.connect_timeout, std::chrono::milliseconds(5000));
+        mirror_timeouts.send =
+            std::min(options.send_timeout, std::chrono::milliseconds(10000));
+        mirror_timeouts.receive =
+            std::min(options.receive_timeout, std::chrono::milliseconds(15000));
+        mirror_attempt = std::make_shared<TextAttempt>();
+        const std::string mirror_url = candidates.front();
+        std::thread([mirror_attempt, mirror_url, mirror_timeouts]() {
+            run_text_attempt(mirror_attempt, mirror_url, mirror_timeouts);
+        }).detach();
+
+        std::unique_lock<std::mutex> lock(mirror_attempt->mutex);
+        const bool finished = mirror_attempt->cv.wait_for(
+            lock, kMirrorHeadStart, [&mirror_attempt]() {
+                return mirror_attempt->finished;
             });
-            return body;
-        } catch (const RequestError& error) {
-            const bool retryable =
-                error.failure() == RequestFailure::Transport ||
-                (error.failure() == RequestFailure::HttpStatus &&
-                 classify_http_status(error.status()) == HttpRetryClass::Retryable);
-            if (!retryable || retry >= kMaxRetries) {
-                throw;
+        if (finished && mirror_attempt->succeeded) {
+            lock.unlock();
+            report_builtin_mirror_success(mirror_url);
+            log_debug("Fetched " + display_url(url) + " through the built-in mirror");
+            return mirror_attempt->body;
+        }
+        if (finished) {
+            const std::string mirror_error = mirror_attempt->error;
+            const bool authoritative_miss =
+                mirror_attempt->http_status &&
+                classify_http_status(mirror_attempt->status) ==
+                    HttpRetryClass::NonRetryable;
+            lock.unlock();
+            if (authoritative_miss) {
+                log_debug("Mirror GET returned HTTP " +
+                          std::to_string(mirror_attempt->status) +
+                          "; trying the official source without disabling the mirror");
+            } else {
+                report_download_source_failure(mirror_url);
+                log_warn("Mirror GET failed; falling back: " + display_url(mirror_url) +
+                         " (" + mirror_error + ")");
             }
-            const auto delay =
-                compute_retry_delay(retry, retry_policy, error.retry_after());
-            log_warn("HTTP GET failed, retrying in " +
-                     std::to_string(delay.count()) + " ms: " + display_url(url));
-            std::this_thread::sleep_for(delay);
+            mirror_attempt.reset();
         }
     }
+
+    const auto fetch_fallback = [&]() -> std::string {
+        std::string failure;
+        bool saw_http_status = false;
+        int last_status = 0;
+        for (std::size_t index = fallback_start; index < candidates.size(); ++index) {
+            const std::string& candidate = candidates[index];
+            for (int retry = 0;; ++retry) {
+                try {
+                    return fetch_text_once(candidate, fallback_timeouts);
+                } catch (const RequestError& error) {
+                    failure = error.what();
+                    saw_http_status = error.failure() == RequestFailure::HttpStatus;
+                    last_status = saw_http_status ? error.status() : 0;
+                    const bool retryable =
+                        error.failure() == RequestFailure::Transport ||
+                        (error.failure() == RequestFailure::HttpStatus &&
+                         classify_http_status(error.status()) ==
+                             HttpRetryClass::Retryable);
+                    if (!retryable || retry >= max_retries) {
+                        break;
+                    }
+                    const auto delay = compute_retry_delay(
+                        retry, retry_policy, error.retry_after());
+                    log_warn("HTTP GET failed, retrying in " +
+                             std::to_string(delay.count()) + " ms: " +
+                             display_url(candidate));
+                    std::this_thread::sleep_for(delay);
+                }
+            }
+        }
+        if (saw_http_status) {
+            throw HttpStatusError(last_status, failure);
+        }
+        fail(failure.empty() ? "no fallback source" : failure);
+    };
+
+    std::string last_error;
+    int last_status = 0;
+    bool last_http_status = false;
+    try {
+        // A slow mirror is not disabled here: the download path probes it
+        // separately and only falls back once it actually fails.
+        return fetch_fallback();
+    } catch (const HttpStatusError& error) {
+        last_error = error.what();
+        last_status = error.status();
+        last_http_status = true;
+    } catch (const Error& error) {
+        last_error = error.what();
+    }
+
+    // A non-retryable HTTP status from the official source is authoritative;
+    // waiting for a slower mirror cannot change it.
+    if (last_http_status &&
+        classify_http_status(last_status) == HttpRetryClass::NonRetryable) {
+        throw HttpStatusError(last_status, last_error);
+    }
+
+    if (mirror_attempt) {
+        std::unique_lock<std::mutex> lock(mirror_attempt->mutex);
+        const bool finished = mirror_attempt->cv.wait_for(
+            lock, std::chrono::seconds(20), [&mirror_attempt]() {
+                return mirror_attempt->finished;
+            });
+        if (finished && mirror_attempt->succeeded) {
+            lock.unlock();
+            report_builtin_mirror_success(candidates.front());
+            log_debug("Fetched " + display_url(url) + " through the built-in mirror");
+            return mirror_attempt->body;
+        }
+        const std::string mirror_error = finished ? mirror_attempt->error : "timed out";
+        const bool authoritative_miss =
+            finished && mirror_attempt->http_status &&
+            classify_http_status(mirror_attempt->status) == HttpRetryClass::NonRetryable;
+        lock.unlock();
+        if (!authoritative_miss) {
+            report_download_source_failure(candidates.front());
+        }
+        if (!mirror_error.empty()) {
+            last_error += "; mirror: " + mirror_error;
+        }
+    }
+
+    if (last_http_status) {
+        throw HttpStatusError(
+            last_status, "Unable to fetch " + display_url(url) + ": " + last_error);
+    }
+    fail("Unable to fetch " + display_url(url) + ": " + last_error);
+#else
+    (void)url;
+    (void)options;
+    fail("HTTP is only implemented on Windows in this build");
+#endif
+}
+
+std::string http_get(std::string_view url) {
+    return http_get(url, HttpGetOptions{});
 }
 
 void http_download(std::string_view url,

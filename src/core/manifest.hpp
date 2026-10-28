@@ -11,6 +11,8 @@
 
 namespace aurora {
 
+struct ResolvedVersion;
+
 inline constexpr std::string_view kMojangPistonMetaBaseUrl =
     "https://piston-meta.mojang.com";
 inline constexpr std::string_view kOfficialVersionManifestUrl =
@@ -77,5 +79,15 @@ VersionJsonInstallResult install_version_json(
     std::string_view id,
     const std::filesystem::path& game_dir,
     const VersionJsonInstallOptions& options = {});
+
+// Resolves an installed version, downloading its vanilla JSON through the
+// version manifest first when it is missing. Inheritance is merged, including
+// locally installed loader profiles.
+ResolvedVersion resolve_or_fetch_version(
+    const std::filesystem::path& game_dir,
+    const std::string& id,
+    bool allow_fetch,
+    bool force_json = false,
+    std::string_view manifest_url = kOfficialVersionManifestUrl);
 
 } // namespace aurora

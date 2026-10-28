@@ -5,6 +5,7 @@
 #include "core/http.hpp"
 #include "core/log.hpp"
 #include "core/paths.hpp"
+#include "core/repository.hpp"
 #include "core/strings.hpp"
 
 #include <set>
@@ -277,6 +278,30 @@ VersionJsonInstallResult install_version_json(
     const std::filesystem::path& game_dir,
     const VersionJsonInstallOptions& options) {
     return install_version_json(manifest.require(id), game_dir, options);
+}
+
+ResolvedVersion resolve_or_fetch_version(const std::filesystem::path& game_dir,
+                                         const std::string& id,
+                                         bool allow_fetch,
+                                         bool force_json,
+                                         std::string_view manifest_url) {
+    const VersionRepository repository(game_dir);
+    if (repository.contains(id)) {
+        return repository.resolve(id);
+    }
+    if (!allow_fetch) {
+        fail("Version '" + id +
+             "' is not installed locally. Use 'aurora version fetch " + id +
+             "' or add --install to fetch it.");
+    }
+    log_info("Version '" + id + "' is not local; fetching version JSON");
+    const VersionManifest manifest = fetch_version_manifest(manifest_url);
+    VersionJsonInstallOptions options;
+    options.force = force_json;
+    const VersionJsonInstallResult result =
+        install_version_json(manifest, id, repository.game_dir(), options);
+    log_info("Version JSON is ready: " + path_to_utf8(result.path));
+    return repository.resolve(id);
 }
 
 } // namespace aurora

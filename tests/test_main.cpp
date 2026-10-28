@@ -4,6 +4,7 @@
 #include "core/launch.hpp"
 #include "core/maven.hpp"
 #include "core/paths.hpp"
+#include "core/process.hpp"
 #include "core/repository.hpp"
 #include "core/rules.hpp"
 #include "core/strings.hpp"
@@ -279,6 +280,57 @@ void test_zip() {
         "zip filter skipped manifest");
 }
 
+void test_process_log_redacts_command_line() {
+#ifdef _WIN32
+    const auto directory = make_temp_dir("process-log");
+    const auto log = directory / "runner.log";
+    const int code = aurora::run_process(
+        aurora::path_from_utf8("C:\\Windows\\System32\\cmd.exe"),
+        {"/c", "echo", "secret-from-argv"},
+        directory,
+        true,
+        log);
+    expect(code == 0, "process with output log exits cleanly");
+    if (code == 0) {
+        const std::string text = aurora::read_text_file(log);
+        expect(
+            text.find("secret-from-argv") != std::string::npos,
+            "process log captures the child output");
+        expect(
+            text.find("echo") == std::string::npos,
+            "process log never records the child command line (tokens live there)");
+    }
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+#endif
+}
+
+void test_process_lifecycle() {
+#ifdef _WIN32
+    const auto directory = make_temp_dir("process-live");
+    std::error_code error;
+    const auto cmd = aurora::path_from_utf8("C:\\Windows\\System32\\cmd.exe");
+
+    const auto sleeper = aurora::spawn_process(
+        cmd, {"/c", "ping", "-n", "20", "127.0.0.1"}, directory, directory / "sleeper.log");
+    expect(
+        sleeper.valid() && sleeper.process_id() > 0,
+        "spawn_process reports a usable process id");
+    expect(sleeper.running(), "spawned process is running");
+    expect(sleeper.wait(500) == -1, "wait times out while the process is alive");
+    expect(sleeper.terminate(), "spawned process can be terminated");
+    // TerminateProcess signals the handle asynchronously: wait for it instead
+    // of spinning, which is what the UI has to do as well.
+    expect(sleeper.wait(5000) == 1, "terminated process reports its exit code");
+    expect(!sleeper.running(), "terminated process stops reporting as running");
+
+    const auto quick = aurora::spawn_process(cmd, {"/c", "exit", "7"}, directory, {});
+    expect(quick.wait(10000) == 7, "spawned process exit code is reported");
+
+    std::filesystem::remove_all(directory, error);
+#endif
+}
+
 } // namespace
 
 void test_legacy_assets() {
@@ -347,6 +399,8 @@ int main() {
     test_modern_launch_plan();
     test_path_safety();
     test_zip();
+    test_process_log_redacts_command_line();
+    test_process_lifecycle();
     test_legacy_assets();
 
     if (failures != 0) {

@@ -3,6 +3,7 @@
 #include "core/error.hpp"
 #include "core/log.hpp"
 #include "core/paths.hpp"
+#include "core/pcl.hpp"
 #include "core/strings.hpp"
 
 #include <algorithm>
@@ -75,6 +76,20 @@ bool VersionRepository::contains(const std::string& id) const {
     return find_json(id).has_value();
 }
 
+std::filesystem::path VersionRepository::run_dir_for(const std::string& id) const {
+    const auto json_path = find_json(id);
+    if (!json_path) {
+        fail("Version '" + id + "' was not found in " + path_to_utf8(versions_dir()));
+    }
+    std::error_code error;
+    if (std::filesystem::is_regular_file(
+            json_path->parent_path() / "modpack.json", error) ||
+        pcl_instance_is_isolated(json_path->parent_path())) {
+        return json_path->parent_path();
+    }
+    return game_dir_;
+}
+
 VersionMeta VersionRepository::load(const std::string& id) const {
     const auto path = find_json(id);
     if (!path) {
@@ -115,9 +130,18 @@ ResolvedVersion VersionRepository::resolve(const std::string& id) const {
         fail("Version '" + id + "' has no mainClass after inheritance");
     }
 
+    std::filesystem::path run_dir = game_dir_;
+    std::error_code marker_error;
+    if (std::filesystem::is_regular_file(
+            json_path->parent_path() / "modpack.json", marker_error) ||
+        pcl_instance_is_isolated(json_path->parent_path())) {
+        run_dir = json_path->parent_path();
+    }
+
     return ResolvedVersion{
         std::move(resolved),
         game_dir_,
+        std::move(run_dir),
         *json_path,
     };
 }

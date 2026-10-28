@@ -1,0 +1,725 @@
+#include "core/config.hpp"
+#include "core/error.hpp"
+#include "core/java.hpp"
+#include "core/json.hpp"
+#include "core/launch.hpp"
+#include "core/mods.hpp"
+#include "core/paths.hpp"
+#include "core/pcl.hpp"
+#include "core/process.hpp"
+#include "core/repository.hpp"
+#include "core/rules.hpp"
+#include "core/strings.hpp"
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+// WIN32_LEAN_AND_MEAN (set by aurora_core) keeps <windows.h> from pulling in the
+// COM headers that WebView2.h needs.
+#include <objbase.h>
+
+#include <WebView2.h>
+#include <wrl.h>
+
+#include <algorithm>
+#include <cctype>
+#include <cstdlib>
+#include <cwchar>
+#include <fstream>
+#include <optional>
+#include <string>
+#include <vector>
+
+#pragma comment(lib, "ole32.lib")
+
+using namespace aurora;
+
+namespace {
+
+using Microsoft::WRL::Callback;
+using Microsoft::WRL::ComPtr;
+using Microsoft::WRL::RuntimeClass;
+using Microsoft::WRL::RuntimeClassFlags;
+using Microsoft::WRL::ClassicCom;
+
+constexpr UINT k_poll_timer = 1;
+constexpr std::uint64_t k_log_chunk_bytes = 64ULL * 1024ULL;
+constexpr DWORD k_per_monitor_dpi_aware_v2 = static_cast<DWORD>(-4);
+
+// The first screen only lists instances, starts and stops the game, and tails
+// logs. Downloads and installs stay in the CLI until the UI is stable.
+struct Tail {
+    std::filesystem::path path;
+    std::uint64_t offset = 0;
+};
+
+struct AppState {
+    HWND window = nullptr;
+    ComPtr<ICoreWebView2> webview;
+    ComPtr<ICoreWebView2_3> webview3;
+    ComPtr<ICoreWebView2Controller> controller;
+    Config config;
+    std::filesystem::path config_path;
+    ProcessHandle game;
+    std::string launched_id;
+    int game_exit_code = 0;
+    bool stopped_by_user = false;
+    Tail launcher_log;
+    Tail game_log;
+};
+
+AppState state;
+
+std::filesystem::path ui_directory() {
+    const std::filesystem::path source = path_from_utf8(AURORA_GUI_UI_DIR);
+    if (std::filesystem::is_directory(source)) {
+        return source;
+    }
+    wchar_t buffer[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    return std::filesystem::path(buffer).parent_path() / "ui";
+}
+
+void post_json(const std::string& json_text) {
+    if (state.webview == nullptr) {
+        return;
+    }
+    state.webview->PostWebMessageAsJson(to_wide(json_text).c_str());
+}
+
+void post_event(const std::string& name, const Json& payload) {
+    Json message = Json::object();
+    message["event"] = name;
+    message["data"] = payload;
+    post_json(message.dump());
+}
+
+void post_error(const std::string& message) {
+    Json payload = Json::object();
+    payload["message"] = message;
+    post_event("error", payload);
+}
+
+Json settings_payload() {
+    Json settings = Json::object();
+    settings["gameDir"] = path_to_utf8(state.config.game_dir);
+    settings["username"] = state.config.username;
+    settings["memoryMb"] = state.config.memory_mb;
+    settings["javaPath"] = path_to_utf8(state.config.java_path);
+    settings["width"] = state.config.width;
+    settings["height"] = state.config.height;
+    return settings;
+}
+
+std::string loader_kind(const VersionMeta& meta) {
+    const std::string main_class = to_lower_ascii(meta.main_class);
+    if (main_class.find("fabricmc") != std::string::npos) {
+        return "fabric";
+    }
+    if (main_class.find("neoforged") != std::string::npos) {
+        return "neoforge";
+    }
+    if (main_class.find("quiltmc") != std::string::npos) {
+        return "quilt";
+    }
+    if (main_class.find("minecraftforge") != std::string::npos ||
+        main_class.find("modlauncher") != std::string::npos ||
+        main_class.find("bootstraplauncher") != std::string::npos ||
+        main_class.find("launchwrapper") != std::string::npos) {
+        return "forge";
+    }
+    return "vanilla";
+}
+
+std::uint64_t file_size_or_zero(const std::filesystem::path& path) {
+    std::error_code error;
+    const auto size = std::filesystem::file_size(path, error);
+    return error ? 0 : size;
+}
+
+std::string after_last_colon(const std::string& coordinate) {
+    const std::size_t position = coordinate.find_last_of(':');
+    return position == std::string::npos ? std::string() : coordinate.substr(position + 1);
+}
+
+// Flattened instances (PCL writes these) carry no inheritsFrom, so the Minecraft
+// version comes from the PCL config, the modpack marker, or the loader library.
+std::string guess_minecraft_version(const ResolvedVersion& version,
+                                    const PclInstanceSettings& pcl) {
+    if (!version.meta.inherits_from.empty()) {
+        return version.meta.inherits_from;
+    }
+    if (!pcl.minecraft_version.empty()) {
+        return pcl.minecraft_version;
+    }
+    std::error_code error;
+    const std::filesystem::path marker = version.run_dir / "modpack.json";
+    if (std::filesystem::is_regular_file(marker, error) && !error) {
+        const std::string from_marker = json_string(read_json_file(marker), "minecraft");
+        if (!from_marker.empty()) {
+            return from_marker;
+        }
+    }
+    for (const Library& library : version.meta.libraries) {
+        const std::string lower = to_lower_ascii(library.name);
+        if (lower.find(":intermediary:") != std::string::npos ||
+            lower.find(":forge:") != std::string::npos ||
+            lower.find(":neoforge:") != std::string::npos ||
+            lower.find(":bootstraplauncher:") != std::string::npos) {
+            const std::string candidate = after_last_colon(library.name);
+            if (!candidate.empty() && std::isdigit(static_cast<unsigned char>(candidate[0])) != 0) {
+                return candidate;
+            }
+        }
+    }
+    return version.meta.id;
+}
+
+Json instance_entry(const VersionRepository& repository, const std::string& id) {
+    Json entry = Json::object();
+    entry["id"] = id;
+    entry["kind"] = "vanilla";
+    entry["minecraftVersion"] = id;
+    entry["javaMajor"] = 0;
+    entry["isolated"] = false;
+    entry["modCount"] = 0;
+    entry["modpack"] = std::string();
+    entry["ready"] = false;
+    try {
+        const ResolvedVersion version = repository.resolve(id);
+        const VersionMeta& meta = version.meta;
+        const PclInstanceSettings pcl =
+            read_pcl_instance_settings(version.json_path.parent_path());
+        entry["kind"] = loader_kind(meta);
+        entry["mainClass"] = meta.main_class;
+        entry["minecraftVersion"] = guess_minecraft_version(version, pcl);
+        entry["javaMajor"] = meta.java_major.value_or(0);
+        entry["type"] = meta.type;
+        entry["isolated"] = version.run_dir != version.game_dir;
+        entry["runDir"] = path_to_utf8(version.run_dir);
+        entry["ready"] = std::filesystem::is_regular_file(meta.client_jar(version.game_dir));
+        const std::filesystem::path marker = version.run_dir / "modpack.json";
+        std::error_code error;
+        if (std::filesystem::is_regular_file(marker, error) && !error) {
+            const Json pack = read_json_file(marker);
+            entry["modpack"] = json_string(pack, "name");
+            const std::string pack_loader = json_string(pack, "loader");
+            if (!pack_loader.empty()) {
+                entry["kind"] = pack_loader;
+            }
+        }
+        std::size_t enabled = 0;
+        for (const InstalledMod& mod : scan_mods(version.run_dir)) {
+            if (mod.enabled) {
+                ++enabled;
+            }
+        }
+        entry["modCount"] = static_cast<int>(enabled);
+    } catch (const std::exception& error) {
+        entry["error"] = error.what();
+    }
+    return entry;
+}
+
+Json instances_payload() {
+    Json result = Json::object();
+    Json list = Json::array();
+    const VersionRepository repository(state.config.game_dir);
+    for (const std::string& id : repository.list_ids()) {
+        list.push_back(instance_entry(repository, id));
+    }
+    result["gameDir"] = path_to_utf8(state.config.game_dir);
+    result["instances"] = list;
+    return result;
+}
+
+Json runtimes_payload() {
+    Json result = Json::object();
+    Json list = Json::array();
+    for (const JavaRuntime& runtime : detect_java_runtimes(state.config.game_dir)) {
+        Json item = Json::object();
+        item["path"] = path_to_utf8(runtime.executable);
+        item["major"] = runtime.major;
+        item["version"] = runtime.version;
+        item["vendor"] = runtime.vendor;
+        list.push_back(std::move(item));
+    }
+    result["runtimes"] = std::move(list);
+    return result;
+}
+
+Json state_json() {
+    Json payload = Json::object();
+    payload["running"] = state.game.running();
+    payload["pid"] = static_cast<std::int64_t>(state.game.process_id());
+    payload["id"] = state.launched_id;
+    payload["exitCode"] = state.game_exit_code;
+    payload["stoppedByUser"] = state.stopped_by_user;
+    payload["launcherLog"] = path_to_utf8(state.launcher_log.path);
+    payload["gameLog"] = path_to_utf8(state.game_log.path);
+    return payload;
+}
+
+void poll_process_state() {
+    if (!state.game.valid() || state.game_exit_code != 0) {
+        return;
+    }
+    const int exit_code = state.game.wait(0);
+    if (exit_code != -1) {
+        state.game_exit_code = exit_code;
+        post_event("state", state_json());
+    }
+}
+
+std::string read_new_log_text(Tail& tail) {
+    std::ifstream input(tail.path, std::ios::binary);
+    if (!input) {
+        return {};
+    }
+    input.seekg(0, std::ios::end);
+    const std::uint64_t size = static_cast<std::uint64_t>(input.tellg());
+    if (size < tail.offset) {
+        tail.offset = 0;  // the game rotated latest.log
+    }
+    if (size == tail.offset) {
+        return {};
+    }
+    const std::uint64_t span = std::min<std::uint64_t>(size - tail.offset, k_log_chunk_bytes);
+    std::vector<char> buffer(static_cast<std::size_t>(span));
+    input.seekg(static_cast<std::streamoff>(tail.offset), std::ios::beg);
+    input.read(buffer.data(), static_cast<std::streamsize>(span));
+    const std::streamsize read = input.gcount();
+    if (read <= 0) {
+        return {};
+    }
+    tail.offset += static_cast<std::uint64_t>(read);
+    return std::string(buffer.data(), static_cast<std::size_t>(read));
+}
+
+// The game's console stream duplicates latest.log in log4j's XML layout, and our
+// own banner lines are noise inside the UI. Keep only what the game log cannot
+// tell us: JVM notes, early failures and crash stubs.
+std::string keep_launcher_only_lines(const std::string& text) {
+    std::string kept;
+    std::size_t start = 0;
+    while (start < text.size()) {
+        std::size_t end = text.find('\n', start);
+        if (end == std::string::npos) {
+            end = text.size();
+        }
+        const std::string trimmed =
+            trim(std::string_view(text.data() + start, end - start));
+        start = end + 1;
+        const bool xml = !trimmed.empty() && trimmed.front() == '<';
+        const bool banner = trimmed.rfind("====", 0) == 0;
+        const bool exe_path = trimmed.size() > 7 && trimmed[1] == ':' &&
+                              trimmed.compare(trimmed.size() - 4, 4, ".exe") == 0;
+        if (!trimmed.empty() && !xml && !banner && !exe_path) {
+            kept += trimmed;
+            kept += '\n';
+        }
+    }
+    return kept;
+}
+
+void push_logs() {
+    const std::string launcher =
+        keep_launcher_only_lines(read_new_log_text(state.launcher_log));
+    if (!launcher.empty()) {
+        Json payload = Json::object();
+        payload["source"] = "launcher";
+        payload["text"] = launcher;
+        post_event("log", payload);
+    }
+    const std::string game = read_new_log_text(state.game_log);
+    if (!game.empty()) {
+        Json payload = Json::object();
+        payload["source"] = "game";
+        payload["text"] = game;
+        post_event("log", payload);
+    }
+}
+
+std::optional<std::filesystem::path> resolve_java(const std::string& explicit_path,
+                                                  const VersionMeta& meta) {
+    if (!explicit_path.empty()) {
+        const auto path = absolute_path(path_from_utf8(explicit_path));
+        if (std::filesystem::is_regular_file(path)) {
+            return path;
+        }
+        return std::nullopt;
+    }
+    if (!state.config.java_path.empty() && std::filesystem::is_regular_file(state.config.java_path)) {
+        return state.config.java_path;
+    }
+    if (const auto runtime =
+            find_java_runtime(meta.java_major.value_or(8), state.config.game_dir)) {
+        return runtime->executable;
+    }
+    return std::nullopt;
+}
+
+void handle_launch(const Json& message) {
+    const std::string id = json_string(message, "id");
+    if (id.empty()) {
+        post_error("launch needs an instance id");
+        return;
+    }
+    if (state.game.running()) {
+        post_error("Minecraft is already running: " + state.launched_id);
+        return;
+    }
+    const VersionRepository repository(state.config.game_dir);
+    if (!repository.contains(id)) {
+        post_error("Version not found: " + id);
+        return;
+    }
+    const ResolvedVersion version = repository.resolve(id);
+    const PclInstanceSettings pcl =
+        read_pcl_instance_settings(version.json_path.parent_path());
+
+    LaunchOptions options;
+    options.username = json_string(message, "username", state.config.username);
+    if (options.username.empty()) {
+        options.username = "Player";
+    }
+    const std::int64_t memory = json_integer(message, "memoryMb", state.config.memory_mb);
+    options.memory_mb = memory > 0 ? static_cast<int>(memory) : 2048;
+    options.width = state.config.width;
+    options.height = state.config.height;
+    options.extra_jvm_args =
+        pcl.detected && !pcl.jvm_args.empty() ? pcl.jvm_args : state.config.jvm_args;
+    options.extra_game_args =
+        pcl.detected && !pcl.game_args.empty() ? pcl.game_args : state.config.game_args;
+
+    const auto java = resolve_java(json_string(message, "javaPath"), version.meta);
+    if (!java) {
+        post_error("No usable Java runtime for " + id + " (needs >= " +
+                   std::to_string(version.meta.java_major.value_or(8)) +
+                   "). Pick one in the settings panel.");
+        return;
+    }
+    options.java_path = *java;
+    // Offline only: the Microsoft session stays with the CLI so a token never
+    // reaches the web view.
+    options.user_type = "legacy";
+
+    const LaunchPlan plan = build_launch_plan(version, detect_environment(), options);
+
+    state.launcher_log = Tail{version.run_dir / "logs" / "aurora-launcher.log", 0};
+    state.game_log = Tail{version.run_dir / "logs" / "latest.log",
+                          file_size_or_zero(version.run_dir / "logs" / "latest.log")};
+    state.launched_id = id;
+    state.game_exit_code = 0;
+    state.stopped_by_user = false;
+    state.game =
+        spawn_process(plan.java, plan.arguments, plan.working_directory, state.launcher_log.path);
+    post_event("launched", state_json());
+}
+
+void handle_stop() {
+    if (!state.game.running()) {
+        post_error("Minecraft is not running");
+        return;
+    }
+    state.stopped_by_user = true;
+    if (!state.game.terminate()) {
+        post_error("Unable to stop Minecraft (Windows error " +
+                   std::to_string(GetLastError()) + ")");
+        return;
+    }
+    const int exit_code = state.game.wait(5000);
+    state.game_exit_code = exit_code < 0 ? 1 : exit_code;
+    post_event("state", state_json());
+}
+
+void handle_save_settings(const Json& message) {
+    if (const auto value = json_optional_string(message, "gameDir"); value && !value->empty()) {
+        state.config.game_dir = absolute_path(path_from_utf8(*value));
+    }
+    if (const auto value = json_optional_string(message, "username")) {
+        state.config.username = trim(*value);
+    }
+    if (const auto value = json_optional_string(message, "javaPath")) {
+        state.config.java_path = value->empty()
+                                     ? std::filesystem::path{}
+                                     : absolute_path(path_from_utf8(*value));
+    }
+    const std::int64_t memory = json_integer(message, "memoryMb", state.config.memory_mb);
+    if (memory > 0) {
+        state.config.memory_mb = static_cast<int>(memory);
+    }
+    try {
+        state.config.save(state.config_path);
+    } catch (const std::exception& error) {
+        post_error(std::string("Unable to save config: ") + error.what());
+        return;
+    }
+    post_event("saved", settings_payload());
+}
+
+void handle_message(const std::string& json_text) {
+    Json message;
+    try {
+        message = Json::parse(json_text);
+    } catch (const std::exception& error) {
+        post_error(std::string("Bad message: ") + error.what());
+        return;
+    }
+    const std::string action = json_string(message, "action");
+    const std::int64_t reply_to = json_integer(message, "id", 0);
+    try {
+        if (action == "boot") {
+            Json payload = Json::object();
+            payload["instances"] = instances_payload();
+            payload["runtimes"] = runtimes_payload();
+            payload["settings"] = settings_payload();
+            payload["state"] = state_json();
+            payload["version"] = std::string(AURORA_GUI_VERSION);
+            if (reply_to != 0) {
+                payload["replyTo"] = reply_to;
+            }
+            post_event("boot", payload);
+        } else if (action == "instances") {
+            post_event("instances", instances_payload());
+        } else if (action == "runtimes") {
+            post_event("runtimes", runtimes_payload());
+        } else if (action == "settings") {
+            post_event("settings", settings_payload());
+        } else if (action == "launch") {
+            handle_launch(message);
+        } else if (action == "stop") {
+            handle_stop();
+        } else if (action == "saveSettings") {
+            handle_save_settings(message);
+        } else {
+            post_error("Unknown action: " + action);
+        }
+    } catch (const std::exception& error) {
+        post_error(error.what());
+    }
+}
+
+void fail_startup(const std::wstring& text) {
+    MessageBoxW(nullptr, text.c_str(), L"AuroraLauncher", MB_OK | MB_ICONERROR);
+    PostQuitMessage(1);
+}
+
+LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
+    switch (message) {
+    case WM_SIZE:
+        if (state.controller != nullptr) {
+            RECT rect{};
+            GetClientRect(hwnd, &rect);
+            state.controller->put_Bounds(rect);
+        }
+        return 0;
+    case WM_SETFOCUS:
+        if (state.controller != nullptr) {
+            state.controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+        }
+        return 0;
+    case WM_TIMER:
+        if (wparam == k_poll_timer) {
+            poll_process_state();
+            push_logs();
+            return 0;
+        }
+        break;
+    case WM_DESTROY:
+        KillTimer(hwnd, k_poll_timer);
+        PostQuitMessage(0);
+        return 0;
+    default:
+        break;
+    }
+    return DefWindowProcW(hwnd, message, wparam, lparam);
+}
+
+using EnvironmentHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
+                                        ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>;
+using ControllerHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
+                                       ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>;
+using MessageHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
+                                    ICoreWebView2WebMessageReceivedEventHandler>;
+
+} // namespace
+
+int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
+    // Per-monitor DPI v2 keeps the window sharp; older builds fall back to system
+    // awareness. The API is resolved dynamically so the loader never hard-fails.
+    if (const auto set_context = reinterpret_cast<BOOL(WINAPI*)(DWORD)>(
+            GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetProcessDpiAwarenessContext"))) {
+        set_context(k_per_monitor_dpi_aware_v2);
+    } else {
+        SetProcessDPIAware();
+    }
+
+    // Small escape hatch for testing and packaged launches:
+    // aurora_gui [--config FILE] [--game-dir DIR]
+    std::wstring command_line(GetCommandLineW());
+    const auto read_option = [&command_line](std::wstring_view name, std::wstring& out) {
+        const std::size_t found = command_line.find(name);
+        if (found == std::wstring::npos) {
+            return false;
+        }
+        std::size_t start = found + name.size();
+        while (start < command_line.size() && command_line[start] == L' ') {
+            ++start;
+        }
+        if (start < command_line.size() && command_line[start] == L'"') {
+            const std::size_t end = command_line.find(L'"', start + 1);
+            out = command_line.substr(start + 1, end == std::wstring::npos
+                                                       ? std::wstring::npos
+                                                       : end - start - 1);
+        } else {
+            const std::size_t end = command_line.find(L' ', start);
+            out = command_line.substr(start, end == std::wstring::npos
+                                                 ? std::wstring::npos
+                                                 : end - start);
+        }
+        return !out.empty();
+    };
+
+    std::wstring config_argument;
+    if (read_option(L"--config", config_argument)) {
+        state.config_path = std::filesystem::path(config_argument);
+    } else {
+        state.config_path = app_data_dir() / "config.json";
+    }
+    state.config = Config::load(state.config_path);
+    std::wstring game_dir_argument;
+    if (read_option(L"--game-dir", game_dir_argument)) {
+        state.config.game_dir = absolute_path(std::filesystem::path(game_dir_argument));
+    }
+
+    WNDCLASSW window_class{};
+    window_class.lpfnWndProc = window_proc;
+    window_class.hInstance = instance;
+    window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+    window_class.hbrBackground = CreateSolidBrush(RGB(18, 20, 26));
+    window_class.lpszClassName = L"AuroraLauncherGuiWindow";
+    if (RegisterClassW(&window_class) == 0) {
+        return 1;
+    }
+
+    state.window = CreateWindowW(
+        window_class.lpszClassName, L"AuroraLauncher", WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, 1180, 760, nullptr, nullptr, instance, nullptr);
+    if (state.window == nullptr) {
+        return 1;
+    }
+    // A light Windows title bar over a dark UI is jarring; DWM can flip it.
+    // Attribute 20 is Windows 10 2004+, 19 is the older numbering. Both are
+    // resolved dynamically so pre-DPI-API builds simply keep the default.
+    if (const auto dwm = LoadLibraryExW(L"dwmapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32)) {
+        using DwmSetWindowAttributeFn = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
+        if (const auto set_attribute = reinterpret_cast<DwmSetWindowAttributeFn>(
+                GetProcAddress(dwm, "DwmSetWindowAttribute"))) {
+            const BOOL dark = TRUE;
+            if (FAILED(set_attribute(state.window, 20, &dark, sizeof(dark)))) {
+                set_attribute(state.window, 19, &dark, sizeof(dark));
+            }
+        }
+        FreeLibrary(dwm);
+    }
+
+    ShowWindow(state.window, show_command);
+    UpdateWindow(state.window);
+    SetTimer(state.window, k_poll_timer, 500, nullptr);
+
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+    const std::filesystem::path user_data = app_data_dir() / "WebView2";
+    const HRESULT created = CreateCoreWebView2EnvironmentWithOptions(
+        nullptr, user_data.wstring().c_str(), nullptr,
+        Callback<EnvironmentHandler>(
+            [](HRESULT environment_result, ICoreWebView2Environment* environment) -> HRESULT {
+                if (FAILED(environment_result)) {
+                    fail_startup(
+                        L"AuroraLauncher needs the Microsoft Edge WebView2 Runtime. It is "
+                        L"preinstalled on Windows 11 and optional on older Windows 10.\n\n"
+                        L"Install it from developer.microsoft.com/microsoft-edge/webview2 "
+                        L"and start AuroraLauncher again.");
+                    return environment_result;
+                }
+                return environment->CreateCoreWebView2Controller(
+                    state.window,
+                    Callback<ControllerHandler>(
+                        [](HRESULT controller_result,
+                           ICoreWebView2Controller* controller) -> HRESULT {
+                            if (FAILED(controller_result)) {
+                                fail_startup(L"Unable to create the embedded browser view.");
+                                return controller_result;
+                            }
+                            state.controller = controller;
+                            state.controller->get_CoreWebView2(&state.webview);
+                            RECT rect{};
+                            GetClientRect(state.window, &rect);
+                            state.controller->put_Bounds(rect);
+                            state.controller->MoveFocus(
+                                COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+
+                            COREWEBVIEW2_COLOR background{};
+                            background.A = 255;
+                            background.R = 18;
+                            background.G = 20;
+                            background.B = 26;
+                            // Background lives on ICoreWebView2Controller2, not on the view.
+                            ComPtr<ICoreWebView2Controller2> controller2;
+                            if (SUCCEEDED(state.controller.As(&controller2))) {
+                                controller2->put_DefaultBackgroundColor(background);
+                            }
+                            ComPtr<ICoreWebView2Settings> settings;
+                            state.webview->get_Settings(&settings);
+                            settings->put_IsStatusBarEnabled(FALSE);
+                            settings->put_AreDevToolsEnabled(
+                                getenv("AURORA_GUI_DEVTOOLS") != nullptr);
+                            state.webview.As(&state.webview3);
+
+                            state.webview->add_WebMessageReceived(
+                                Callback<MessageHandler>(
+                                    [](ICoreWebView2*,
+                                       ICoreWebView2WebMessageReceivedEventArgs* args) -> HRESULT {
+                                        LPWSTR json = nullptr;
+                                        if (FAILED(args->get_WebMessageAsJson(&json)) ||
+                                            json == nullptr) {
+                                            return S_OK;
+                                        }
+                                        handle_message(to_utf8(json));
+                                        CoTaskMemFree(json);
+                                        return S_OK;
+                                    })
+                                    .Get(),
+                                nullptr);
+
+                            if (state.webview3 != nullptr) {
+                                state.webview3->SetVirtualHostNameToFolderMapping(
+                                    L"aurora.ui", ui_directory().wstring().c_str(),
+                                    COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW);
+                            }
+                            state.webview->Navigate(L"https://aurora.ui/index.html");
+                            return S_OK;
+                        })
+                        .Get());
+            })
+            .Get());
+    if (FAILED(created)) {
+        wchar_t code[16]{};
+        std::swprintf(code, 16, L"0x%08X", static_cast<unsigned>(created));
+        fail_startup(L"Unable to start the embedded browser (HRESULT " + std::wstring(code) +
+                     L").");
+        CoUninitialize();
+        return 1;
+    }
+
+    MSG message{};
+    while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+    }
+    CoUninitialize();
+    return static_cast<int>(message.wParam);
+}

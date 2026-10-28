@@ -5,6 +5,7 @@
 #include "core/java.hpp"
 #include "core/json.hpp"
 #include "core/log.hpp"
+#include "core/mirrors.hpp"
 #include "core/paths.hpp"
 #include "core/process.hpp"
 #include "core/strings.hpp"
@@ -125,6 +126,16 @@ std::string join_url(std::string_view base, std::string_view relative) {
         fail("Cannot build an empty URL");
     }
     return result + "/" + path;
+}
+
+HttpGetOptions fast_metadata_options() {
+    HttpGetOptions options;
+    options.max_retries = 0;
+    options.resolve_timeout = std::chrono::milliseconds(3000);
+    options.connect_timeout = std::chrono::milliseconds(3000);
+    options.send_timeout = std::chrono::milliseconds(5000);
+    options.receive_timeout = std::chrono::milliseconds(8000);
+    return options;
 }
 
 struct VersionKey {
@@ -391,22 +402,9 @@ std::vector<ForgePromotion> parse_forge_promotions(std::string_view promotions_j
     return result;
 }
 
-std::optional<ForgePromotion> select_forge_version(
-    std::string_view promotions_json,
-    std::string_view minecraft_version,
-    std::optional<std::string> explicit_version,
+std::optional<ForgePromotion> select_forge_promotion(
+    const std::vector<ForgePromotion>& promotions,
     ForgeChannel preferred_channel) {
-    require_safe_minecraft_version(minecraft_version);
-    if (explicit_version) {
-        ForgePromotion promotion;
-        promotion.minecraft = std::string(minecraft_version);
-        promotion.version = normalize_forge_version(minecraft_version, *explicit_version);
-        promotion.channel = preferred_channel;
-        promotion.explicit_version = true;
-        return promotion;
-    }
-
-    const auto promotions = parse_forge_promotions(promotions_json, minecraft_version);
     const auto find_channel = [&promotions](ForgeChannel channel)
         -> std::optional<ForgePromotion> {
         for (const ForgePromotion& promotion : promotions) {
@@ -424,6 +422,93 @@ std::optional<ForgePromotion> select_forge_version(
                                    ? ForgeChannel::Latest
                                    : ForgeChannel::Recommended;
     return find_channel(other);
+}
+
+std::optional<ForgePromotion> select_forge_version(
+    std::string_view promotions_json,
+    std::string_view minecraft_version,
+    std::optional<std::string> explicit_version,
+    ForgeChannel preferred_channel) {
+    require_safe_minecraft_version(minecraft_version);
+    if (explicit_version) {
+        ForgePromotion promotion;
+        promotion.minecraft = std::string(minecraft_version);
+        promotion.version = normalize_forge_version(minecraft_version, *explicit_version);
+        promotion.channel = preferred_channel;
+        promotion.explicit_version = true;
+        return promotion;
+    }
+
+    return select_forge_promotion(
+        parse_forge_promotions(promotions_json, minecraft_version),
+        preferred_channel);
+}
+
+std::vector<ForgePromotion> parse_bmcl_forge_promotions(
+    std::string_view promotions_json,
+    std::string_view minecraft_version) {
+    require_safe_minecraft_version(minecraft_version);
+    const Json root = parse_json(promotions_json, "BMCL Forge promotions");
+    if (!root.is_array()) {
+        fail("BMCL Forge promotions must be a JSON array");
+    }
+
+    const std::string target(minecraft_version);
+    std::vector<ForgePromotion> promotions;
+    for (const Json& item : root) {
+        if (!item.is_object()) {
+            continue;
+        }
+        const std::string name = json_string(item, "name");
+        const std::size_t separator = name.rfind('-');
+        if (separator == std::string::npos ||
+            name.substr(0, separator) != target) {
+            continue;
+        }
+        const std::string channel = to_lower_ascii(name.substr(separator + 1));
+        ForgeChannel parsed_channel = ForgeChannel::Latest;
+        if (channel == "recommended") {
+            parsed_channel = ForgeChannel::Recommended;
+        } else if (channel == "latest") {
+            parsed_channel = ForgeChannel::Latest;
+        } else {
+            continue;
+        }
+
+        const Json* build = json_object(item, "build");
+        if (build == nullptr) {
+            continue;
+        }
+        const std::string build_minecraft = trim(json_string(*build, "mcversion"));
+        if (!build_minecraft.empty() && build_minecraft != target) {
+            continue;
+        }
+        const std::string version = trim(json_string(*build, "version"));
+        if (version.empty()) {
+            continue;
+        }
+        require_safe_loader_version(version, "Forge");
+        promotions.push_back(ForgePromotion{target, version, parsed_channel, false});
+    }
+
+    // BMCL can list more than one build per channel; keep the newest one.
+    std::vector<ForgePromotion> deduped;
+    for (const ForgePromotion& promotion : promotions) {
+        bool replaced = false;
+        for (ForgePromotion& existing : deduped) {
+            if (existing.channel == promotion.channel) {
+                if (loader_version_greater(promotion.version, existing.version)) {
+                    existing.version = promotion.version;
+                }
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            deduped.push_back(promotion);
+        }
+    }
+    return deduped;
 }
 
 std::string neoforge_version_prefix(std::string_view minecraft_version) {
@@ -564,6 +649,105 @@ std::vector<std::string> parse_neoforge_metadata(std::string_view xml) {
         fail("NeoForge Maven metadata has no <version> entries");
     }
     return versions;
+}
+
+std::vector<std::string> parse_bmcl_neoforge_versions(
+    std::string_view versions_json,
+    std::string_view minecraft_version) {
+    require_safe_minecraft_version(minecraft_version);
+    const Json root = parse_json(versions_json, "BMCL NeoForge versions");
+    if (!root.is_array()) {
+        fail("BMCL NeoForge versions must be a JSON array");
+    }
+
+    const std::string target(minecraft_version);
+    std::vector<std::string> versions;
+    for (const Json& item : root) {
+        if (!item.is_object()) {
+            continue;
+        }
+        const std::string item_minecraft = trim(json_string(item, "mcversion"));
+        if (!item_minecraft.empty() && item_minecraft != target) {
+            continue;
+        }
+        const std::string version = trim(json_string(item, "version"));
+        if (!version.empty()) {
+            versions.push_back(version);
+        }
+    }
+    return select_neoforge_versions(versions, minecraft_version);
+}
+
+std::vector<ForgePromotion> fetch_forge_promotions(
+    std::string_view minecraft_version,
+    const ForgeEndpoints& endpoints) {
+    require_safe_minecraft_version(minecraft_version);
+    if (!endpoints.forge_promotions_mirror_url.empty()) {
+        require_https_url(endpoints.forge_promotions_mirror_url,
+                          "Forge promotions mirror");
+        std::optional<std::string> body;
+        try {
+            body = http_get(
+                endpoints.forge_promotions_mirror_url, fast_metadata_options());
+        } catch (const Error& error) {
+            log_warn("BMCL Forge promotions failed: " + std::string(error.what()));
+        }
+        if (body) {
+            try {
+                auto promotions =
+                    parse_bmcl_forge_promotions(*body, minecraft_version);
+                if (!promotions.empty()) {
+                    return promotions;
+                }
+                log_debug("BMCL Forge promotions has no entry for Minecraft " +
+                          std::string(minecraft_version));
+            } catch (const Error& error) {
+                log_warn("BMCL Forge promotions response is invalid: " +
+                         std::string(error.what()));
+            }
+        }
+    }
+
+    require_https_url(endpoints.forge_promotions_url, "Forge promotions");
+    return parse_forge_promotions(
+        http_get(endpoints.forge_promotions_url), minecraft_version);
+}
+
+std::vector<std::string> fetch_neoforge_versions(
+    std::string_view minecraft_version,
+    const ForgeEndpoints& endpoints) {
+    require_safe_minecraft_version(minecraft_version);
+    if (!endpoints.neoforge_versions_mirror_url.empty()) {
+        require_https_url(endpoints.neoforge_versions_mirror_url,
+                          "NeoForge versions mirror");
+        const std::string mirror_url =
+            join_url(endpoints.neoforge_versions_mirror_url, minecraft_version);
+        std::optional<std::string> body;
+        try {
+            body = http_get(mirror_url, fast_metadata_options());
+        } catch (const Error& error) {
+            log_warn("BMCL NeoForge versions failed: " + std::string(error.what()));
+        }
+        if (body) {
+            try {
+                auto versions =
+                    parse_bmcl_neoforge_versions(*body, minecraft_version);
+                if (!versions.empty()) {
+                    return versions;
+                }
+                log_debug("BMCL NeoForge versions has no entry for Minecraft " +
+                          std::string(minecraft_version));
+            } catch (const Error& error) {
+                log_warn("BMCL NeoForge versions response is invalid: " +
+                         std::string(error.what()));
+            }
+        }
+    }
+
+    require_https_url(endpoints.neoforge_metadata_url, "NeoForge metadata");
+    return select_neoforge_versions(
+        parse_neoforge_metadata(http_get(endpoints.neoforge_metadata_url)),
+        minecraft_version);
 }
 
 std::string normalize_forge_version(std::string_view minecraft_version,
@@ -995,28 +1179,21 @@ ForgeInstallResult install_forge(const ForgeInstallRequest& request) {
                              ? normalize_forge_version(minecraft_version, request.loader_version)
                              : normalize_neoforge_version(request.loader_version);
     } else if (request.kind == ForgeKind::Forge) {
-        require_https_url(request.endpoints.forge_promotions_url, "Forge promotions");
-        const std::string promotions =
-            http_get(request.endpoints.forge_promotions_url);
-        const auto selected = select_forge_version(
-            promotions,
-            minecraft_version,
-            std::nullopt,
+        const auto selected = select_forge_promotion(
+            fetch_forge_promotions(minecraft_version, request.endpoints),
             request.channel.value_or(ForgeChannel::Recommended));
         if (!selected) {
             fail("No Forge promotion is available for Minecraft " + minecraft_version);
         }
         loader_version = selected->version;
     } else {
-        require_https_url(request.endpoints.neoforge_metadata_url, "NeoForge metadata");
-        const std::string metadata = http_get(request.endpoints.neoforge_metadata_url);
-        const auto versions = parse_neoforge_metadata(metadata);
-        const auto selected = select_neoforge_version(versions, minecraft_version);
-        if (!selected) {
+        const auto versions =
+            fetch_neoforge_versions(minecraft_version, request.endpoints);
+        if (versions.empty()) {
             fail("No NeoForge version is available for Minecraft " + minecraft_version +
                  " (NeoForge version scheme: <minecraft-minor>.<minecraft-patch>.<build>)");
         }
-        loader_version = *selected;
+        loader_version = versions.front();
     }
     require_safe_loader_version(loader_version, kind_display(request.kind));
     if (request.kind == ForgeKind::NeoForge) {

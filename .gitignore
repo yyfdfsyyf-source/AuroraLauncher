@@ -32,6 +32,7 @@ CMakeUserPresets.json
 # Local configuration
 /config.local.json
 /.aurora/
+/.mimosa/
 
 # Signing secrets (public .cer files may be committed)
 *.pfx

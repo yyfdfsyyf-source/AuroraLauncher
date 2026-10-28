@@ -3,6 +3,7 @@
 #include "core/auth.hpp"
 #include "core/branding.hpp"
 #include "core/config.hpp"
+#include "core/curseforge.hpp"
 #include "core/error.hpp"
 #include "core/forge.hpp"
 #include "core/hash.hpp"
@@ -15,8 +16,13 @@
 #include "core/loader.hpp"
 #include "core/log.hpp"
 #include "core/manifest.hpp"
+#include "core/modpack.hpp"
+#include "core/modrinth.hpp"
+#include "core/mods.hpp"
 #include "core/paths.hpp"
+#include "core/pcl.hpp"
 #include "core/repository.hpp"
+#include "core/resourcepacks.hpp"
 #include "core/rules.hpp"
 #include "core/strings.hpp"
 
@@ -29,6 +35,7 @@
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace aurora {
@@ -49,6 +56,18 @@ void print_help() {
         << "  aurora loader install <fabric|quilt> <game> [options]\n"
         << "  aurora forge list <forge|neoforge> <game> [--json]\n"
         << "  aurora forge install <forge|neoforge> <game> [options]\n"
+        << "  aurora mod search <query> [--loader L] [--game-version V] [--limit N] [--json]\n"
+        << "  aurora mod install <slug> --game-dir DIR --loader L --game-version V [options]\n"
+        << "  aurora mod list [--game-dir DIR] [--instance ID] [--json]\n"
+        << "  aurora mod enable|disable <file> [--game-dir DIR] [--instance ID] [--json]\n"
+        << "  aurora mod update --game-dir DIR --loader L --game-version V [--prerelease] [--enabled-only] [--apply] [--json]\n"
+        << "  aurora curseforge search <query> [--loader L] [--game-version V] [--limit N] [--api-key KEY] [--json]\n"
+        << "  aurora curseforge install <mod-id> --game-dir DIR --loader L --game-version V [options]\n"
+        << "  aurora curseforge update --game-dir DIR --loader L --game-version V [--apply] [--json]\n"
+        << "  aurora resourcepack list [--game-dir DIR] [--instance ID] [--game-version V] [--json]\n"
+        << "  aurora resourcepack enable|disable <name> [--game-dir DIR] [--instance ID] [--game-version V] [--json]\n"
+        << "  aurora modpack info <archive> [--json]\n"
+        << "  aurora modpack install <archive> --game-dir DIR [options]\n"
         << "  aurora auth login [--client-id ID] [--json]\n"
         << "  aurora auth status|refresh|logout [--json]\n"
         << "  aurora install <id> [--game-dir DIR] [--force] [--no-fetch] [--no-assets] [--no-libraries] [--no-natives]\n"
@@ -56,7 +75,7 @@ void print_help() {
         << "  aurora config show|set [--config FILE]\n\n"
         << "Launch options:\n"
         << "  --game-dir DIR       Minecraft directory (default: %USERPROFILE%\\.minecraft)\n"
-        << "  --java PATH          Java executable (auto-detected by default)\n"
+        << "  --java PATH          Java executable (overrides PCL instance and config)\n"
         << "  --username NAME      Offline player name (also forces offline mode)\n"
         << "  --offline            Ignore the saved Microsoft session\n"
         << "  --memory MB          Maximum heap in MB (accepts 4G / 4096M)\n"
@@ -68,8 +87,11 @@ void print_help() {
         << "  --detach             Do not wait for the game process\n"
         << "  --jvm-arg VALUE      Append a JVM argument (repeatable)\n"
         << "  --game-arg VALUE     Append a game argument (repeatable)\n"
+        << "  --log FILE           Capture the game's stdout/stderr into FILE (appended)\n"
         << "  --config FILE        Configuration file\n"
         << "  --verbose            Enable debug logging\n\n"
+        << "PCL instances: versions/<id>/PCL/Setup.ini or PCL/config.v1.yml isolation,\n"
+        << "memory, JVM/game arguments and Java selection are applied automatically.\n\n"
         << "Forge install options:\n"
         << "  --loader VERSION     Pin a loader version (default: recommended/newest)\n"
         << "  --channel NAME       recommended or latest (Forge only)\n"
@@ -77,6 +99,22 @@ void print_help() {
         << "  --sha1 HEX           Pin the installer SHA-1 instead of fetching its sidecar\n"
         << "  --allow-unverified   Run the installer without a verified SHA-1\n"
         << "  --no-fetch           Do not fetch the base game version JSON first\n\n"
+        << "Modpack install options:\n"
+        << "  --version-id ID      Instance/version id (default: pack name)\n"
+        << "  --no-loader          Do not install the pack loader\n"
+        << "  --no-game            Do not download client/libraries/assets\n"
+        << "  --no-backup          Skip the pre-upgrade instance backup\n"
+        << "  --java-home DIR      Java runtime for the Forge/NeoForge installer\n\n"
+        << "Mod options:\n"
+        << "  --loader NAME        fabric, quilt, forge or neoforge\n"
+        << "  --game-version VER   Minecraft version for search or install\n"
+        << "  --limit N            Search result count (1-50, default 10)\n"
+        << "  --version ID         Pin a specific Modrinth version id\n"
+        << "  --prerelease         Allow alpha/beta versions\n"
+        << "  --no-deps            Do not install required Modrinth dependencies\n"
+        << "  --mirror URL         Additional file mirror (repeatable)\n"
+        << "  --retry N            Download retries per source\n"
+        << "  --instance ID        Target a modpack instance under versions/<ID>\n\n"
         << "This is a no-UI core. A GUI is not implemented yet.\n";
 }
 
@@ -217,6 +255,39 @@ std::filesystem::path game_dir_from(const ArgParser& parser, const Config& confi
     return option_path(parser, "--game-dir", config.game_dir);
 }
 
+// Modpack instances keep mods, resource packs and options inside
+// versions/<id>; --instance selects that run directory.
+std::filesystem::path content_dir_from(const ArgParser& parser, const Config& config) {
+    const std::filesystem::path game_dir = game_dir_from(parser, config);
+    const auto instance = parser.value("--instance");
+    if (!instance) {
+        return game_dir;
+    }
+    return VersionRepository(game_dir).run_dir_for(*instance);
+}
+
+std::string instance_minecraft_version(const ArgParser& parser, const Config& config) {
+    if (const auto version = parser.value("--game-version")) {
+        return trim(*version);
+    }
+    const auto instance = parser.value("--instance");
+    if (!instance) {
+        return {};
+    }
+    const std::filesystem::path marker =
+        game_dir_from(parser, config) / "versions" / path_from_utf8(*instance) /
+        "modpack.json";
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(marker, error) || error) {
+        return {};
+    }
+    try {
+        return trim(json_string(read_json_file(marker), "minecraft"));
+    } catch (const Error&) {
+        return {};
+    }
+}
+
 InstallOptions install_options_from(const Config& config) {
     InstallOptions options;
     options.download_retries = config.download_retries;
@@ -229,22 +300,8 @@ ResolvedVersion resolve_version(const VersionRepository& repository,
                                 bool allow_fetch,
                                 bool force_json = false,
                                 std::string_view manifest_url = kOfficialVersionManifestUrl) {
-    if (repository.contains(id)) {
-        return repository.resolve(id);
-    }
-    if (!allow_fetch) {
-        fail("Version '" + id +
-             "' is not installed locally. Use 'aurora version fetch " + id +
-             "' or add --install to fetch it.");
-    }
-    log_info("Version '" + id + "' is not local; fetching version JSON");
-    const VersionManifest manifest = fetch_version_manifest(manifest_url);
-    VersionJsonInstallOptions options;
-    options.force = force_json;
-    const VersionJsonInstallResult result =
-        install_version_json(manifest, id, repository.game_dir(), options);
-    log_info("Version JSON is ready: " + path_to_utf8(result.path));
-    return repository.resolve(id);
+    return resolve_or_fetch_version(
+        repository.game_dir(), id, allow_fetch, force_json, manifest_url);
 }
 
 void print_library_summary(const ResolvedVersion& version, const Environment& environment) {
@@ -703,14 +760,16 @@ int command_forge(const std::vector<std::string>& arguments) {
         ForgeEndpoints endpoints;
         if (const auto url = parser.value("--promotions-url")) {
             endpoints.forge_promotions_url = *url;
+            endpoints.forge_promotions_mirror_url.clear();
         }
         if (const auto url = parser.value("--metadata-url")) {
             endpoints.neoforge_metadata_url = *url;
+            endpoints.neoforge_versions_mirror_url.clear();
         }
 
         if (kind == ForgeKind::Forge) {
-            const auto promotions = parse_forge_promotions(
-                http_get(endpoints.forge_promotions_url), minecraft_version);
+            const auto promotions =
+                fetch_forge_promotions(minecraft_version, endpoints);
             if (parser.flag("--json")) {
                 Json output = Json::array();
                 for (const ForgePromotion& promotion : promotions) {
@@ -732,9 +791,8 @@ int command_forge(const std::vector<std::string>& arguments) {
             return 0;
         }
 
-        const auto versions = select_neoforge_versions(
-            parse_neoforge_metadata(http_get(endpoints.neoforge_metadata_url)),
-            minecraft_version);
+        const auto versions =
+            fetch_neoforge_versions(minecraft_version, endpoints);
         if (parser.flag("--json")) {
             Json output = Json::array();
             for (const std::string& version : versions) {
@@ -794,9 +852,11 @@ int command_forge(const std::vector<std::string>& arguments) {
         request.allow_unverified_installer = parser.flag("--allow-unverified");
         if (const auto url = parser.value("--promotions-url")) {
             request.endpoints.forge_promotions_url = *url;
+            request.endpoints.forge_promotions_mirror_url.clear();
         }
         if (const auto url = parser.value("--metadata-url")) {
             request.endpoints.neoforge_metadata_url = *url;
+            request.endpoints.neoforge_versions_mirror_url.clear();
         }
         if (const auto root = parser.value("--forge-maven-root")) {
             request.endpoints.forge_maven_root = *root;
@@ -1029,7 +1089,7 @@ int command_launch(const std::vector<std::string>& arguments) {
     ArgParser parser(arguments,
                      {"--demo", "--dry-run", "--json", "--install", "--detach", "--offline"},
                      {"--game-dir", "--java", "--username", "--memory", "--width", "--height",
-                      "--jvm-arg", "--game-arg"});
+                      "--jvm-arg", "--game-arg", "--log"});
     parser.parse();
     if (parser.flag("--help")) {
         print_help();
@@ -1046,6 +1106,8 @@ int command_launch(const std::vector<std::string>& arguments) {
     const VersionRepository repository(game_dir);
     const ResolvedVersion version =
         resolve_version(repository, id, parser.flag("--install"));
+    const PclInstanceSettings pcl =
+        read_pcl_instance_settings(version.json_path.parent_path());
 
     LaunchOptions options;
     const bool explicit_username = parser.value("--username").has_value();
@@ -1078,7 +1140,7 @@ int command_launch(const std::vector<std::string>& arguments) {
     }
     options.memory_mb = parser.value("--memory")
         ? parse_memory_mb(*parser.value("--memory"))
-        : config.memory_mb;
+        : (pcl.detected && pcl.memory_mb > 0 ? pcl.memory_mb : config.memory_mb);
     options.width = parser.value("--width")
         ? parse_int(*parser.value("--width"), "--width")
         : config.width;
@@ -1086,11 +1148,13 @@ int command_launch(const std::vector<std::string>& arguments) {
         ? parse_int(*parser.value("--height"), "--height")
         : config.height;
     options.demo = parser.flag("--demo") || config.demo;
-    options.extra_jvm_args = config.jvm_args;
+    options.extra_jvm_args =
+        pcl.detected && !pcl.jvm_args.empty() ? pcl.jvm_args : config.jvm_args;
     const auto extra_jvm = parser.values("--jvm-arg");
     options.extra_jvm_args.insert(
         options.extra_jvm_args.end(), extra_jvm.begin(), extra_jvm.end());
-    options.extra_game_args = config.game_args;
+    options.extra_game_args =
+        pcl.detected && !pcl.game_args.empty() ? pcl.game_args : config.game_args;
     const auto extra_game = parser.values("--game-arg");
     options.extra_game_args.insert(
         options.extra_game_args.end(), extra_game.begin(), extra_game.end());
@@ -1099,6 +1163,9 @@ int command_launch(const std::vector<std::string>& arguments) {
     const bool explicit_java = parser.value("--java").has_value();
     if (explicit_java) {
         java_path = absolute_path(path_from_utf8(*parser.value("--java")));
+    } else if (pcl.detected && !pcl.java_path.empty() &&
+               std::filesystem::is_regular_file(path_from_utf8(pcl.java_path))) {
+        java_path = path_from_utf8(pcl.java_path);
     } else if (!config.java_path.empty()) {
         java_path = config.java_path;
     }
@@ -1136,6 +1203,17 @@ int command_launch(const std::vector<std::string>& arguments) {
             output["arguments"] = safe_plan.arguments;
             output["commandLine"] = safe_plan.command_line();
             output["online"] = options.online;
+            if (pcl.detected) {
+                Json pcl_json = Json::object();
+                pcl_json["configPath"] = path_to_utf8(pcl.config_path);
+                pcl_json["isolated"] = pcl.isolated;
+                pcl_json["autoIsolated"] = pcl.auto_isolated;
+                pcl_json["memoryMb"] = pcl.memory_mb;
+                pcl_json["java"] = pcl.java_path;
+                pcl_json["jvmArgs"] = pcl.jvm_args;
+                pcl_json["gameArgs"] = pcl.game_args;
+                output["pcl"] = std::move(pcl_json);
+            }
             std::cout << output.dump(2) << '\n';
         } else {
             std::cout << safe_plan.command_line() << '\n';
@@ -1143,7 +1221,1052 @@ int command_launch(const std::vector<std::string>& arguments) {
         return 0;
     }
 
-    return launch_game(plan, !parser.flag("--detach"));
+    return launch_game(plan, !parser.flag("--detach"),
+                       parser.value("--log")
+                           ? absolute_path(path_from_utf8(*parser.value("--log")))
+                           : std::filesystem::path{});
+}
+
+std::string shorten_text(std::string text, std::size_t max_length) {
+    for (char& character : text) {
+        if (character == '\n' || character == '\r' || character == '\t') {
+            character = ' ';
+        }
+    }
+    if (text.size() <= max_length) {
+        return text;
+    }
+    text.resize(max_length);
+    while (!text.empty() && (static_cast<unsigned char>(text.back()) & 0xC0) == 0x80) {
+        text.pop_back();
+    }
+    if (!text.empty() && (static_cast<unsigned char>(text.back()) & 0x80) != 0) {
+        text.pop_back();
+    }
+    text += "...";
+    return text;
+}
+
+Json modrinth_installed_json(const ModrinthInstalledMod& mod) {
+    Json project = Json::object();
+    project["id"] = mod.project.id;
+    project["slug"] = mod.project.slug;
+    project["title"] = mod.project.title;
+
+    Json version = Json::object();
+    version["id"] = mod.version.id;
+    version["number"] = mod.version.version_number;
+    version["type"] = mod.version.version_type;
+    version["gameVersions"] = mod.version.game_versions;
+    version["loaders"] = mod.version.loaders;
+
+    Json file = Json::object();
+    file["name"] = mod.file.filename;
+    file["path"] = path_to_utf8(mod.file_path);
+    file["sha1"] = mod.file.sha1;
+    file["size"] = mod.file.size;
+
+    Json value = Json::object();
+    value["project"] = std::move(project);
+    value["version"] = std::move(version);
+    value["file"] = std::move(file);
+    value["downloaded"] = mod.downloaded;
+    value["dependency"] = mod.dependency;
+    return value;
+}
+
+const char* modrinth_update_status_token(ModrinthUpdateStatus status) {
+    switch (status) {
+    case ModrinthUpdateStatus::UpToDate:
+        return "up-to-date";
+    case ModrinthUpdateStatus::UpdateAvailable:
+        return "update-available";
+    case ModrinthUpdateStatus::NotOnModrinth:
+        return "not-on-modrinth";
+    case ModrinthUpdateStatus::Unreadable:
+        return "unreadable";
+    case ModrinthUpdateStatus::LookupFailed:
+        return "lookup-failed";
+    }
+    return "unknown";
+}
+
+int command_mod(const std::vector<std::string>& arguments) {
+    ArgParser parser(arguments,
+                     {"--json", "--prerelease", "--no-deps", "--force",
+                      "--enabled-only", "--apply"},
+                     {"--game-dir", "--instance", "--loader", "--game-version",
+                      "--limit", "--version", "--mirror", "--retry"});
+    parser.parse();
+    if (parser.flag("--help")) {
+        print_help();
+        return 0;
+    }
+    const auto& positional = parser.positional();
+    if (positional.empty()) {
+        fail("Usage: aurora mod search|install ...");
+    }
+    const std::string& subcommand = positional.front();
+    const Config config = Config::load(config_path_from(parser));
+
+    if (subcommand == "list") {
+        if (positional.size() != 1) {
+            fail("Usage: aurora mod list [--game-dir DIR] [--json]");
+        }
+        const auto game_dir = content_dir_from(parser, config);
+        const std::filesystem::path directory = mods_directory(game_dir);
+        const std::vector<InstalledMod> mods = scan_mods(game_dir, false, true);
+        if (parser.flag("--json")) {
+            Json entries = Json::array();
+            for (const InstalledMod& mod : mods) {
+                Json item = Json::object();
+                item["file"] = mod.filename;
+                item["name"] = mod.name;
+                item["enabled"] = mod.enabled;
+                item["size"] = mod.size;
+                if (mod.has_metadata) {
+                    item["displayName"] = mod.metadata.name;
+                    item["version"] = mod.metadata.version;
+                    item["modId"] = mod.metadata.mod_id;
+                    item["loader"] = mod.metadata.loader;
+                    item["authors"] = mod.metadata.authors;
+                    if (!mod.metadata.description.empty()) {
+                        item["description"] = mod.metadata.description;
+                    }
+                }
+                entries.push_back(std::move(item));
+            }
+            Json output = Json::object();
+            output["modsDir"] = path_to_utf8(directory);
+            output["mods"] = std::move(entries);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        if (mods.empty()) {
+            std::cout << "No mods found in " << path_to_utf8(directory) << '\n';
+            return 0;
+        }
+        for (const InstalledMod& mod : mods) {
+            std::cout << (mod.enabled ? "enabled   " : "disabled  ");
+            if (mod.has_metadata && !mod.metadata.name.empty()) {
+                std::cout << mod.metadata.name;
+                if (!mod.metadata.version.empty()) {
+                    std::cout << " " << mod.metadata.version;
+                }
+                if (!mod.metadata.loader.empty()) {
+                    std::cout << " [" << mod.metadata.loader << "]";
+                }
+                std::cout << "  (" << mod.filename << ")";
+            } else {
+                std::cout << mod.filename;
+            }
+            std::cout << "  " << format_bytes(mod.size) << '\n';
+        }
+        return 0;
+    }
+
+    if (subcommand == "enable" || subcommand == "disable") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora mod enable|disable <file> [--game-dir DIR] [--json]");
+        }
+        const bool enabled = subcommand == "enable";
+        const auto game_dir = content_dir_from(parser, config);
+        const ModToggleResult result = set_mod_enabled(game_dir, positional[1], enabled);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["file"] = result.filename;
+            output["enabled"] = result.enabled;
+            output["changed"] = result.changed;
+            output["path"] = path_to_utf8(result.path);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        std::cout << result.filename << " is "
+                  << (result.enabled ? "enabled" : "disabled");
+        if (!result.changed) {
+            std::cout << " (unchanged)";
+        }
+        std::cout << '\n';
+        return 0;
+    }
+
+    if (subcommand == "update" || subcommand == "updates") {
+        const auto loader = parser.value("--loader");
+        if (!loader) {
+            fail("mod update requires --loader <fabric|quilt|forge|neoforge>");
+        }
+        const auto game_version = parser.value("--game-version");
+        if (!game_version) {
+            fail("mod update requires --game-version <version>");
+        }
+
+        ModrinthUpdateOptions options;
+        options.game_dir = content_dir_from(parser, config);
+        options.loader = *loader;
+        options.game_version = *game_version;
+        options.allow_prerelease = parser.flag("--prerelease");
+        options.include_disabled = !parser.flag("--enabled-only");
+        options.apply = parser.flag("--apply");
+        options.download_retries = config.download_retries;
+        options.download_mirrors = config.download_mirrors;
+        if (const auto retry = parser.value("--retry")) {
+            options.download_retries = parse_int(*retry, "--retry");
+            if (options.download_retries < 0 || options.download_retries > 32) {
+                fail("--retry must be between 0 and 32");
+            }
+        }
+        const auto update_mirrors = parser.values("--mirror");
+        if (!update_mirrors.empty()) {
+            options.download_mirrors = update_mirrors;
+        }
+
+        const ModrinthUpdateCheckResult result = check_modrinth_updates(options);
+        if (parser.flag("--json")) {
+            Json entries = Json::array();
+            for (const ModrinthUpdateEntry& entry : result.entries) {
+                Json item = Json::object();
+                item["file"] = entry.local_file;
+                item["enabled"] = entry.local_enabled;
+                item["sha1"] = entry.sha1;
+                item["status"] = modrinth_update_status_token(entry.status);
+                item["applied"] = entry.applied;
+                if (!entry.installed_file.empty()) {
+                    item["installedPath"] = path_to_utf8(entry.installed_file);
+                }
+                if (entry.current) {
+                    item["currentVersion"] = entry.current->version_number;
+                    item["currentVersionId"] = entry.current->id;
+                }
+                if (entry.latest) {
+                    item["latestVersion"] = entry.latest->version_number;
+                    item["latestVersionId"] = entry.latest->id;
+                }
+                if (entry.latest_file) {
+                    item["latestFile"] = entry.latest_file->filename;
+                    item["latestUrl"] = entry.latest_file->url;
+                    item["latestSha1"] = entry.latest_file->sha1;
+                }
+                if (!entry.error.empty()) {
+                    item["error"] = entry.error;
+                }
+                entries.push_back(std::move(item));
+            }
+            Json output = Json::object();
+            output["updates"] = result.updates;
+            output["upToDate"] = result.up_to_date;
+            output["notOnModrinth"] = result.not_on_modrinth;
+            output["applied"] = result.applied;
+            output["failures"] = result.failures;
+            output["entries"] = std::move(entries);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+
+        if (result.entries.empty()) {
+            std::cout << "No mods found in "
+                      << path_to_utf8(mods_directory(options.game_dir)) << '\n';
+            return 0;
+        }
+        for (const ModrinthUpdateEntry& entry : result.entries) {
+            const std::string current =
+                entry.current ? entry.current->version_number : "?";
+            switch (entry.status) {
+            case ModrinthUpdateStatus::UpdateAvailable: {
+                const std::string latest =
+                    entry.latest ? entry.latest->version_number : "?";
+                std::cout << "update      " << entry.local_file << "  " << current
+                          << " -> " << latest;
+                if (entry.latest_file) {
+                    std::cout << "  (" << entry.latest_file->filename << ")";
+                }
+                if (entry.applied) {
+                    std::cout << "  [installed]";
+                }
+                if (!entry.error.empty()) {
+                    std::cout << (entry.applied ? "  [warning: " : "  [apply failed: ")
+                              << entry.error << ']';
+                }
+                std::cout << '\n';
+                break;
+            }
+            case ModrinthUpdateStatus::UpToDate:
+                std::cout << "up to date  " << entry.local_file << "  " << current
+                          << '\n';
+                break;
+            case ModrinthUpdateStatus::NotOnModrinth:
+                std::cout << "unknown     " << entry.local_file
+                          << "  not found on Modrinth\n";
+                break;
+            case ModrinthUpdateStatus::Unreadable:
+            case ModrinthUpdateStatus::LookupFailed:
+                std::cout << "failed      " << entry.local_file << "  "
+                          << entry.error << '\n';
+                break;
+            }
+        }
+        if (options.apply) {
+            std::cout << result.applied << " installed, ";
+        }
+        std::cout << result.updates << " update(s), " << result.up_to_date
+                  << " up to date, " << result.not_on_modrinth
+                  << " not on Modrinth, " << result.failures << " failure(s)\n";
+        return 0;
+    }
+
+    if (subcommand == "search" || subcommand == "find") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora mod search <query> [--loader L] "
+                 "[--game-version V] [--limit N] [--json]");
+        }
+        ModrinthSearchOptions options;
+        options.query = positional[1];
+        options.loader = parser.value("--loader").value_or("");
+        options.game_version = parser.value("--game-version").value_or("");
+        if (const auto limit = parser.value("--limit")) {
+            options.limit = parse_int(*limit, "--limit");
+            if (options.limit < 1 || options.limit > 50) {
+                fail("--limit must be between 1 and 50");
+            }
+        }
+
+        const ModrinthSearchResult result = search_modrinth(options);
+        if (parser.flag("--json")) {
+            Json hits = Json::array();
+            for (const ModrinthSearchHit& hit : result.hits) {
+                Json item = Json::object();
+                item["projectId"] = hit.project_id;
+                item["slug"] = hit.slug;
+                item["title"] = hit.title;
+                item["description"] = hit.description;
+                item["author"] = hit.author;
+                item["downloads"] = hit.downloads;
+                item["categories"] = hit.categories;
+                hits.push_back(std::move(item));
+            }
+            Json output = Json::object();
+            output["totalHits"] = result.total_hits;
+            output["hits"] = std::move(hits);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        if (result.hits.empty()) {
+            std::cout << "No mods found.\n";
+            return 0;
+        }
+        for (const ModrinthSearchHit& hit : result.hits) {
+            std::cout << hit.slug << "  " << hit.title << "  by " << hit.author
+                      << "  " << hit.downloads << " downloads\n";
+            if (!hit.description.empty()) {
+                std::cout << "  " << shorten_text(hit.description, 160) << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (subcommand == "install") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora mod install <slug> --game-dir DIR --loader L "
+                 "--game-version V [options]");
+        }
+        const auto loader = parser.value("--loader");
+        if (!loader) {
+            fail("mod install requires --loader <fabric|quilt|forge|neoforge>");
+        }
+        const auto game_version = parser.value("--game-version");
+        if (!game_version) {
+            fail("mod install requires --game-version <version>");
+        }
+
+        ModrinthInstallOptions options;
+        options.game_dir = content_dir_from(parser, config);
+        options.project = positional[1];
+        options.loader = *loader;
+        options.game_version = *game_version;
+        options.version_id = parser.value("--version").value_or("");
+        options.allow_prerelease = parser.flag("--prerelease");
+        options.install_dependencies = !parser.flag("--no-deps");
+        options.force = parser.flag("--force");
+        options.download_retries = config.download_retries;
+        options.download_mirrors = config.download_mirrors;
+        if (const auto retry = parser.value("--retry")) {
+            options.download_retries = parse_int(*retry, "--retry");
+            if (options.download_retries < 0 || options.download_retries > 32) {
+                fail("--retry must be between 0 and 32");
+            }
+        }
+        const auto mirrors = parser.values("--mirror");
+        if (!mirrors.empty()) {
+            options.download_mirrors = mirrors;
+        }
+
+        const ModrinthInstallResult result = install_modrinth_mod(options);
+        if (parser.flag("--json")) {
+            Json dependencies = Json::array();
+            for (const ModrinthInstalledMod& dependency : result.dependencies) {
+                dependencies.push_back(modrinth_installed_json(dependency));
+            }
+            Json root = modrinth_installed_json(result.root);
+            Json output = Json::object();
+            output["project"] = std::move(root["project"]);
+            output["version"] = std::move(root["version"]);
+            output["file"] = std::move(root["file"]);
+            output["downloaded"] = root["downloaded"];
+            output["dependencies"] = std::move(dependencies);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+
+        std::cout << "project: " << result.root.project.title << " ("
+                  << result.root.project.slug << ")\n";
+        std::cout << "version: " << result.root.version.version_number << " ("
+                  << result.root.version.version_type << ")\n";
+        std::cout << "file: " << result.root.file.filename << '\n';
+        std::cout << "path: " << path_to_utf8(result.root.file_path) << '\n';
+        std::cout << (result.root.downloaded ? "installed\n" : "already present\n");
+        if (!result.dependencies.empty()) {
+            std::cout << "dependencies:\n";
+            for (const ModrinthInstalledMod& dependency : result.dependencies) {
+                std::cout << "  " << dependency.project.slug << " "
+                          << dependency.version.version_number
+                          << (dependency.downloaded ? " installed" : " already present")
+                          << '\n';
+            }
+        }
+        return 0;
+    }
+
+    fail("Unknown mod subcommand: " + subcommand);
+}
+
+std::string curseforge_api_key_from(const ArgParser& parser, const Config& config) {
+    if (const auto key = parser.value("--api-key"); key && !trim(*key).empty()) {
+        return trim(*key);
+    }
+    const std::string environment = trim(environment_value("CURSEFORGE_API_KEY"));
+    if (!environment.empty()) {
+        return environment;
+    }
+    return trim(config.curseforge_api_key);
+}
+
+Json curseforge_mod_json(const CurseForgeMod& mod) {
+    Json value = Json::object();
+    value["id"] = mod.id;
+    value["name"] = mod.name;
+    value["slug"] = mod.slug;
+    value["summary"] = mod.summary;
+    value["author"] = mod.author;
+    value["downloads"] = mod.downloads;
+    return value;
+}
+
+const char* curseforge_update_status_token(CurseForgeUpdateStatus status) {
+    switch (status) {
+    case CurseForgeUpdateStatus::UpToDate:
+        return "up-to-date";
+    case CurseForgeUpdateStatus::UpdateAvailable:
+        return "update-available";
+    case CurseForgeUpdateStatus::NotOnCurseForge:
+        return "not-on-curseforge";
+    case CurseForgeUpdateStatus::Unreadable:
+        return "unreadable";
+    case CurseForgeUpdateStatus::LookupFailed:
+        return "lookup-failed";
+    }
+    return "unknown";
+}
+
+int command_curseforge(const std::vector<std::string>& arguments) {
+    ArgParser parser(arguments,
+                     {"--json", "--prerelease", "--no-deps", "--force",
+                      "--apply", "--enabled-only"},
+                     {"--game-dir", "--instance", "--loader", "--game-version",
+                      "--limit", "--file", "--api-key", "--mirror", "--retry"});
+    parser.parse();
+    if (parser.flag("--help")) {
+        print_help();
+        return 0;
+    }
+    const auto& positional = parser.positional();
+    if (positional.empty()) {
+        fail("Usage: aurora curseforge search|install ...");
+    }
+    const std::string& subcommand = positional.front();
+    const Config config = Config::load(config_path_from(parser));
+    const std::string api_key = curseforge_api_key_from(parser, config);
+
+    if (subcommand == "search" || subcommand == "find") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora curseforge search <query> [--loader L] "
+                 "[--game-version V] [--limit N] [--api-key KEY] [--json]");
+        }
+        if (api_key.empty()) {
+            fail("CurseForge API key is required (--api-key, CURSEFORGE_API_KEY "
+                 "or 'aurora config set curseForgeApiKey <key>')");
+        }
+
+        CurseForgeSearchOptions options;
+        options.query = positional[1];
+        options.loader = parser.value("--loader").value_or("");
+        options.game_version = parser.value("--game-version").value_or("");
+        options.api_key = api_key;
+        if (const auto limit = parser.value("--limit")) {
+            options.limit = parse_int(*limit, "--limit");
+            if (options.limit < 1 || options.limit > 50) {
+                fail("--limit must be between 1 and 50");
+            }
+        }
+
+        const CurseForgeSearchResult result = search_curseforge(options);
+        if (parser.flag("--json")) {
+            Json mods = Json::array();
+            for (const CurseForgeMod& mod : result.mods) {
+                mods.push_back(curseforge_mod_json(mod));
+            }
+            Json output = Json::object();
+            output["totalCount"] = result.total_count;
+            output["mods"] = std::move(mods);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        if (result.mods.empty()) {
+            std::cout << "No mods found.\n";
+            return 0;
+        }
+        for (const CurseForgeMod& mod : result.mods) {
+            std::cout << mod.id << "  " << mod.name;
+            if (!mod.author.empty()) {
+                std::cout << "  by " << mod.author;
+            }
+            std::cout << "  " << mod.downloads << " downloads\n";
+            if (!mod.summary.empty()) {
+                std::cout << "  " << shorten_text(mod.summary, 160) << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (subcommand == "update" || subcommand == "updates") {
+        const auto loader = parser.value("--loader");
+        if (!loader) {
+            fail("curseforge update requires --loader <fabric|quilt|forge|neoforge>");
+        }
+        const auto game_version = parser.value("--game-version");
+        if (!game_version) {
+            fail("curseforge update requires --game-version <version>");
+        }
+        if (api_key.empty()) {
+            fail("CurseForge API key is required (--api-key, CURSEFORGE_API_KEY "
+                 "or 'aurora config set curseForgeApiKey <key>')");
+        }
+
+        CurseForgeUpdateOptions options;
+        options.game_dir = content_dir_from(parser, config);
+        options.loader = *loader;
+        options.game_version = *game_version;
+        options.include_disabled = !parser.flag("--enabled-only");
+        options.allow_prerelease = parser.flag("--prerelease");
+        options.apply = parser.flag("--apply");
+        options.api_key = api_key;
+        options.download_retries = config.download_retries;
+        options.download_mirrors = config.download_mirrors;
+        if (const auto retry = parser.value("--retry")) {
+            options.download_retries = parse_int(*retry, "--retry");
+            if (options.download_retries < 0 || options.download_retries > 32) {
+                fail("--retry must be between 0 and 32");
+            }
+        }
+        const auto mirrors = parser.values("--mirror");
+        if (!mirrors.empty()) {
+            options.download_mirrors = mirrors;
+        }
+
+        const CurseForgeUpdateResult result = check_curseforge_updates(options);
+        if (parser.flag("--json")) {
+            Json entries = Json::array();
+            for (const CurseForgeUpdateEntry& entry : result.entries) {
+                Json item = Json::object();
+                item["file"] = entry.local_file;
+                item["enabled"] = entry.enabled;
+                item["fingerprint"] = entry.fingerprint;
+                item["status"] = curseforge_update_status_token(entry.status);
+                item["applied"] = entry.applied;
+                if (!entry.installed_file.empty()) {
+                    item["installedPath"] = path_to_utf8(entry.installed_file);
+                }
+                if (entry.current) {
+                    item["currentFileId"] = entry.current->id;
+                    item["currentModId"] = entry.current->mod_id;
+                    item["currentName"] = entry.current->display_name;
+                }
+                if (entry.latest) {
+                    item["latestFileId"] = entry.latest->id;
+                    item["latestFile"] = entry.latest->filename;
+                    item["latestUrl"] = entry.latest->download_url;
+                    item["latestSha1"] = entry.latest->sha1;
+                }
+                if (!entry.error.empty()) {
+                    item["error"] = entry.error;
+                }
+                entries.push_back(std::move(item));
+            }
+            Json output = Json::object();
+            output["updates"] = result.updates;
+            output["upToDate"] = result.up_to_date;
+            output["notOnCurseForge"] = result.not_on_curseforge;
+            output["applied"] = result.applied;
+            output["failures"] = result.failures;
+            output["entries"] = std::move(entries);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+
+        if (result.entries.empty()) {
+            std::cout << "No mods found in "
+                      << path_to_utf8(mods_directory(options.game_dir)) << '\n';
+            return 0;
+        }
+        for (const CurseForgeUpdateEntry& entry : result.entries) {
+            switch (entry.status) {
+            case CurseForgeUpdateStatus::UpdateAvailable:
+                std::cout << "update      " << entry.local_file;
+                if (entry.latest) {
+                    std::cout << "  -> " << entry.latest->filename;
+                }
+                if (entry.applied) {
+                    std::cout << "  [installed]";
+                }
+                if (!entry.error.empty()) {
+                    std::cout << (entry.applied ? "  [warning: " : "  [apply failed: ")
+                              << entry.error << ']';
+                }
+                std::cout << '\n';
+                break;
+            case CurseForgeUpdateStatus::UpToDate:
+                std::cout << "up to date  " << entry.local_file << '\n';
+                break;
+            case CurseForgeUpdateStatus::NotOnCurseForge:
+                std::cout << "unknown     " << entry.local_file
+                          << "  not matched by CurseForge fingerprint\n";
+                break;
+            case CurseForgeUpdateStatus::Unreadable:
+            case CurseForgeUpdateStatus::LookupFailed:
+                std::cout << "failed      " << entry.local_file << "  "
+                          << entry.error << '\n';
+                break;
+            }
+        }
+        if (options.apply) {
+            std::cout << result.applied << " installed, ";
+        }
+        std::cout << result.updates << " update(s), " << result.up_to_date
+                  << " up to date, " << result.not_on_curseforge
+                  << " not on CurseForge, " << result.failures << " failure(s)\n";
+        return 0;
+    }
+
+    if (subcommand == "install") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora curseforge install <mod-id> --game-dir DIR "
+                 "--loader L --game-version V [options]");
+        }
+        const auto loader = parser.value("--loader");
+        if (!loader) {
+            fail("curseforge install requires --loader <fabric|quilt|forge|neoforge>");
+        }
+        const auto game_version = parser.value("--game-version");
+        if (!game_version) {
+            fail("curseforge install requires --game-version <version>");
+        }
+        const int mod_id = parse_int(positional[1], "mod id");
+        if (mod_id <= 0) {
+            fail("CurseForge mod id must be positive");
+        }
+        if (api_key.empty()) {
+            fail("CurseForge API key is required (--api-key, CURSEFORGE_API_KEY "
+                 "or 'aurora config set curseForgeApiKey <key>')");
+        }
+
+        CurseForgeInstallOptions options;
+        options.game_dir = content_dir_from(parser, config);
+        options.mod_id = static_cast<std::uint64_t>(mod_id);
+        options.loader = *loader;
+        options.game_version = *game_version;
+        options.allow_prerelease = parser.flag("--prerelease");
+        options.install_dependencies = !parser.flag("--no-deps");
+        options.force = parser.flag("--force");
+        options.api_key = api_key;
+        options.download_retries = config.download_retries;
+        options.download_mirrors = config.download_mirrors;
+        if (const auto file_id = parser.value("--file")) {
+            const int parsed = parse_int(*file_id, "--file");
+            if (parsed <= 0) {
+                fail("--file must be positive");
+            }
+            options.file_id = static_cast<std::uint64_t>(parsed);
+        }
+        if (const auto retry = parser.value("--retry")) {
+            options.download_retries = parse_int(*retry, "--retry");
+            if (options.download_retries < 0 || options.download_retries > 32) {
+                fail("--retry must be between 0 and 32");
+            }
+        }
+        const auto mirrors = parser.values("--mirror");
+        if (!mirrors.empty()) {
+            options.download_mirrors = mirrors;
+        }
+
+        const CurseForgeInstallResult result = install_curseforge_mod(options);
+        if (parser.flag("--json")) {
+            Json dependencies = Json::array();
+            for (const CurseForgeInstalledMod& dependency : result.dependencies) {
+                Json item = Json::object();
+                item["mod"] = curseforge_mod_json(dependency.mod);
+                item["file"] = dependency.file.filename;
+                item["path"] = path_to_utf8(dependency.file_path);
+                item["downloaded"] = dependency.downloaded;
+                dependencies.push_back(std::move(item));
+            }
+            Json root = Json::object();
+            root["mod"] = curseforge_mod_json(result.root.mod);
+            root["file"] = result.root.file.filename;
+            root["path"] = path_to_utf8(result.root.file_path);
+            root["downloaded"] = result.root.downloaded;
+            Json output = Json::object();
+            output["mod"] = std::move(root["mod"]);
+            output["file"] = std::move(root["file"]);
+            output["path"] = std::move(root["path"]);
+            output["downloaded"] = std::move(root["downloaded"]);
+            output["dependencies"] = std::move(dependencies);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+
+        std::cout << "mod: " << result.root.mod.name << " ("
+                  << result.root.mod.id << ")\n";
+        std::cout << "file: " << result.root.file.filename << '\n';
+        std::cout << "path: " << path_to_utf8(result.root.file_path) << '\n';
+        std::cout << (result.root.downloaded ? "installed\n" : "already present\n");
+        if (!result.dependencies.empty()) {
+            std::cout << "dependencies:\n";
+            for (const CurseForgeInstalledMod& dependency : result.dependencies) {
+                std::cout << "  " << dependency.mod.name << " "
+                          << dependency.file.filename
+                          << (dependency.downloaded ? " installed" : " already present")
+                          << '\n';
+            }
+        }
+        return 0;
+    }
+
+    fail("Unknown curseforge subcommand: " + subcommand);
+}
+
+const char* resource_pack_compatibility_token(ResourcePackCompatibility compatibility) {
+    switch (compatibility) {
+    case ResourcePackCompatibility::Compatible:
+        return "compatible";
+    case ResourcePackCompatibility::TooOld:
+        return "too-old";
+    case ResourcePackCompatibility::TooNew:
+        return "too-new";
+    case ResourcePackCompatibility::Invalid:
+        return "invalid";
+    case ResourcePackCompatibility::MissingMetadata:
+        return "missing-pack-mcmeta";
+    case ResourcePackCompatibility::MissingGameMetadata:
+        return "missing-game-version";
+    case ResourcePackCompatibility::Unknown:
+        break;
+    }
+    return "unknown";
+}
+
+int command_resourcepack(const std::vector<std::string>& arguments) {
+    ArgParser parser(arguments, {"--json"}, {"--game-dir", "--instance", "--game-version"});
+    parser.parse();
+    if (parser.flag("--help")) {
+        print_help();
+        return 0;
+    }
+    const auto& positional = parser.positional();
+    if (positional.empty()) {
+        fail("Usage: aurora resourcepack list|enable|disable ...");
+    }
+    const std::string& subcommand = positional.front();
+    const Config config = Config::load(config_path_from(parser));
+
+    if (subcommand == "list") {
+        if (positional.size() != 1) {
+            fail("Usage: aurora resourcepack list [--game-dir DIR] [--json]");
+        }
+        const auto game_dir = content_dir_from(parser, config);
+        const std::filesystem::path directory = resourcepacks_directory(game_dir);
+        const ResourcePackContext context = resource_pack_context(
+            game_dir_from(parser, config), instance_minecraft_version(parser, config));
+        const std::vector<InstalledResourcePack> packs =
+            scan_resource_packs(game_dir, context);
+        if (parser.flag("--json")) {
+            Json entries = Json::array();
+            for (const InstalledResourcePack& pack : packs) {
+                Json item = Json::object();
+                item["name"] = pack.name;
+                item["path"] = path_to_utf8(pack.path);
+                item["type"] = pack.directory ? "directory" : "zip";
+                item["enabled"] = pack.enabled;
+                item["packFormat"] = pack.pack_format;
+                item["hasMetadata"] = pack.has_metadata;
+                item["hasIcon"] = pack.has_icon;
+                item["compatibility"] =
+                    resource_pack_compatibility_token(pack.compatibility);
+                if (!pack.description.empty()) {
+                    item["description"] = pack.description;
+                }
+                entries.push_back(std::move(item));
+            }
+            Json output = Json::object();
+            output["resourcepacksDir"] = path_to_utf8(directory);
+            output["packs"] = std::move(entries);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        if (packs.empty()) {
+            std::cout << "No resource packs found in " << path_to_utf8(directory)
+                      << '\n';
+            return 0;
+        }
+        for (const InstalledResourcePack& pack : packs) {
+            std::cout << (pack.enabled ? "enabled   " : "disabled  ") << pack.name
+                      << (pack.directory ? "/" : "") << '\n';
+        }
+        return 0;
+    }
+
+    if (subcommand == "enable" || subcommand == "disable") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora resourcepack enable|disable <name> "
+                 "[--game-dir DIR] [--json]");
+        }
+        const bool enabled = subcommand == "enable";
+        const auto game_dir = content_dir_from(parser, config);
+        const ResourcePackContext context = resource_pack_context(
+            game_dir_from(parser, config), instance_minecraft_version(parser, config));
+        const ResourcePackToggleResult result =
+            set_resource_pack_enabled(game_dir, positional[1], enabled, context);
+        if (parser.flag("--json")) {
+            Json output = Json::object();
+            output["name"] = result.name;
+            output["enabled"] = result.enabled;
+            output["changed"] = result.changed;
+            output["optionsPath"] = path_to_utf8(result.options_path);
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+        std::cout << result.name << " is "
+                  << (result.enabled ? "enabled" : "disabled");
+        if (!result.changed) {
+            std::cout << " (unchanged)";
+        }
+        std::cout << '\n';
+        return 0;
+    }
+
+    fail("Unknown resourcepack subcommand: " + subcommand);
+}
+
+Json modpack_info_json(const ModpackInfo& info) {
+    Json files = Json::array();
+    for (const ModpackFile& file : info.files) {
+        Json item = Json::object();
+        if (!file.path.empty()) {
+            item["path"] = file.path;
+        }
+        if (file.project_id != 0) {
+            item["projectId"] = file.project_id;
+            item["fileId"] = file.file_id;
+        }
+        item["sha1"] = file.sha1;
+        item["size"] = file.size;
+        files.push_back(std::move(item));
+    }
+    Json value = Json::object();
+    value["format"] = info.format;
+    value["name"] = info.name;
+    value["version"] = info.version;
+    value["author"] = info.author;
+    value["summary"] = info.summary;
+    value["minecraft"] = info.minecraft_version;
+    value["loader"] = info.loader;
+    value["loaderVersion"] = info.loader_version;
+    value["files"] = std::move(files);
+    value["overridePrefixes"] = info.override_prefixes;
+    return value;
+}
+
+int command_modpack(const std::vector<std::string>& arguments) {
+    ArgParser parser(arguments,
+                     {"--json", "--force", "--no-overrides", "--no-loader",
+                      "--no-game", "--no-backup"},
+                     {"--game-dir", "--api-key", "--mirror", "--retry",
+                      "--version-id", "--java-home"});
+    parser.parse();
+    if (parser.flag("--help")) {
+        print_help();
+        return 0;
+    }
+    const auto& positional = parser.positional();
+    if (positional.empty()) {
+        fail("Usage: aurora modpack info|install ...");
+    }
+    const std::string& subcommand = positional.front();
+    const Config config = Config::load(config_path_from(parser));
+
+    if (subcommand == "info") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora modpack info <archive> [--json]");
+        }
+        const ModpackInfo info =
+            read_modpack_info(path_from_utf8(positional[1]));
+        if (parser.flag("--json")) {
+            std::cout << modpack_info_json(info).dump(2) << '\n';
+            return 0;
+        }
+        std::cout << "name: " << info.name;
+        if (!info.version.empty()) {
+            std::cout << " " << info.version;
+        }
+        std::cout << " (" << info.format << ")\n";
+        if (!info.author.empty()) {
+            std::cout << "author: " << info.author << '\n';
+        }
+        std::cout << "minecraft: " << info.minecraft_version << '\n';
+        if (!info.loader.empty()) {
+            std::cout << "loader: " << info.loader;
+            if (!info.loader_version.empty()) {
+                std::cout << " " << info.loader_version;
+            }
+            std::cout << '\n';
+        }
+        std::cout << "files: " << info.files.size() << '\n';
+        for (const std::string& prefix : info.override_prefixes) {
+            std::cout << "overrides: " << prefix << '\n';
+        }
+        return 0;
+    }
+
+    if (subcommand == "install") {
+        if (positional.size() != 2) {
+            fail("Usage: aurora modpack install <archive> --game-dir DIR [options]");
+        }
+        const auto game_dir_option = parser.value("--game-dir");
+        if (!game_dir_option) {
+            fail("modpack install requires an explicit --game-dir for the new "
+                 "instance; refusing to install into the default Minecraft "
+                 "directory");
+        }
+
+        ModpackInstallOptions options;
+        options.archive = path_from_utf8(positional[1]);
+        options.game_dir = absolute_path(path_from_utf8(*game_dir_option));
+        options.force = parser.flag("--force");
+        options.install_overrides = !parser.flag("--no-overrides");
+        options.install_loader = !parser.flag("--no-loader");
+        options.install_game = !parser.flag("--no-game");
+        options.backup = !parser.flag("--no-backup");
+        if (const auto version_id = parser.value("--version-id")) {
+            options.version_id = *version_id;
+        }
+        if (const auto java_home = parser.value("--java-home")) {
+            options.java_home = absolute_path(path_from_utf8(*java_home));
+        }
+        options.curseforge_api_key = curseforge_api_key_from(parser, config);
+        options.download_retries = config.download_retries;
+        options.download_mirrors = config.download_mirrors;
+        if (const auto retry = parser.value("--retry")) {
+            options.download_retries = parse_int(*retry, "--retry");
+            if (options.download_retries < 0 || options.download_retries > 32) {
+                fail("--retry must be between 0 and 32");
+            }
+        }
+        const auto mirrors = parser.values("--mirror");
+        if (!mirrors.empty()) {
+            options.download_mirrors = mirrors;
+        }
+
+        const ModpackInstallResult result = install_modpack(options);
+        const std::string launch_command =
+            "aurora launch " + quote_windows_arg(result.version_id) +
+            " --game-dir " + quote_windows_arg(path_to_utf8(options.game_dir));
+        const std::string loader_command = options.install_loader
+                                               ? std::string()
+                                               : modpack_loader_command(
+                                                     result.info, options.game_dir);
+        if (parser.flag("--json")) {
+            Json output = modpack_info_json(result.info);
+            output["versionId"] = result.version_id;
+            output["versionJson"] = path_to_utf8(result.version_json);
+            output["instanceDir"] = path_to_utf8(result.instance_dir);
+            output["loaderVersionId"] = result.loader_version_id;
+            output["upgraded"] = result.upgraded;
+            output["backupPath"] = result.backup_path.empty()
+                                       ? ""
+                                       : path_to_utf8(result.backup_path);
+            output["filesInstalled"] = result.files_installed;
+            output["filesSkipped"] = result.files_skipped;
+            output["filesRemoved"] = result.files_removed;
+            output["overridesExtracted"] = result.overrides_extracted;
+            output["overridesSkipped"] = result.overrides_skipped;
+            output["overridesRemoved"] = result.overrides_removed;
+            output["manifestPath"] = path_to_utf8(result.manifest_path);
+            output["launchCommand"] = launch_command;
+            if (!loader_command.empty()) {
+                output["loaderCommand"] = loader_command;
+            }
+            std::cout << output.dump(2) << '\n';
+            return 0;
+        }
+
+        std::cout << "pack: " << result.info.name;
+        if (!result.info.version.empty()) {
+            std::cout << " " << result.info.version;
+        }
+        std::cout << " (" << result.info.format << ")\n";
+        std::cout << "minecraft: " << result.info.minecraft_version << '\n';
+        if (!result.info.loader.empty()) {
+            std::cout << "loader: " << result.info.loader << " "
+                      << result.info.loader_version;
+            if (!result.loader_version_id.empty()) {
+                std::cout << " (" << result.loader_version_id << ")";
+            }
+            std::cout << '\n';
+        }
+        std::cout << "version: " << result.version_id
+                  << (result.upgraded ? " (upgraded)" : "") << '\n';
+        std::cout << "instance: " << path_to_utf8(result.instance_dir) << '\n';
+        std::cout << "files: " << result.files_installed << " installed, "
+                  << result.files_skipped << " skipped";
+        if (result.files_removed != 0) {
+            std::cout << ", " << result.files_removed << " removed";
+        }
+        std::cout << '\n';
+        std::cout << "overrides: " << result.overrides_extracted
+                  << " extracted, " << result.overrides_skipped << " skipped";
+        if (result.overrides_removed != 0) {
+            std::cout << ", " << result.overrides_removed << " removed";
+        }
+        std::cout << '\n';
+        std::cout << "manifest: " << path_to_utf8(result.manifest_path) << '\n';
+        if (!result.backup_path.empty()) {
+            std::cout << "backup: " << path_to_utf8(result.backup_path) << '\n';
+        }
+        std::cout << "launch: " << launch_command << '\n';
+        if (!loader_command.empty()) {
+            std::cout << "loader not installed; run: " << loader_command << '\n';
+        }
+        return 0;
+    }
+
+    fail("Unknown modpack subcommand: " + subcommand);
 }
 
 Json config_to_json(const Config& config) {
@@ -1155,6 +2278,8 @@ Json config_to_json(const Config& config) {
     value["height"] = config.height;
     value["username"] = config.username;
     value["microsoftClientId"] = config.microsoft_client_id;
+    value["curseForgeApiKey"] =
+        config.curseforge_api_key.empty() ? "" : "<set>";
     value["jvmArgs"] = config.jvm_args;
     value["gameArgs"] = config.game_args;
     value["downloadRetries"] = config.download_retries;
@@ -1197,6 +2322,8 @@ int command_config(const std::vector<std::string>& arguments) {
             std::cout << "height: " << config.height << '\n';
             std::cout << "username: " << config.username << '\n';
             std::cout << "microsoftClientId: " << config.microsoft_client_id << '\n';
+            std::cout << "curseForgeApiKey: "
+                      << (config.curseforge_api_key.empty() ? "" : "<set>") << '\n';
             std::cout << "jvmArgs:";
             for (const std::string& argument : config.jvm_args) {
                 std::cout << ' ' << argument;
@@ -1237,6 +2364,8 @@ int command_config(const std::vector<std::string>& arguments) {
             config.username = value;
         } else if (key == "microsoftClientId" || key == "authClientId") {
             config.microsoft_client_id = trim(value);
+        } else if (key == "curseForgeApiKey") {
+            config.curseforge_api_key = trim(value);
         } else if (key == "downloadRetries") {
             config.download_retries = parse_int(value, key);
             if (config.download_retries < 0 || config.download_retries > 32) {
@@ -1301,6 +2430,18 @@ int run_cli(const std::vector<std::string>& arguments) {
     }
     if (command == "forge") {
         return command_forge(rest);
+    }
+    if (command == "mod" || command == "mods") {
+        return command_mod(rest);
+    }
+    if (command == "curseforge" || command == "cf") {
+        return command_curseforge(rest);
+    }
+    if (command == "resourcepack" || command == "resourcepacks" || command == "rp") {
+        return command_resourcepack(rest);
+    }
+    if (command == "modpack" || command == "modpacks" || command == "mrpack") {
+        return command_modpack(rest);
     }
     if (command == "auth") {
         return command_auth(rest);

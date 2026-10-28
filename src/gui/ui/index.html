@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AuroraLauncher</title>
+<style>
+  :root {
+    --bg: #12141a;
+    --panel: #171a21;
+    --panel-2: #1d2028;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.14);
+    --text: #e8eaf1;
+    --muted: #929bad;
+    --accent: #63a4ff;
+    --accent-ink: #0b1220;
+    --good: #4ad295;
+    --warn: #f0b849;
+    --bad: #ff6b6b;
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 52px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    flex: none;
+  }
+
+  .mark {
+    width: 22px; height: 22px; border-radius: 7px;
+    background: conic-gradient(from 210deg, #63a4ff, #4ad295, #63a4ff);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
+  }
+
+  .wordmark { font-size: 14px; font-weight: 600; letter-spacing: .2px; }
+  .wordmark span { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
+
+  header .grow { flex: 1; }
+
+  .path {
+    max-width: 46ch;
+    color: var(--muted);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+    text-align: left;
+  }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  aside {
+    width: 292px; flex: none;
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+
+  .aside-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px 8px;
+    color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
+  }
+
+  #list { overflow-y: auto; padding: 0 8px 12px; flex: 1; }
+
+  .card {
+    padding: 10px 12px;
+    border-radius: var(--r-md);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  }
+
+  .card:hover { background: var(--panel-2); }
+  .card.sel { background: var(--panel-2); border-color: var(--line-strong); }
+
+  .card b { display: block; font-weight: 600; font-size: 13px; margin-bottom: 3px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .sub { color: var(--muted); font-size: 11.5px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .tag { border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 7px; line-height: 17px; font-size: 11px; }
+  .tag.fabric, .tag.quilt { color: #cbb28e; }
+  .tag.neoforge, .tag.forge { color: #9fd3a6; }
+  .tag.iso { color: var(--accent); }
+  .tag.bad { color: var(--bad); }
+
+  section.detail { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  .hero { padding: 20px 22px 14px; border-bottom: 1px solid var(--line); }
+  .hero h1 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: .1px; }
+  .hero .meta { color: var(--muted); margin-top: 5px; font-size: 12px; }
+
+  .status { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px;
+            font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status.run .dot { background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
+  .status.run { color: var(--good); }
+  .status.stop .dot { background: var(--bad); }
+  .status.stop { color: var(--bad); }
+  .status.idle .dot { background: #4a5262; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(74,210,149,.55); } 50% { box-shadow: 0 0 0 5px rgba(74,210,149,0); } }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 22px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11px; color: var(--muted); letter-spacing: .4px; }
+
+  input, select {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+    padding: 7px 9px; font: inherit; outline: none;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,164,255,.18); }
+  #username { width: 150px; }
+  #memory { width: 110px; }
+  #java { width: 260px; }
+
+  button {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+    padding: 8px 14px; font: inherit; font-weight: 600; cursor: pointer;
+    transition: filter 120ms ease, transform 90ms ease, opacity 120ms ease;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.16); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
+  button.danger { color: var(--bad); border-color: rgba(255,107,107,.4); }
+  button.ghost { background: transparent; }
+
+  .spacer { flex: 1; }
+
+  .logs { flex: 1; min-height: 0; display: flex; flex-direction: column;
+          border-top: 1px solid var(--line); background: #0f1116; }
+  .logs .bar { display: flex; align-items: center; gap: 10px; padding: 8px 22px;
+               color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
+               border-bottom: 1px solid var(--line); }
+  #log { flex: 1; overflow: auto; padding: 10px 22px 18px;
+         font: 11.5px/1.55 "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+         user-select: text; color: #b9c2d0; }
+  #log .l { display: block; }
+  #log .hint { position: absolute; inset: 0; display: grid; place-content: center;
+               color: #5d6675; font-size: 12.5px; text-align: center; line-height: 1.9;
+               pointer-events: none; }
+  #log .hint kbd { color: var(--text); }
+  .logs { position: relative; }
+  #log .warn { color: var(--warn); }
+  #log .err { color: var(--bad); }
+  #log .sys { color: var(--accent); }
+  #log .jvm { color: #86b7d6; }
+
+  .toast {
+    position: fixed; right: 18px; bottom: 18px; max-width: 52ch;
+    background: #242833; border: 1px solid var(--line-strong); border-left: 3px solid var(--bad);
+    border-radius: var(--r-md); padding: 10px 14px; font-size: 12.5px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  .toast.show { opacity: 1; transform: none; }
+
+  .empty { padding: 26px 16px; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+  .empty code { color: var(--text); background: var(--panel-2); padding: 1px 5px; border-radius: 5px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="mark"></div>
+  <div class="wordmark">Aurora<span id="version"></span></div>
+  <div class="grow"></div>
+  <div class="path" id="gamedir" title="游戏目录"></div>
+  <button class="ghost" id="refresh" title="重新扫描实例">刷新</button>
+</header>
+
+<main>
+  <aside>
+    <div class="aside-head"><span>实例</span><span id="count"></span></div>
+    <div id="list"></div>
+  </aside>
+
+  <section class="detail">
+    <div class="hero">
+      <h1 id="name">选择一个实例</h1>
+      <div class="meta" id="meta"></div>
+      <div class="status" id="status"><i class="dot"></i><span id="statustext">未运行</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="field"><label for="username">用户名</label><input id="username" spellcheck="false"></div>
+      <div class="field"><label for="memory">最大内存</label>
+        <select id="memory">
+          <option value="1024">1 GB</option><option value="2048">2 GB</option>
+          <option value="3072">3 GB</option><option value="4096">4 GB</option>
+          <option value="6144">6 GB</option><option value="8192">8 GB</option>
+        </select>
+      </div>
+      <div class="field"><label for="java">Java</label><select id="java"></select></div>
+      <div class="field"><label>&nbsp;</label><button class="ghost" id="save">保存设置</button></div>
+      <div class="spacer"></div>
+      <div class="field"><label>&nbsp;</label><button class="danger" id="stop" disabled>停止</button></div>
+      <div class="field"><label>&nbsp;</label><button class="primary" id="launch" disabled>启动</button></div>
+    </div>
+
+    <div class="logs">
+      <div class="bar"><span>日志</span><span class="spacer"></span><span id="logsrc"></span></div>
+      <div id="log"><div class="hint" id="loghint">点「启动」后，这里会实时显示游戏日志<br>
+      安装版本、下载模组和整合包目前仍在命令行</div></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const native = window.chrome?.webview ?? null;
+const els = {};
+for (const id of ['version','gamedir','list','count','name','meta','status','statustext',
+                  'username','memory','java','save','launch','stop','log','logsrc','toast','refresh']) {
+  els[id] = document.getElementById(id);
+}
+
+let instances = [];
+let selectedId = null;
+let running = false;
+let seq = 0;
+
+function send(action, extra) {
+  if (!native) { return; }
+  native.postMessage(Object.assign({ action, id: ++seq }, extra || {}));
+}
+
+let toastTimer = 0;
+function toast(text) {
+  els.toast.textContent = text;
+  els.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 5200);
+}
+
+function line(text, kind) {
+  const hint = document.getElementById('loghint');
+  if (hint) { hint.remove(); }
+  const node = document.createElement('span');
+  node.className = 'l' + (kind ? ' ' + kind : '');
+  node.textContent = text;
+  els.log.appendChild(node);
+  while (els.log.childElementCount > 1600) { els.log.removeChild(els.log.firstChild); }
+  els.log.scrollTop = els.log.scrollHeight;
+}
+
+function kindOf(text) {
+  if (/\bERROR\b|Exception|\bfatal\b/i.test(text)) { return 'err'; }
+  if (/\bWARN(ING)?\b/i.test(text)) { return 'warn'; }
+  return '';
+}
+
+function feedLog(source, text) {
+  const parts = text.split(/\r?\n/);
+  const tail = parts.pop();
+  for (const p of parts) { if (p.trim()) { line(p, kindOf(p)); } }
+  els.logsrc.textContent = source === 'launcher' ? '启动器输出' : '游戏日志';
+  if (tail.trim()) { line(tail, kindOf(tail)); }
+}
+
+function renderList() {
+  els.list.textContent = '';
+  els.count.textContent = instances.length ? String(instances.length) : '';
+  if (!instances.length) {
+    const box = document.createElement('div');
+    box.className = 'empty';
+    box.innerHTML = '这里还没有实例。<br>用命令行装一个：<br><code>aurora install 1.21.1</code><br>' +
+                    '<code>aurora modpack install 包.mrpack</code>';
+    els.list.appendChild(box);
+    return;
+  }
+  for (const item of instances) {
+    const card = document.createElement('div');
+    card.className = 'card' + (item.id === selectedId ? ' sel' : '');
+    card.dataset.id = item.id;
+    const title = document.createElement('b');
+    title.textContent = item.modpack || item.id;
+    const sub = document.createElement('div');
+    sub.className = 'sub';
+    const tags = [kindLabel(item.kind), item.minecraftVersion];
+    if (item.modCount) { tags.push(item.modCount + ' 模组'); }
+    for (const t of tags) {
+      const s = document.createElement('span');
+      s.className = 'tag ' + (['fabric','quilt','forge','neoforge'].includes(t) ? t : '');
+      s.textContent = t;
+      sub.appendChild(s);
+    }
+    if (item.isolated) {
+      const s = document.createElement('span'); s.className = 'tag iso'; s.textContent = '隔离';
+      sub.appendChild(s);
+    }
+    if (!item.ready) {
+      const s = document.createElement('span'); s.className = 'tag bad'; s.textContent = '缺客户端';
+      sub.appendChild(s);
+    }
+    if (item.error) {
+      const s = document.createElement('span'); s.className = 'tag bad'; s.textContent = 'JSON 有问题';
+      sub.appendChild(s);
+    }
+    card.append(title, sub);
+    card.addEventListener('click', () => select(item.id));
+    els.list.appendChild(card);
+  }
+}
+
+function kindLabel(kind) {
+  return { vanilla: '原版', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge',
+           neoforge: 'NeoForge' }[kind] || kind;
+}
+
+function renderDetail() {
+  const item = instances.find(x => x.id === selectedId);
+  els.launch.disabled = !item || running || item.error || !item.ready;
+  els.stop.disabled = !running;
+  if (!item) {
+    els.name.textContent = '选择一个实例';
+    els.meta.textContent = '';
+    return;
+  }
+  els.name.textContent = item.modpack || item.id;
+  const bits = [kindLabel(item.kind), 'MC ' + item.minecraftVersion];
+  if (item.javaMajor) { bits.push('Java ' + item.javaMajor + '+'); }
+  if (item.modCount) { bits.push(item.modCount + ' 个模组'); }
+  bits.push(item.isolated ? '独立目录' : '共享目录');
+  els.meta.textContent = bits.join(' · ');
+}
+
+function renderStatus() {
+  els.status.classList.toggle('run', running);
+  els.status.classList.toggle('stop', !running && lastExit !== null && !stoppedByUser);
+  els.status.classList.toggle('idle', !running && lastExit === null);
+  els.statustext.textContent = running
+    ? '运行中 · PID ' + pid
+    : stoppedByUser ? '已手动停止'
+    : (lastExit === null ? '未运行' : '已退出，返回码 ' + lastExit);
+  renderDetail();
+}
+
+let pid = 0;
+let lastExit = null;
+let stoppedByUser = false;
+
+function applyState(data) {
+  const wasRunning = running;
+  running = !!data.running;
+  pid = data.pid || 0;
+  stoppedByUser = !!data.stoppedByUser;
+  lastExit = running ? null : (data.exitCode || 0);
+  if (running && !wasRunning) {
+    line('— ' + data.id + ' 已启动，PID ' + pid + ' —', 'sys');
+  } else if (!running && wasRunning) {
+    line(stoppedByUser
+      ? '— ' + data.id + ' 已手动停止 —'
+      : '— ' + data.id + ' 已退出，返回码 ' + lastExit + ' —', stoppedByUser ? 'sys' : 'err');
+  }
+  renderStatus();
+}
+
+function select(id) {
+  selectedId = id;
+  renderList();
+  renderDetail();
+  renderStatus();
+}
+
+function renderRuntimes(list, chosen) {
+  els.java.textContent = '';
+  const auto = document.createElement('option');
+  auto.value = ''; auto.textContent = '自动（按实例要求的 Java 版本）';
+  els.java.appendChild(auto);
+  for (const r of list || []) {
+    const o = document.createElement('option');
+    o.value = r.path;
+    o.textContent = 'Java ' + r.major + ' · ' + (r.vendor || '') + ' · ' + r.path;
+    els.java.appendChild(o);
+  }
+  if (chosen) { els.java.value = chosen; }
+}
+
+if (native) {
+  native.addEventListener('message', (event) => {
+    const msg = event.data || {};
+    const data = msg.data || {};
+    switch (msg.event) {
+      case 'boot':
+        els.version.textContent = 'v' + (data.version || '');
+        instances = (data.instances && data.instances.instances) || [];
+        els.gamedir.textContent = (data.instances && data.instances.gameDir) || '';
+        renderRuntimes(data.runtimes && data.runtimes.runtimes,
+                       data.settings && data.settings.javaPath);
+        if (data.settings) {
+          els.username.value = data.settings.username || '';
+          if (data.settings.memoryMb) { els.memory.value = String(data.settings.memoryMb); }
+        }
+        selectedId = instances.length ? instances[0].id : null;
+        renderList(); renderDetail(); applyState(data.state || {});
+        break;
+      case 'instances':
+        instances = data.instances || [];
+        els.gamedir.textContent = data.gameDir || '';
+        if (!instances.some(x => x.id === selectedId)) {
+          selectedId = instances.length ? instances[0].id : null;
+        }
+        renderList(); renderDetail(); renderStatus();
+        break;
+      case 'runtimes':
+        renderRuntimes(data.runtimes, null);
+        break;
+      case 'launched':
+      case 'state':
+        applyState(data);
+        break;
+      case 'saved':
+        toast('设置已保存');
+        break;
+      case 'log':
+        feedLog(data.source, data.text || '');
+        break;
+      case 'error':
+        toast(data.message || '出错了');
+        line('! ' + (data.message || ''), 'err');
+        break;
+    }
+  });
+}
+
+els.launch.addEventListener('click', () => {
+  line('→ 启动 ' + selectedId, 'sys');
+  send('launch', {
+  id: selectedId,
+  username: els.username.value.trim(),
+  memoryMb: Number(els.memory.value),
+  javaPath: els.java.value,
+  });
+});
+els.stop.addEventListener('click', () => send('stop'));
+els.save.addEventListener('click', () => send('saveSettings', {
+  username: els.username.value.trim(),
+  memoryMb: Number(els.memory.value),
+  javaPath: els.java.value,
+}));
+els.refresh.addEventListener('click', () => { send('instances'); send('runtimes'); });
+
+send('boot');
+</script>
+</body>
+</html>

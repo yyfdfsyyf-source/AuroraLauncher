@@ -76,6 +76,10 @@ Config Config::load(const std::filesystem::path& path) {
                legacy && !legacy->empty()) {
         config.microsoft_client_id = trim(*legacy);
     }
+    if (const auto key = json_optional_string(value, "curseForgeApiKey");
+        key && !key->empty()) {
+        config.curseforge_api_key = trim(*key);
+    }
     config.jvm_args = string_array(value, "jvmArgs");
     config.game_args = string_array(value, "gameArgs");
     const auto download_retries = json_integer(value, "downloadRetries");
@@ -96,6 +100,7 @@ void Config::save(const std::filesystem::path& path) const {
     value["height"] = height;
     value["username"] = username;
     value["microsoftClientId"] = microsoft_client_id;
+    value["curseForgeApiKey"] = curseforge_api_key;
     value["jvmArgs"] = to_json_array(jvm_args);
     value["gameArgs"] = to_json_array(game_args);
     value["downloadRetries"] = download_retries;

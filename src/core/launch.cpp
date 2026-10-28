@@ -221,7 +221,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
             version.game_dir / "assets" / "virtual" /
             checked_relative_path(asset_index_name, "asset index"));
     } else if (asset_layout.map_to_resources) {
-        game_assets_dir = path_to_utf8(version.game_dir / "resources");
+        game_assets_dir = path_to_utf8(version.run_dir / "resources");
     }
 
     if (options.username.empty()) {
@@ -240,7 +240,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
     std::map<std::string, std::string> variables;
     variables["auth_player_name"] = options.username;
     variables["version_name"] = meta.id;
-    variables["game_directory"] = path_to_utf8(version.game_dir);
+    variables["game_directory"] = path_to_utf8(version.run_dir);
     variables["assets_root"] = assets_dir;
     variables["game_assets"] = game_assets_dir;
     variables["assets_index_name"] = asset_index_name;
@@ -353,7 +353,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
         jvm.push_back(classpath);
     }
     for (const std::string& argument : options.extra_jvm_args) {
-        jvm.push_back(argument);
+        jvm.push_back(substitute(argument, variables));
     }
 
     std::vector<std::string> game;
@@ -375,7 +375,7 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
 
     add_option(game, "--username", options.username);
     add_option(game, "--version", meta.id);
-    add_option(game, "--gameDir", path_to_utf8(version.game_dir));
+    add_option(game, "--gameDir", path_to_utf8(version.run_dir));
     add_option(game, "--assetsDir", assets_dir);
     add_option(game, "--assetIndex", asset_index_name);
     add_option(game, "--uuid", variables["auth_uuid"]);
@@ -396,22 +396,24 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
         game.push_back("--demo");
     }
     for (const std::string& argument : options.extra_game_args) {
-        game.push_back(argument);
+        game.push_back(substitute(argument, variables));
     }
 
     LaunchPlan plan;
     plan.java = absolute_path(options.java_path);
-    plan.working_directory = version.game_dir;
+    plan.working_directory = version.run_dir;
     plan.arguments = std::move(jvm);
     plan.arguments.push_back(meta.main_class);
     plan.arguments.insert(plan.arguments.end(), game.begin(), game.end());
     return plan;
 }
 
-int launch_game(const LaunchPlan& plan, bool wait) {
+int launch_game(const LaunchPlan& plan,
+                bool wait,
+                const std::filesystem::path& output_log) {
     // Never log the command line: it contains the Minecraft access token.
     log_info("Starting Minecraft process: " + path_to_utf8(plan.java));
-    return run_process(plan.java, plan.arguments, plan.working_directory, wait);
+    return run_process(plan.java, plan.arguments, plan.working_directory, wait, output_log);
 }
 
 } // namespace aurora

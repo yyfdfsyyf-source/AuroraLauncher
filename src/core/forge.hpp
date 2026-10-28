@@ -20,6 +20,12 @@ struct ForgeEndpoints {
         "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
     std::string neoforge_metadata_url =
         "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
+    // Empty mirror URLs disable the mirror for that metadata request. The
+    // mirror responses use BMCL's schemas, not the official ones.
+    std::string forge_promotions_mirror_url =
+        "https://bmclapi2.bangbang93.com/forge/promos";
+    std::string neoforge_versions_mirror_url =
+        "https://bmclapi2.bangbang93.com/neoforge/list";
     std::string forge_maven_root = "https://maven.minecraftforge.net/";
     std::string neoforge_maven_root = "https://maven.neoforged.net/releases/";
 };
@@ -35,6 +41,31 @@ struct ForgePromotion {
 // The returned list only contains entries for the requested Minecraft version.
 std::vector<ForgePromotion> parse_forge_promotions(std::string_view promotions_json,
                                                    std::string_view minecraft_version);
+
+// BMCL /forge/promos returns an array with name/build objects instead of the
+// official {"promos": {...}} map.
+std::vector<ForgePromotion> parse_bmcl_forge_promotions(
+    std::string_view promotions_json,
+    std::string_view minecraft_version);
+
+// BMCL /neoforge/list/<mc> returns the installer list for one Minecraft
+// version. The result is filtered and sorted newest-first like the official
+// Maven metadata path.
+std::vector<std::string> parse_bmcl_neoforge_versions(std::string_view versions_json,
+                                                      std::string_view minecraft_version);
+
+std::optional<ForgePromotion> select_forge_promotion(
+    const std::vector<ForgePromotion>& promotions,
+    ForgeChannel preferred_channel);
+
+// Mirror-first metadata queries. Each falls back to the official endpoint
+// when the BMCL response is unavailable or has no matching version.
+std::vector<ForgePromotion> fetch_forge_promotions(
+    std::string_view minecraft_version,
+    const ForgeEndpoints& endpoints = {});
+std::vector<std::string> fetch_neoforge_versions(
+    std::string_view minecraft_version,
+    const ForgeEndpoints& endpoints = {});
 
 // If explicit_version is set it is normalised and returned without consulting
 // the promotions document. Otherwise the preferred channel is selected and

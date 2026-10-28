@@ -14,6 +14,8 @@ struct Config {
     int height = 480;
     std::string username;
     std::string microsoft_client_id;
+    // Only used for the CurseForge API. Never log or print this value.
+    std::string curseforge_api_key;
     std::vector<std::string> jvm_args;
     std::vector<std::string> game_args;
     int download_retries = 3;

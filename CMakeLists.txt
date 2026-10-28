@@ -25,6 +25,7 @@ endif()
 add_library(aurora_core STATIC
     src/core/auth.cpp
     src/core/config.cpp
+    src/core/curseforge.cpp
     src/core/forge.cpp
     src/core/hash.cpp
     src/core/http.cpp
@@ -37,10 +38,16 @@ add_library(aurora_core STATIC
     src/core/log.cpp
     src/core/maven.cpp
     src/core/manifest.cpp
+    src/core/mirrors.cpp
+    src/core/modpack.cpp
+    src/core/modrinth.cpp
+    src/core/mods.cpp
     src/core/paths.cpp
+    src/core/pcl.cpp
     src/core/process.cpp
     src/core/proxy.cpp
     src/core/repository.cpp
+    src/core/resourcepacks.cpp
     src/core/rules.cpp
     src/core/strings.cpp
     src/core/version.cpp
@@ -131,4 +138,81 @@ if(BUILD_TESTING)
         target_compile_options(aurora_forge_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
     endif()
     add_test(NAME aurora_forge_tests COMMAND aurora_forge_tests)
+
+    add_executable(aurora_modrinth_tests tests/modrinth_test.cpp)
+    target_link_libraries(aurora_modrinth_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_modrinth_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_modrinth_tests COMMAND aurora_modrinth_tests)
+
+    add_executable(aurora_mods_tests tests/mods_test.cpp)
+    target_link_libraries(aurora_mods_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_mods_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_mods_tests COMMAND aurora_mods_tests)
+
+    add_executable(aurora_curseforge_tests tests/curseforge_test.cpp)
+    target_link_libraries(aurora_curseforge_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_curseforge_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_curseforge_tests COMMAND aurora_curseforge_tests)
+
+    add_executable(aurora_pcl_tests tests/pcl_test.cpp)
+    target_link_libraries(aurora_pcl_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_pcl_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_pcl_tests COMMAND aurora_pcl_tests)
+
+    add_executable(aurora_resourcepacks_tests tests/resourcepacks_test.cpp)
+    target_link_libraries(aurora_resourcepacks_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_resourcepacks_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_resourcepacks_tests COMMAND aurora_resourcepacks_tests)
+
+    add_executable(aurora_modpack_tests tests/modpack_test.cpp)
+    target_link_libraries(aurora_modpack_tests PRIVATE aurora_core)
+    if(MSVC)
+        target_compile_options(aurora_modpack_tests PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    add_test(NAME aurora_modpack_tests COMMAND aurora_modpack_tests)
+endif()
+
+option(AURORA_BUILD_GUI "Build the WebView2 desktop UI (aurora_gui)" OFF)
+if(AURORA_BUILD_GUI AND WIN32)
+    set(AURORA_WEBVIEW2_ROOT "D:/tools/webview2" CACHE PATH
+        "Directory that contains build/native/include and build/native/x64 from the Microsoft.Web.WebView2 package")
+    set(webview2_include "${AURORA_WEBVIEW2_ROOT}/build/native/include")
+    set(webview2_loader "${AURORA_WEBVIEW2_ROOT}/build/native/x64/WebView2LoaderStatic.lib")
+    if(NOT EXISTS "${webview2_include}/WebView2.h")
+        message(FATAL_ERROR
+            "WebView2.h not found under ${webview2_include}. Install the SDK with: "
+            "python -m aqt ... or extract Microsoft.Web.WebView2 and set AURORA_WEBVIEW2_ROOT.")
+    endif()
+    if(NOT EXISTS "${webview2_loader}")
+        message(FATAL_ERROR "WebView2LoaderStatic.lib not found at ${webview2_loader}")
+    endif()
+
+    add_executable(aurora_gui WIN32 src/gui/main.cpp)
+    target_include_directories(aurora_gui PRIVATE "${webview2_include}")
+    target_link_libraries(aurora_gui PRIVATE aurora_core "${webview2_loader}")
+    target_compile_definitions(aurora_gui PRIVATE
+        AURORA_GUI_UI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/gui/ui"
+        AURORA_GUI_VERSION="${PROJECT_VERSION}"
+        WINVER=0x0A00
+        _WIN32_WINNT=0x0A00
+    )
+    if(MSVC)
+        target_compile_options(aurora_gui PRIVATE /W4 /permissive- /utf-8 /EHsc)
+    endif()
+    aurora_apply_branding(aurora_gui ${CMAKE_CURRENT_SOURCE_DIR}/resources/aurora_gui.rc)
+    # Keep a copy next to the binary so a packaged build runs without the source tree.
+    add_custom_command(TARGET aurora_gui POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/gui/ui"
+            "$<TARGET_FILE_DIR:aurora_gui>/ui")
 endif()

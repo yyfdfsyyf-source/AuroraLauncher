@@ -40,6 +40,8 @@ LaunchPlan build_launch_plan(const ResolvedVersion& version,
                              const Environment& environment,
                              const LaunchOptions& options);
 
-int launch_game(const LaunchPlan& plan, bool wait = true);
+int launch_game(const LaunchPlan& plan,
+                bool wait = true,
+                const std::filesystem::path& output_log = {});
 
 } // namespace aurora

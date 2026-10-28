@@ -472,6 +472,93 @@ void test_neoforge_metadata() {
         "unsafe metadata version is rejected");
 }
 
+void test_bmcl_metadata() {
+    const std::string promos = R"([
+  {"name": "1.21.1-latest", "build": {"version": "52.1.20", "mcversion": "1.21.1"}},
+  {"name": "1.21.1-recommended", "build": {"version": "52.1.20", "mcversion": "1.21.1"}},
+  {"name": "1.20.1-recommended", "build": {"version": "47.4.28", "mcversion": "1.20.1"}},
+  {"name": "1.21.1-52.0.1", "build": {"version": "52.0.1", "mcversion": "1.21.1"}},
+  {"name": "1.21.1-latest", "build": {"version": "52.1.9", "mcversion": "1.21.1"}},
+  {"name": "1.21.1-latest", "build": {"version": "52.1.7", "mcversion": "1.20.1"}},
+  {"name": "1.21.1-latest"},
+  {"name": "1.21.1-latest", "build": {"version": "  "}},
+  42,
+  null
+])";
+
+    const auto parsed = aurora::parse_bmcl_forge_promotions(promos, "1.21.1");
+    expect(parsed.size() == 2, "BMCL promos are deduplicated per channel");
+    const auto recommended =
+        aurora::select_forge_promotion(parsed, ForgeChannel::Recommended);
+    const auto latest = aurora::select_forge_promotion(parsed, ForgeChannel::Latest);
+    expect(
+        recommended && recommended->version == "52.1.20" &&
+            recommended->channel == ForgeChannel::Recommended &&
+            recommended->minecraft == "1.21.1",
+        "BMCL recommended promotion");
+    expect(
+        latest && latest->version == "52.1.20", "BMCL keeps the newest build per channel");
+    expect(
+        recommended && !recommended->explicit_version, "BMCL promotion is not explicit");
+
+    const auto recommended_only = aurora::parse_bmcl_forge_promotions(
+        R"([{"name":"1.20.1-recommended","build":{"version":"47.1.3","mcversion":"1.20.1"}}])",
+        "1.20.1");
+    const auto fallback = aurora::select_forge_promotion(
+        recommended_only, ForgeChannel::Latest);
+    expect(
+        fallback && fallback->version == "47.1.3",
+        "BMCL channel falls back to the other channel");
+
+    expect(
+        aurora::parse_bmcl_forge_promotions(R"([])", "1.21.1").empty(),
+        "BMCL promos without matching versions is empty");
+    expect_throws(
+        [] { aurora::parse_bmcl_forge_promotions(R"({"promos":{}})", "1.21.1"); },
+        "BMCL promos must be an array");
+    expect_throws(
+        [] { aurora::parse_bmcl_forge_promotions("{", "1.21.1"); },
+        "malformed BMCL promos JSON is rejected");
+    expect_throws(
+        [] {
+            aurora::parse_bmcl_forge_promotions(
+                R"([{"name":"1.21.1-latest","build":{"version":"../evil"}}])",
+                "1.21.1");
+        },
+        "unsafe BMCL promotion version is rejected");
+    expect_throws(
+        [&promos] { aurora::parse_bmcl_forge_promotions(promos, "../1.21.1"); },
+        "unsafe Minecraft version is rejected for BMCL promos");
+
+    const std::string neoforge_list = R"([
+  {"version": "21.1.172", "mcversion": "1.21.1"},
+  {"version": "21.1.9", "mcversion": "1.21.1"},
+  {"version": "21.1.80", "mcversion": "1.21.1"},
+  {"version": "21.2.0", "mcversion": "1.21.2"},
+  {"version": "21.1.5"},
+  {"version": "not-a-version", "mcversion": "1.21.1"},
+  {"version": "21.1.172", "mcversion": "1.21.1"},
+  7
+])";
+    expect(
+        aurora::parse_bmcl_neoforge_versions(neoforge_list, "1.21.1") ==
+            std::vector<std::string>{"21.1.172", "21.1.80", "21.1.9", "21.1.5"},
+        "BMCL NeoForge versions are filtered, deduplicated and sorted");
+    expect(
+        aurora::parse_bmcl_neoforge_versions(neoforge_list, "1.21.2") ==
+            std::vector<std::string>{"21.2.0"},
+        "BMCL NeoForge versions for another Minecraft version");
+    expect(
+        aurora::parse_bmcl_neoforge_versions(R"([])", "1.21.1").empty(),
+        "empty BMCL NeoForge list is empty");
+    expect_throws(
+        [] { aurora::parse_bmcl_neoforge_versions("{}", "1.21.1"); },
+        "BMCL NeoForge versions must be an array");
+    expect_throws(
+        [] { aurora::parse_bmcl_neoforge_versions("[]", "../1.21.1"); },
+        "unsafe Minecraft version is rejected for BMCL NeoForge versions");
+}
+
 void test_urls_and_versions() {
     expect(
         aurora::normalize_forge_version("1.20.1", "47.2.0") == "47.2.0",
@@ -1245,6 +1332,7 @@ void test_install_entry_validation() {
 int main() {
     test_forge_promotions();
     test_neoforge_metadata();
+    test_bmcl_metadata();
     test_urls_and_versions();
     test_java_defaults();
     test_installer_command();
