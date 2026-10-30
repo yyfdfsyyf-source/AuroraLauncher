@@ -41,6 +41,7 @@
 #include <utility>
 #include <vector>
 
+#pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "shell32.lib")
 
@@ -82,6 +83,7 @@ struct AppState {
     Tail launcher_log;
     Tail game_log;
     Json textures;
+    bool dark = false;
     HBRUSH rim_brush = nullptr;
     HBRUSH header_brush = nullptr;
 };
@@ -137,6 +139,44 @@ void update_webview_bounds() {
         rect.bottom = rect.top;
     }
     state.controller->put_Bounds(rect);
+}
+
+bool system_uses_dark_theme() {
+    DWORD light = 1;
+    DWORD size = sizeof(light);
+    if (RegGetValueW(HKEY_CURRENT_USER,
+                     L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                     L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &light, &size) ==
+        ERROR_SUCCESS) {
+        return light == 0;
+    }
+    return false;
+}
+
+void paint_window_theme(bool dark) {
+    state.dark = dark;
+    if (state.rim_brush != nullptr) {
+        DeleteObject(state.rim_brush);
+    }
+    if (state.header_brush != nullptr) {
+        DeleteObject(state.header_brush);
+    }
+    state.rim_brush = CreateSolidBrush(dark ? RGB(27, 33, 31) : RGB(236, 232, 225));
+    state.header_brush = CreateSolidBrush(dark ? RGB(30, 36, 34) : RGB(234, 233, 227));
+    if (state.controller != nullptr) {
+        ComPtr<ICoreWebView2Controller2> controller2;
+        if (SUCCEEDED(state.controller.As(&controller2))) {
+            COREWEBVIEW2_COLOR background{};
+            background.A = 255;
+            background.R = dark ? 27 : 236;
+            background.G = dark ? 33 : 232;
+            background.B = dark ? 31 : 225;
+            controller2->put_DefaultBackgroundColor(background);
+        }
+    }
+    if (state.window != nullptr) {
+        InvalidateRect(state.window, nullptr, TRUE);
+    }
 }
 
 void toggle_maximize(HWND window) {
@@ -279,6 +319,21 @@ Json instance_entry(const VersionRepository& repository, const std::string& id) 
         entry["modCount"] = static_cast<int>(enabled);
         entry["resourcePackCount"] =
             static_cast<int>(scan_resource_packs(version.run_dir).size());
+        std::size_t saves = 0;
+        std::error_code saves_error;
+        const std::filesystem::path saves_dir = version.run_dir / "saves";
+        if (std::filesystem::is_directory(saves_dir, saves_error) && !saves_error) {
+            for (const auto& child : std::filesystem::directory_iterator(saves_dir, saves_error)) {
+                if (saves_error) {
+                    break;
+                }
+                std::error_code type_error;
+                if (child.is_directory(type_error) && !type_error) {
+                    ++saves;
+                }
+            }
+        }
+        entry["savesCount"] = static_cast<int>(saves);
     } catch (const std::exception& error) {
         entry["error"] = error.what();
     }
@@ -445,12 +500,14 @@ Json activity_payload() {
 
     // Latest session per instance, so the home shelf can order by recency.
     std::map<std::string, std::pair<std::string, long long>> latest;
+    std::map<std::string, int> launches;
     for (const PlaySession& session : read_play_sessions()) {
         auto& entry = latest[session.instance];
         if (session.start > entry.first) {
             entry.first = session.start;
         }
         entry.second += session.seconds;
+        ++launches[session.instance];
     }
     std::vector<std::pair<std::string, std::pair<std::string, long long>>> ordered(
         latest.begin(), latest.end());
@@ -464,6 +521,7 @@ Json activity_payload() {
         item["id"] = ordered[index].first;
         item["lastStart"] = ordered[index].second.first;
         item["seconds"] = ordered[index].second.second;
+        item["launches"] = launches[ordered[index].first];
         recent.push_back(std::move(item));
     }
     result["recent"] = std::move(recent);
@@ -753,6 +811,8 @@ void handle_message(const std::string& json_text) {
             post_event("settings", settings_payload());
         } else if (action == "activity") {
             post_event("activity", activity_payload());
+        } else if (action == "theme") {
+            paint_window_theme(message.value("dark", false));
         } else if (action == "window") {
             const std::string command = json_string(message, "command");
             if (command == "drag") {
@@ -954,18 +1014,19 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
         state.config.game_dir = absolute_path(std::filesystem::path(game_dir_argument));
     }
 
+    state.dark = system_uses_dark_theme();
     WNDCLASSW window_class{};
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.hbrBackground = CreateSolidBrush(RGB(236, 232, 225));
+    window_class.hbrBackground =
+        CreateSolidBrush(state.dark ? RGB(27, 33, 31) : RGB(236, 232, 225));
     window_class.lpszClassName = L"AuroraLauncherGuiWindow";
     if (RegisterClassW(&window_class) == 0) {
         return 1;
     }
 
-    state.rim_brush = CreateSolidBrush(RGB(236, 232, 225));
-    state.header_brush = CreateSolidBrush(RGB(234, 233, 227));
+    paint_window_theme(state.dark);
 
     state.window = CreateWindowExW(
         WS_EX_APPWINDOW, window_class.lpszClassName, L"AuroraLauncher",
@@ -1025,16 +1086,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
                             state.controller->MoveFocus(
                                 COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
 
-                            COREWEBVIEW2_COLOR background{};
-                            background.A = 255;
-                            background.R = 236;
-                            background.G = 232;
-                            background.B = 225;
                             // Background lives on ICoreWebView2Controller2, not on the view.
-                            ComPtr<ICoreWebView2Controller2> controller2;
-                            if (SUCCEEDED(state.controller.As(&controller2))) {
-                                controller2->put_DefaultBackgroundColor(background);
-                            }
+                            paint_window_theme(state.dark);
                             ComPtr<ICoreWebView2Settings> settings;
                             state.webview->get_Settings(&settings);
                             settings->put_IsStatusBarEnabled(FALSE);
