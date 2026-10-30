@@ -16,12 +16,16 @@ retained only as a reference and for license/compliance purposes. The C++ core
 does not copy its source code, branding, OAuth client ID, signing certificate,
 or update metadata.
 
-The desktop layout follows the interaction patterns of PCL2 CE (frameless blue
-title bar, centered tabs, left player/launch column, card-based home), observed
-from a locally installed copy. No PCL2 code, XAML, artwork, or other assets are
-included. The launcher background (`src/gui/ui/assets/bg.jpg`) was generated for
-this project. Grass-block icons and the player head are composed at runtime in
-the WebView from textures inside the user's own Minecraft client JAR; no Mojang
+The desktop information architecture follows PCL2 CE (instance picker with a
+folder sidebar and instance rows, full-page instance settings with a category
+nav and cards), observed from a locally installed copy. The visual language
+(light frosted cards, large selected-instance heading, gradient pill launch
+button, inline recent-project launch, insights and calendar column) takes cues
+from LauncherX and Axolotl Launcher as shown in reference videos supplied by the
+user. No code, XAML, artwork, or other assets from those launchers are included.
+The launcher background (`src/gui/ui/assets/bg.jpg`) was generated for this
+project. Grass-block icons and the player head are composed at runtime in the
+WebView from textures inside the user's own Minecraft client JAR; no Mojang
 textures are redistributed with this repository.
 
 Microsoft login, when enabled, must use an Azure application registration owned

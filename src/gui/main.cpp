@@ -18,6 +18,7 @@
 #endif
 #include <windows.h>
 #include <windowsx.h>
+#include <shellapi.h>
 
 // WIN32_LEAN_AND_MEAN (set by aurora_core) keeps <windows.h> from pulling in the
 // COM headers that WebView2.h needs.
@@ -40,6 +41,7 @@
 #include <vector>
 
 #pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "shell32.lib")
 
 using namespace aurora;
 
@@ -656,6 +658,41 @@ void handle_stop() {
     post_event("state", state_json());
 }
 
+void handle_open_folder(const Json& message) {
+    const std::string id = json_string(message, "id");
+    const std::string folder = json_string(message, "folder");
+    if (id.empty()) {
+        post_error("openFolder needs an instance id");
+        return;
+    }
+    const VersionRepository repository(state.config.game_dir);
+    if (!repository.contains(id)) {
+        post_error("Version not found: " + id);
+        return;
+    }
+    const ResolvedVersion version = repository.resolve(id);
+    std::filesystem::path target;
+    if (folder == "saves" || folder == "mods" || folder == "logs") {
+        target = version.run_dir / folder;
+    } else if (!folder.empty() && folder != "instance") {
+        post_error("Unknown folder: " + folder);
+        return;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(target, error)) {
+        target = version.run_dir;
+    }
+    if (!std::filesystem::is_directory(target, error)) {
+        post_error("Instance folder no longer exists: " + id);
+        return;
+    }
+    const HINSTANCE launched = ShellExecuteW(nullptr, L"open", target.wstring().c_str(),
+                                             nullptr, nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(launched) <= 32) {
+        post_error("Unable to open " + path_to_utf8(target));
+    }
+}
+
 void handle_save_settings(const Json& message) {
     if (const auto value = json_optional_string(message, "gameDir"); value && !value->empty()) {
         state.config.game_dir = absolute_path(path_from_utf8(*value));
@@ -733,6 +770,8 @@ void handle_message(const std::string& json_text) {
             handle_stop();
         } else if (action == "saveSettings") {
             handle_save_settings(message);
+        } else if (action == "openFolder") {
+            handle_open_folder(message);
         } else {
             post_error("Unknown action: " + action);
         }
@@ -915,14 +954,14 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.hbrBackground = CreateSolidBrush(RGB(11, 14, 19));
+    window_class.hbrBackground = CreateSolidBrush(RGB(238, 241, 246));
     window_class.lpszClassName = L"AuroraLauncherGuiWindow";
     if (RegisterClassW(&window_class) == 0) {
         return 1;
     }
 
-    state.rim_brush = CreateSolidBrush(RGB(11, 14, 19));
-    state.header_brush = CreateSolidBrush(RGB(42, 128, 227));
+    state.rim_brush = CreateSolidBrush(RGB(238, 241, 246));
+    state.header_brush = CreateSolidBrush(RGB(250, 251, 253));
 
     state.window = CreateWindowExW(
         WS_EX_APPWINDOW, window_class.lpszClassName, L"AuroraLauncher",
@@ -940,6 +979,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
                 GetProcAddress(dwm, "DwmSetWindowAttribute"))) {
             const int round = 2;  // DWMWCP_ROUND
             set_attribute(state.window, 33, &round, sizeof(round));
+            // Windows 11 draws a light 1px frame around windows; attribute 34
+            // is DWMWA_BORDER_COLOR, and DWMWA_COLOR_NONE removes it.
+            const DWORD no_border = 0xFFFFFFFE;
+            set_attribute(state.window, 34, &no_border, sizeof(no_border));
         }
         FreeLibrary(dwm);
     }
@@ -980,9 +1023,9 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
 
                             COREWEBVIEW2_COLOR background{};
                             background.A = 255;
-                            background.R = 11;
-                            background.G = 14;
-                            background.B = 19;
+                            background.R = 238;
+                            background.G = 241;
+                            background.B = 246;
                             // Background lives on ICoreWebView2Controller2, not on the view.
                             ComPtr<ICoreWebView2Controller2> controller2;
                             if (SUCCEEDED(state.controller.As(&controller2))) {
