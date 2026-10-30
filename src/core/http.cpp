@@ -439,10 +439,27 @@ HttpMetadata perform_request(
             proxy_server.c_str(),
             proxy_bypass.empty() ? WINHTTP_NO_PROXY_BYPASS : proxy_bypass.c_str(),
             0);
+        if (session.value == nullptr) {
+            // A malformed bypass entry must not take downloads down with it.
+            session.value = WinHttpOpen(
+                user_agent.c_str(),
+                WINHTTP_ACCESS_TYPE_NAMED_PROXY,
+                proxy_server.c_str(),
+                WINHTTP_NO_PROXY_BYPASS,
+                0);
+        }
     } else {
         session.value = WinHttpOpen(
             user_agent.c_str(),
             WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+            WINHTTP_NO_PROXY_NAME,
+            WINHTTP_NO_PROXY_BYPASS,
+            0);
+    }
+    if (session.value == nullptr) {
+        session.value = WinHttpOpen(
+            user_agent.c_str(),
+            WINHTTP_ACCESS_TYPE_NO_PROXY,
             WINHTTP_NO_PROXY_NAME,
             WINHTTP_NO_PROXY_BYPASS,
             0);

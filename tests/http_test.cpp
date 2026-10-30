@@ -41,7 +41,7 @@ void test_system_proxy_environment() {
     _putenv_s("HTTPS_PROXY", "http://127.0.0.1:31181");
     _putenv_s("HTTP_PROXY", "http://127.0.0.1:31182");
     _putenv_s("ALL_PROXY", "");
-    _putenv_s("NO_PROXY", "localhost, .example.com");
+    _putenv_s("NO_PROXY", "localhost, .example.com, ::1, example.net:8080");
 
     const auto https_proxy = aurora::system_proxy_for_url("https://example.org/data");
     expect(https_proxy.has_value(), "HTTPS proxy is read from the environment");
@@ -50,7 +50,7 @@ void test_system_proxy_environment() {
         "HTTPS proxy server is normalized");
     expect(
         https_proxy && https_proxy->bypass == "localhost;.example.com",
-        "NO_PROXY is converted to a bypass list");
+        "NO_PROXY is converted to a WinHTTP-safe bypass list");
 
     const auto http_proxy = aurora::system_proxy_for_url("http://example.org/data");
     expect(http_proxy.has_value(), "HTTP proxy is read from the environment");

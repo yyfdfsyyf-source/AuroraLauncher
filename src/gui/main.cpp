@@ -1,9 +1,15 @@
 #include "core/activity.hpp"
+#include "core/catalog.hpp"
 #include "core/config.hpp"
 #include "core/error.hpp"
+#include "core/hash.hpp"
+#include "core/http.hpp"
+#include "core/install.hpp"
 #include "core/java.hpp"
 #include "core/json.hpp"
 #include "core/launch.hpp"
+#include "core/manifest.hpp"
+#include "core/modpack.hpp"
 #include "core/mods.hpp"
 #include "core/paths.hpp"
 #include "core/pcl.hpp"
@@ -29,15 +35,20 @@
 #include <wrl.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <ctime>
 #include <cwchar>
 #include <fstream>
 #include <initializer_list>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -56,12 +67,14 @@ using Microsoft::WRL::RuntimeClassFlags;
 using Microsoft::WRL::ClassicCom;
 
 constexpr UINT k_poll_timer = 1;
+constexpr UINT k_async_event = WM_APP + 1;
 constexpr int k_resize_border = 4;
 constexpr std::uint64_t k_log_chunk_bytes = 64ULL * 1024ULL;
 constexpr DWORD k_per_monitor_dpi_aware_v2 = static_cast<DWORD>(-4);
 
-// The first screen only lists instances, starts and stops the game, and tails
-// logs. Downloads and installs stay in the CLI until the UI is stable.
+// The main screen lists instances, starts and stops the game, and tails logs.
+// Downloads and installs run on detached workers and report progress through
+// the async message queue.
 struct Tail {
     std::filesystem::path path;
     std::uint64_t offset = 0;
@@ -89,6 +102,11 @@ struct AppState {
 };
 
 AppState state;
+
+std::atomic<bool> g_install_busy{false};
+std::atomic<std::uint64_t> g_next_job{1};
+std::mutex g_manifest_mutex;
+std::optional<VersionManifest> g_manifest;
 
 std::filesystem::path ui_directory() {
     const std::filesystem::path source = path_from_utf8(AURORA_GUI_UI_DIR);
@@ -118,6 +136,159 @@ void post_error(const std::string& message) {
     Json payload = Json::object();
     payload["message"] = message;
     post_event("error", payload);
+}
+
+// Worker threads cannot touch the WebView; they hand finished event JSON to
+// the UI thread through the window message queue.
+void post_event_async(const std::string& name, const Json& payload) {
+    Json message = Json::object();
+    message["event"] = name;
+    message["data"] = payload;
+    auto* text = new std::string(message.dump());
+    if (PostMessageW(state.window, k_async_event, 0,
+                     reinterpret_cast<LPARAM>(text)) == 0) {
+        delete text;
+    }
+}
+
+struct TempDirectory {
+    std::filesystem::path path;
+    ~TempDirectory() {
+        std::error_code error;
+        std::filesystem::remove_all(path, error);
+    }
+};
+
+struct JobReporter {
+    std::uint64_t id = 0;
+    std::string kind;
+    std::string title;
+    std::chrono::steady_clock::time_point last_progress{};
+
+    Json base(const char* state_name) const {
+        Json payload = Json::object();
+        payload["jobId"] = static_cast<std::int64_t>(id);
+        payload["kind"] = kind;
+        payload["title"] = title;
+        payload["state"] = state_name;
+        return payload;
+    }
+
+    void phase(const std::string& name, const std::string& detail = {}) {
+        last_progress = {};
+        Json payload = base("running");
+        payload["phase"] = name;
+        payload["detail"] = detail;
+        payload["indeterminate"] = true;
+        payload["received"] = 0;
+        payload["total"] = 0;
+        post_event_async("job", payload);
+    }
+
+    void progress(const std::string& name,
+                  std::uint64_t received,
+                  std::uint64_t total,
+                  const std::string& detail = {}) {
+        const auto now = std::chrono::steady_clock::now();
+        const bool complete = total > 0 && received >= total;
+        if (!complete && now - last_progress < std::chrono::milliseconds(120)) {
+            return;
+        }
+        last_progress = now;
+        Json payload = base("running");
+        payload["phase"] = name;
+        payload["detail"] = detail;
+        payload["indeterminate"] = total == 0;
+        payload["received"] = static_cast<std::int64_t>(received);
+        payload["total"] = static_cast<std::int64_t>(total);
+        post_event_async("job", payload);
+    }
+
+    void done(bool ok, const std::string& error = {}, const Json& extra = {}) {
+        Json payload = base("done");
+        payload["ok"] = ok;
+        if (!error.empty()) {
+            payload["error"] = error;
+        }
+        if (extra.is_object()) {
+            for (auto& [key, value] : extra.items()) {
+                payload[key] = value;
+            }
+        }
+        post_event_async("job", payload);
+    }
+};
+
+struct InstallGuard {
+    ~InstallGuard() { g_install_busy.store(false); }
+};
+
+template <typename Work>
+void start_install_job(const std::string& kind,
+                       const std::string& title,
+                       Work work) {
+    if (g_install_busy.exchange(true)) {
+        post_error("已有下载或安装任务在运行，请等它结束");
+        return;
+    }
+    const std::uint64_t id = g_next_job.fetch_add(1);
+    try {
+        std::thread([id, kind, title, work = std::move(work)]() mutable {
+            InstallGuard guard;
+            JobReporter job{id, kind, title};
+            try {
+                work(job);
+            } catch (const std::exception& error) {
+                job.done(false, error.what());
+            } catch (...) {
+                job.done(false, "Unknown install failure");
+            }
+        }).detach();
+    } catch (const std::exception& error) {
+        g_install_busy.store(false);
+        post_error(std::string("Unable to start the install worker: ") + error.what());
+    }
+}
+
+Json string_list_payload(const std::vector<std::string>& values);
+
+VersionManifest manifest_snapshot() {
+    std::lock_guard<std::mutex> lock(g_manifest_mutex);
+    if (g_manifest) {
+        return *g_manifest;
+    }
+    VersionManifest manifest = fetch_version_manifest();
+    g_manifest = manifest;
+    return manifest;
+}
+
+Json catalog_hit_json(const ModrinthSearchHit& hit) {
+    Json item = Json::object();
+    item["projectId"] = hit.project_id;
+    item["slug"] = hit.slug;
+    item["title"] = hit.title;
+    item["description"] = hit.description;
+    item["author"] = hit.author;
+    item["downloads"] = static_cast<std::int64_t>(hit.downloads);
+    item["iconUrl"] = hit.icon_url;
+    item["projectType"] = hit.project_type;
+    item["categories"] = string_list_payload(hit.categories);
+    return item;
+}
+
+Json catalog_version_json(const ModrinthVersion& version, CatalogKind kind) {
+    Json item = Json::object();
+    item["id"] = version.id;
+    item["name"] = version.name;
+    item["number"] = version.version_number;
+    item["type"] = version.version_type;
+    item["published"] = version.date_published;
+    item["gameVersions"] = string_list_payload(version.game_versions);
+    item["loaders"] = string_list_payload(version.loaders);
+    const ModrinthFile* file = select_catalog_file(version, kind);
+    item["fileName"] = file != nullptr ? file->filename : std::string();
+    item["size"] = static_cast<std::int64_t>(file != nullptr ? file->size : 0);
+    return item;
 }
 
 // The WebView stops short of the window edge so the parent window still
@@ -236,10 +407,26 @@ std::string loader_kind(const VersionMeta& meta) {
     if (main_class.find("quiltmc") != std::string::npos) {
         return "quilt";
     }
-    if (main_class.find("minecraftforge") != std::string::npos ||
-        main_class.find("modlauncher") != std::string::npos ||
-        main_class.find("bootstraplauncher") != std::string::npos ||
-        main_class.find("launchwrapper") != std::string::npos) {
+    // Vanilla 1.0-1.5 also launch through launchwrapper, so legacy Forge has
+    // to be identified by its libraries instead of the main class alone.
+    bool forge_library = false;
+    bool neoforge_library = false;
+    for (const Library& library : meta.libraries) {
+        const std::string name = to_lower_ascii(library.name);
+        if (name.rfind("net.neoforged:", 0) == 0) {
+            neoforge_library = true;
+        } else if (name.rfind("net.minecraftforge:", 0) == 0) {
+            forge_library = true;
+        }
+    }
+    if (main_class.find("minecraftforge") != std::string::npos) {
+        return "forge";
+    }
+    if (main_class.find("bootstraplauncher") != std::string::npos ||
+        main_class.find("modlauncher") != std::string::npos) {
+        return neoforge_library ? "neoforge" : "forge";
+    }
+    if (main_class.find("launchwrapper") != std::string::npos && forge_library) {
         return "forge";
     }
     return "vanilla";
@@ -858,6 +1045,300 @@ void handle_save_settings(const Json& message) {
     post_event("saved", settings_payload());
 }
 
+void handle_catalog_search(const Json& message, std::int64_t reply_to) {
+    CatalogKind kind = CatalogKind::Modpack;
+    if (!catalog_kind_from(json_string(message, "kind"), kind)) {
+        post_error("Unknown catalog kind");
+        return;
+    }
+    CatalogSearchOptions options;
+    options.kind = kind;
+    options.query = trim(json_string(message, "query"));
+    options.game_version = trim(json_string(message, "gameVersion"));
+    options.loader = trim(json_string(message, "loader"));
+    options.limit = static_cast<int>(
+        std::clamp<std::int64_t>(json_integer(message, "limit", 24), 1, 50));
+
+    std::thread([options, kind, reply_to]() {
+        Json payload = Json::object();
+        payload["replyTo"] = reply_to;
+        payload["kind"] = catalog_kind_name(kind);
+        try {
+            const ModrinthSearchResult result = search_modrinth_catalog(options);
+            Json hits = Json::array();
+            for (const ModrinthSearchHit& hit : result.hits) {
+                hits.push_back(catalog_hit_json(hit));
+            }
+            payload["ok"] = true;
+            payload["total"] = static_cast<std::int64_t>(result.total_hits);
+            payload["hits"] = std::move(hits);
+        } catch (const std::exception& error) {
+            payload["ok"] = false;
+            payload["error"] = error.what();
+            payload["hits"] = Json::array();
+        } catch (...) {
+            payload["ok"] = false;
+            payload["error"] = "Unknown search failure";
+            payload["hits"] = Json::array();
+        }
+        post_event_async("catalog", payload);
+    }).detach();
+}
+
+void handle_catalog_versions(const Json& message, std::int64_t reply_to) {
+    CatalogKind kind = CatalogKind::Modpack;
+    if (!catalog_kind_from(json_string(message, "kind"), kind)) {
+        post_error("Unknown catalog kind");
+        return;
+    }
+    CatalogVersionQuery query;
+    query.kind = kind;
+    query.project = trim(json_string(message, "projectId"));
+    query.game_version = trim(json_string(message, "gameVersion"));
+    query.loader = trim(json_string(message, "loader"));
+    if (query.project.empty()) {
+        post_error("catalogVersions needs a project id");
+        return;
+    }
+    const std::string project = query.project;
+
+    std::thread([query, kind, project, reply_to]() mutable {
+        Json payload = Json::object();
+        payload["replyTo"] = reply_to;
+        payload["kind"] = catalog_kind_name(kind);
+        payload["projectId"] = project;
+        try {
+            const std::vector<ModrinthVersion> versions =
+                fetch_modrinth_catalog_versions(query);
+            Json list = Json::array();
+            for (const ModrinthVersion& version : versions) {
+                list.push_back(catalog_version_json(version, kind));
+            }
+            payload["ok"] = true;
+            payload["versions"] = std::move(list);
+        } catch (const std::exception& error) {
+            payload["ok"] = false;
+            payload["error"] = error.what();
+            payload["versions"] = Json::array();
+        } catch (...) {
+            payload["ok"] = false;
+            payload["error"] = "Unknown version lookup failure";
+            payload["versions"] = Json::array();
+        }
+        post_event_async("catalogVersions", payload);
+    }).detach();
+}
+
+void handle_game_versions(std::int64_t reply_to) {
+    std::thread([reply_to]() {
+        Json payload = Json::object();
+        payload["replyTo"] = reply_to;
+        try {
+            const VersionManifest manifest = manifest_snapshot();
+            Json versions = Json::array();
+            for (const VersionManifestEntry& entry : manifest.versions) {
+                Json item = Json::object();
+                item["id"] = entry.id;
+                item["type"] = entry.type;
+                item["releaseTime"] = entry.release_time.value_or(std::string());
+                versions.push_back(std::move(item));
+            }
+            payload["ok"] = true;
+            payload["versions"] = std::move(versions);
+            if (manifest.latest) {
+                Json latest = Json::object();
+                latest["release"] = manifest.latest->release;
+                latest["snapshot"] = manifest.latest->snapshot;
+                payload["latest"] = std::move(latest);
+            }
+        } catch (const std::exception& error) {
+            payload["ok"] = false;
+            payload["error"] = error.what();
+            payload["versions"] = Json::array();
+        } catch (...) {
+            payload["ok"] = false;
+            payload["error"] = "Unknown manifest failure";
+            payload["versions"] = Json::array();
+        }
+        post_event_async("gameVersions", payload);
+    }).detach();
+}
+
+void handle_install_game(const Json& message) {
+    const std::string version_id = trim(json_string(message, "id"));
+    if (version_id.empty()) {
+        post_error("installGame needs a version id");
+        return;
+    }
+    if (state.game.running()) {
+        post_error("Minecraft is running; stop it before installing files");
+        return;
+    }
+    const std::filesystem::path game_dir = state.config.game_dir;
+    const int retries = state.config.download_retries;
+    const std::vector<std::string> mirrors = state.config.download_mirrors;
+
+    start_install_job("game", "Minecraft " + version_id, [=](JobReporter& job) {
+        job.phase("读取版本清单", version_id);
+        const VersionManifest manifest = manifest_snapshot();
+        const VersionManifestEntry* entry = manifest.find(version_id);
+        if (entry == nullptr) {
+            fail("Mojang version manifest has no version '" + version_id + "'");
+        }
+        job.phase("下载版本描述", version_id);
+        install_version_json(*entry, game_dir);
+
+        const VersionRepository repository(game_dir);
+        const ResolvedVersion version = repository.resolve(version_id);
+        if (!version.meta.inherits_from.empty()) {
+            fail("The version id '" + version_id +
+                 "' already belongs to a loader or modpack instance; "
+                 "install the vanilla version under another id");
+        }
+        job.phase("下载游戏文件", "客户端、库与资源");
+        InstallOptions options;
+        options.download_retries = retries;
+        options.download_mirrors = mirrors;
+        install_version(version, detect_environment(), options);
+        job.done(true, {}, Json{{"versionId", version_id}});
+    });
+}
+
+void handle_install_catalog(const Json& message) {
+    CatalogKind kind = CatalogKind::Modpack;
+    if (!catalog_kind_from(json_string(message, "kind"), kind)) {
+        post_error("Unknown catalog kind");
+        return;
+    }
+    const std::string project = trim(json_string(message, "projectId"));
+    if (project.empty()) {
+        post_error("installCatalog needs a project id");
+        return;
+    }
+    if (state.game.running()) {
+        post_error("Minecraft is running; stop it before installing files");
+        return;
+    }
+    const std::string version_id = trim(json_string(message, "versionId"));
+    const std::string instance_id = trim(json_string(message, "instanceId"));
+    const std::string game_version = trim(json_string(message, "gameVersion"));
+    const std::string loader = trim(json_string(message, "loader"));
+    std::string title = trim(json_string(message, "title"));
+    if (title.empty()) {
+        title = project;
+    }
+
+    const std::filesystem::path game_dir = state.config.game_dir;
+    const int retries = state.config.download_retries;
+    const std::vector<std::string> mirrors = state.config.download_mirrors;
+    const std::string curseforge_key = state.config.curseforge_api_key;
+
+    std::filesystem::path instance_dir;
+    if (kind != CatalogKind::Modpack) {
+        if (instance_id.empty()) {
+            post_error("先选一个实例，再把内容装进去");
+            return;
+        }
+        const VersionRepository repository(game_dir);
+        if (!repository.contains(instance_id)) {
+            post_error("Instance not found: " + instance_id);
+            return;
+        }
+        instance_dir = repository.run_dir_for(instance_id);
+    }
+
+    start_install_job(catalog_kind_name(kind), title, [=](JobReporter& job) {
+        HttpDownloadOptions http_options;
+        http_options.max_retries = std::max(0, retries);
+        http_options.mirrors = mirrors;
+
+        CatalogInstallOptions install;
+        install.kind = kind;
+        install.project = project;
+        install.version_id = version_id;
+        install.game_version = game_version;
+        install.loader = loader;
+
+        if (kind != CatalogKind::Modpack) {
+            const std::string folder =
+                kind == CatalogKind::ResourcePack ? "resourcepacks" : "shaderpacks";
+            const std::string label =
+                kind == CatalogKind::ResourcePack ? "资源包" : "光影";
+            const std::filesystem::path target_dir = instance_dir / folder;
+            ensure_directory(target_dir);
+            install.target_dir = target_dir;
+            install.download = [http_options, &job, label](
+                                   std::string_view url,
+                                   const std::filesystem::path& destination,
+                                   std::string_view sha1) {
+                http_download(
+                    url, destination, http_options, sha1,
+                    [&job, destination, label](std::uint64_t received,
+                                               std::uint64_t total) {
+                        job.progress("下载" + label, received, total,
+                                     path_to_utf8(destination.filename()));
+                    });
+            };
+            job.phase("查找版本", title);
+            const CatalogInstallResult result =
+                install_modrinth_catalog_file(install);
+            job.done(true, {},
+                     Json{{"fileName", result.file.filename},
+                          {"path", path_to_utf8(result.path)},
+                          {"instanceId", instance_id}});
+            return;
+        }
+
+        TempDirectory temp{
+            std::filesystem::temp_directory_path() /
+            ("aurora-pack-" + std::to_string(GetCurrentProcessId()) + "-" +
+             std::to_string(job.id))};
+        std::filesystem::create_directories(temp.path);
+        install.target_dir = temp.path;
+        install.download = [http_options, &job](
+                               std::string_view url,
+                               const std::filesystem::path& destination,
+                               std::string_view sha1) {
+            http_download(
+                url, destination, http_options, sha1,
+                [&job, destination](std::uint64_t received, std::uint64_t total) {
+                    job.progress("下载整合包", received, total,
+                                 path_to_utf8(destination.filename()));
+                });
+        };
+        job.phase("查找版本", title);
+        const CatalogInstallResult archive =
+            install_modrinth_catalog_file(install);
+
+        job.phase("安装整合包", "安装加载器、游戏与模组");
+        ModpackInstallOptions pack;
+        pack.archive = archive.path;
+        pack.game_dir = game_dir;
+        pack.install_loader = true;
+        pack.install_game = true;
+        pack.backup = true;
+        pack.download_retries = retries;
+        pack.download_mirrors = mirrors;
+        pack.curseforge_api_key = curseforge_key;
+        pack.download = [http_options, &job](
+                            std::string_view url,
+                            const std::filesystem::path& destination,
+                            std::string_view sha1) {
+            http_download(
+                url, destination, http_options, sha1,
+                [&job, destination](std::uint64_t received, std::uint64_t total) {
+                    job.progress("安装整合包", received, total,
+                                 path_to_utf8(destination.filename()));
+                });
+        };
+        const ModpackInstallResult result = install_modpack(pack);
+        job.done(true, {},
+                 Json{{"instanceId", result.version_id},
+                      {"packName", result.info.name},
+                      {"installed", static_cast<std::int64_t>(result.files_installed)}});
+    });
+}
+
 void handle_message(const std::string& json_text) {
     Json message;
     try {
@@ -916,6 +1397,16 @@ void handle_message(const std::string& json_text) {
             handle_open_folder(message);
         } else if (action == "openPath") {
             handle_open_path(message);
+        } else if (action == "catalogSearch") {
+            handle_catalog_search(message, reply_to);
+        } else if (action == "catalogVersions") {
+            handle_catalog_versions(message, reply_to);
+        } else if (action == "gameVersions") {
+            handle_game_versions(reply_to);
+        } else if (action == "installGame") {
+            handle_install_game(message);
+        } else if (action == "installCatalog") {
+            handle_install_catalog(message);
         } else {
             post_error("Unknown action: " + action);
         }
@@ -1024,6 +1515,13 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
             return 0;
         }
         break;
+    case k_async_event: {
+        std::unique_ptr<std::string> text(reinterpret_cast<std::string*>(lparam));
+        if (text) {
+            post_json(*text);
+        }
+        return 0;
+    }
     case WM_DESTROY:
         finish_session();
         KillTimer(hwnd, k_poll_timer);

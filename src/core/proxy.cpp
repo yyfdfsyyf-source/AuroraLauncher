@@ -34,6 +34,16 @@ std::string environment_value(const char* name) {
 #endif
 }
 
+bool is_winhttp_bypass_entry(const std::string& entry) {
+    // WinHTTP rejects host:port entries and bare IPv6 literals such as "::1"
+    // with ERROR_INVALID_PARAMETER from WinHttpOpen. Bracketed IPv6 is the
+    // form it understands.
+    if (entry.find(':') != std::string::npos) {
+        return entry.size() > 2 && entry.front() == '[' && entry.back() == ']';
+    }
+    return true;
+}
+
 std::string normalize_bypass_list(std::string value, bool comma_separated) {
     if (value.empty()) {
         return {};
@@ -44,7 +54,7 @@ std::string normalize_bypass_list(std::string value, bool comma_separated) {
     std::vector<std::string> entries;
     for (const std::string& part : split(value, ';')) {
         const std::string entry = trim(part);
-        if (!entry.empty()) {
+        if (!entry.empty() && is_winhttp_bypass_entry(entry)) {
             entries.push_back(entry);
         }
     }

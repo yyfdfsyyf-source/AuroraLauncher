@@ -22,6 +22,9 @@ struct ModrinthSearchHit {
     std::string author;
     std::uint64_t downloads = 0;
     std::vector<std::string> categories;
+    std::string icon_url;
+    // "mod", "modpack", "resourcepack" or "shader".
+    std::string project_type;
 };
 
 struct ModrinthSearchResult {

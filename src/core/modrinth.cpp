@@ -502,6 +502,8 @@ ModrinthSearchResult parse_modrinth_search(std::string_view json,
         hit.author = json_string(item, "author");
         hit.downloads = json_size(item, "downloads");
         hit.categories = parse_string_array(item, "categories");
+        hit.icon_url = json_string(item, "icon_url");
+        hit.project_type = json_string(item, "project_type");
         if (hit.slug.empty() && hit.project_id.empty()) {
             fail("Modrinth search result from " + std::string(source) +
                  " contains a hit without slug or project id");

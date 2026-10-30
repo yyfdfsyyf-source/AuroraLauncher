@@ -6,7 +6,7 @@
 D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 ```
 
-当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖莫奈色块主页（左栏大版本号与启动按钮、主卡最近游玩、通栏年度日历）、全页实例选择、全页实例设置（概览/设置/日志，含实例/存档/模组/日志文件夹快捷方式）与启动器设置（顶栏第三页，启动/外观/下载/关于）。实例选择与实例设置沿用 PCL2 CE 的信息结构；主页骨架按用户设计稿重排，视觉为大色块与莫奈取色，色系收在蓝绿家族，默认不使用描边或投影；页面切换用 View Transitions 让左栏与主卡在页面之间连续形变。外观提供跟随系统/浅色/深色主题与「色块 / 柔和边界」两种卡片风格（localStorage 持久化），背景与主卡按实例加载器取色，色板取自各加载器图标并映射到统一亮度（原版草绿/泥土、Fabric 米色、Quilt 紫、Forge 炭灰、NeoForge 橙），主题变化经 `theme` 消息同步原生窗口边与 WebView 底色。外观还可载入本机图片作背景：长边缩到 1600 的 JPEG 存入 localStorage，48×48 直方图取 4 个主色写入 CSS 变量，窗口氛围与卡片表层随之着色；背景模糊 0–30px、卡片磨砂 0–40px 各有一档滑杆，卡片磨砂为 0 时回到取色纯色。启动设置可改窗口尺寸、附加 JVM/游戏参数与启动后最小化，下载设置可改重试次数与额外镜像，关于页可直接打开游戏目录和配置目录。窗口为无边框自绘（4px 缩放入口、`DWMWA_BORDER_COLOR = NONE` 去掉 Win11 白边）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
+当前工程是 Windows-first 的启动核心，CLI 覆盖核心与模组/整合包功能，GUI 覆盖莫奈色块主页（左栏大版本号与启动按钮、主卡最近游玩、通栏年度日历）、全页实例选择、全页实例设置（概览/设置/日志，含实例/存档/模组/日志文件夹快捷方式）、下载页（顶栏第四页：Mojang 游戏版本 + Modrinth 整合包/资源包/光影）与启动器设置（启动/外观/下载/关于）。下载搜索与安装在后台线程执行，经 `PostMessage` 回到 UI 线程，右下角浮层显示阶段与单文件字节进度；资源包/光影写入目标实例，整合包自动创建实例并在结束后清理临时归档。实例选择与实例设置沿用 PCL2 CE 的信息结构；主页骨架按用户设计稿重排，视觉为大色块与莫奈取色，色系收在蓝绿家族，默认不使用描边或投影；页面切换用 View Transitions 让左栏与主卡在页面之间连续形变。外观提供跟随系统/浅色/深色主题与「色块 / 柔和边界」两种卡片风格（localStorage 持久化），背景与主卡按实例加载器取色，色板取自各加载器图标并映射到统一亮度（原版草绿/泥土、Fabric 米色、Quilt 紫、Forge 炭灰、NeoForge 橙），主题变化经 `theme` 消息同步原生窗口边与 WebView 底色。外观还可载入本机图片作背景：长边缩到 1600 的 JPEG 存入 localStorage，48×48 直方图取 4 个主色写入 CSS 变量，窗口氛围与卡片表层随之着色；背景模糊 0–30px、卡片磨砂 0–40px 各有一档滑杆，卡片磨砂为 0 时回到取色纯色。启动设置可改窗口尺寸、附加 JVM/游戏参数与启动后最小化，下载设置可改重试次数与额外镜像，关于页可直接打开游戏目录和配置目录。窗口为无边框自绘（4px 缩放入口、`DWMWA_BORDER_COLOR = NONE` 去掉 Win11 白边）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
 
 ## 1. 状态定义
 
@@ -55,7 +55,7 @@ flowchart LR
 - 输入是用户已有的 `.minecraft` 目录；版本 JSON 可由 `version fetch` 显式从 Mojang 清单获取，`--no-fetch` 可关闭该行为。
 - Microsoft 登录只使用项目自己的 Azure 应用 client ID；未配置时拒绝登录，不冒用其他启动器。
 - Forge/NeoForge 使用官方 installer；本项目不重新实现其处理器逻辑，也不在启动时隐式联网。
-- Modrinth/CurseForge 模组搜索、安装、启停、指纹/哈希更新检查，以及可启动整合包实例、升级备份、资源包兼容性管理已接入；主题包和服务端模块不在当前边界内，GUI 目前覆盖主页与实例页。
+- Modrinth/CurseForge 模组搜索、安装、启停、指纹/哈希更新检查，以及可启动整合包实例、升级备份、资源包兼容性管理已接入；Modrinth 资源包/光影/整合包与 Mojang 游戏版本的图形下载入口已接入 GUI，CurseForge 内容浏览仍走 CLI。主题包和服务端模块不在当前边界内。
 
 ## 3. 分层与模块
 
@@ -144,8 +144,8 @@ flowchart TB
 | 文件 | 职责 |
 | --- | --- |
 | `src/cli.cpp` | 命令、参数、JSON/文本输出、敏感参数脱敏 |
-| `src/gui/main.cpp` | WebView2 宿主、JS↔C++ JSON 消息桥、进程轮询与日志尾部推送 |
-| `src/gui/ui/index.html` | 莫奈色块主页（左栏大版本号与启动按钮、最近游玩、年度热力图）、实例选择页、实例设置页与顶栏启动器设置页（启动/外观/下载/关于；单文件 HTML/CSS/JS，无前端构建步骤；View Transitions 页面转场；浅色/深色主题与色块/柔和边界两种卡片风格；背景按实例取色，也支持本机图片背景、取色、背景模糊与卡片磨砂滑杆） |
+| `src/gui/main.cpp` | WebView2 宿主、JS↔C++ JSON 消息桥、进程轮询与日志尾部推送；下载任务线程与异步事件队列（`WM_APP+1`） |
+| `src/gui/ui/index.html` | 莫奈色块主页（左栏大版本号与启动按钮、最近游玩、年度热力图）、实例选择页、实例设置页、下载页（游戏/整合包/资源包/光影）与顶栏启动器设置页（启动/外观/下载/关于；单文件 HTML/CSS/JS，无前端构建步骤；View Transitions 有向转场覆盖顶栏、实例设置与内部页签；浅色/深色主题与色块/柔和边界两种卡片风格；背景按实例取色，也支持本机图片背景、取色、背景模糊与卡片磨砂滑杆） |
 | `src/core/repository.cpp` | 扫描 `versions`，加载并递归解析 `inheritsFrom` |
 | `src/core/version.cpp` | 版本 JSON 模型、库、参数、下载信息、合并规则 |
 | `src/core/rules.cpp` | OS/arch/version/features 规则判断 |
@@ -162,6 +162,7 @@ flowchart TB
 | `src/core/http.cpp` | WinHTTP GET、重试、镜像回退、断点续传 |
 | `src/core/mirrors.cpp` | BMCLAPI/MCIM URL 映射、分 provider 镜像健康状态和候选顺序 |
 | `src/core/modrinth.cpp` | Modrinth 搜索、版本/依赖选择、模组安装/更新与 SHA-1 校验 |
+| `src/core/catalog.cpp` | 按 project_type 搜索 Modrinth、拉取兼容版本、选择 `.mrpack`/`.zip` 文件并下载到目标目录（SHA-1/size/文件名校验） |
 | `src/core/mods.cpp` | 本地 mods 目录扫描、`.jar`/`.jar.disabled` 启用与禁用、jar 元数据读取 |
 | `src/core/curseforge.cpp` | CurseForge API 搜索、文件选择、依赖递归、下载校验、fingerprint 匹配与更新检查 |
 | `src/core/modpack.cpp` | Modrinth/CurseForge 整合包解析、加载器/游戏安装、实例 JSON、overrides 哈希与升级备份 |
@@ -174,7 +175,7 @@ flowchart TB
 | `src/core/process.cpp` | `CreateProcessW` 启动、等待、输出重定向 |
 | `src/core/config.cpp` | `%APPDATA%\AuroraLauncher\config.json` |
 
-GUI 宿主要点：顶层窗口用 `WS_POPUP | WS_THICKFRAME` + `WS_EX_APPWINDOW`，`WM_NCCALCSIZE` 返回 0 去掉原生标题栏；`WM_NCHITTEST` 在四边 6px 内返回缩放命中码，`WM_GETMINMAXINFO` 把最大化限制在显示器工作区；窗口创建后按工作区居中，并用 `DwmSetWindowAttribute(33)` 在 Windows 11 上取圆角。WebView2 的 bounds 向内缩 4px（`k_resize_border`），保证边缘缩放由父窗口命中；父窗口 `WM_ERASEBKGND` 只绘制这条可见边框——顶部按 DPI 缩放的 48px 标题栏高度刷成蓝色，其余刷深色，使标题栏看起来铺满窗口。标题栏拖动由页面 `mousedown` 发 `window/drag` 消息，宿主 `ReleaseCapture()` 后投递 `WM_NCLBUTTONDOWN(HTCAPTION)`；最大化/还原/最小化/关闭同理。UI 通过 `SetVirtualHostNameToFolderMapping("aurora.ui")` 加载，启动前用 CDP 关闭 HTTP 缓存，避免升级后仍加载旧 `index.html`。
+GUI 宿主要点：顶层窗口用 `WS_POPUP | WS_THICKFRAME` + `WS_EX_APPWINDOW`，`WM_NCCALCSIZE` 返回 0 去掉原生标题栏；`WM_NCHITTEST` 在四边 6px 内返回缩放命中码，`WM_GETMINMAXINFO` 把最大化限制在显示器工作区；窗口创建后按工作区居中，并用 `DwmSetWindowAttribute(33)` 在 Windows 11 上取圆角。WebView2 的 bounds 向内缩 4px（`k_resize_border`），保证边缘缩放由父窗口命中；父窗口 `WM_ERASEBKGND` 只绘制这条可见边框——顶部按 DPI 缩放的 48px 标题栏高度刷成蓝色，其余刷深色，使标题栏看起来铺满窗口。标题栏拖动由页面 `mousedown` 发 `window/drag` 消息，宿主 `ReleaseCapture()` 后投递 `WM_NCLBUTTONDOWN(HTCAPTION)`；最大化/还原/最小化/关闭同理。UI 通过 `SetVirtualHostNameToFolderMapping("aurora.ui")` 加载，启动前用 CDP 关闭 HTTP 缓存，避免升级后仍加载旧 `index.html`。下载页的搜索、版本查询与安装都在 detached 工作线程中执行：线程只读取配置快照，结果通过 `PostMessageW(WM_APP+1)` 交回 UI 线程再调用 `PostWebMessageAsJson`，避免跨线程访问 WebView；安装任务用原子忙标志串行化，临时目录用 RAII 清理。
 
 ## 4. 版本解析
 
@@ -476,7 +477,7 @@ classDiagram
 | 整合包 | 已实现 | `.mrpack` / CurseForge manifest、自动加载器、可启动实例、overrides 哈希、升级/备份 |
 | PCL 实例兼容 | 已实现 | `Setup.ini`/`config.v1.yml`、版本隔离、内存档位、JVM/游戏参数、指定 Java；`launch` 与 `run_dir` 自动采用 |
 | 自签开发签名 | 已实现 | 脚本 + Windows 资源/清单；公开发布需可信证书 |
-| GUI | 主页与实例页已实现 | WebView2 宿主 + 无边框窗口（自绘标题栏、拖动/缩放/最大化/最小化、无 DWM 白边、随主题切换边色）+ 莫奈色块主页（左栏大版本号与启动/停止按钮、最近游玩、年度热力图）+ 全页实例选择（文件夹侧栏、搜索、行内齿轮）+ 全页实例设置（概览/设置/日志、9 项实例信息、文件夹快捷方式）+ 启动器设置（启动/外观/下载/关于：窗口尺寸、JVM/游戏参数、启动后最小化、下载重试/额外镜像、主题与卡片风格、本机图片背景/取色、背景与卡片模糊滑杆、目录打开）；下载与安装仍在 CLI |
+| GUI | 主页/实例/下载/设置已实现 | WebView2 宿主 + 无边框窗口（自绘标题栏、拖动/缩放/最大化/最小化、无 DWM 白边、随主题切换边色）+ 莫奈色块主页（左栏大版本号与启动/停止按钮、最近游玩、年度热力图）+ 全页实例选择（文件夹侧栏、搜索、行内齿轮）+ 全页实例设置（概览/设置/日志、9 项实例信息、文件夹快捷方式）+ 下载页（Mojang 游戏版本、Modrinth 整合包/资源包/光影；搜索、版本选择、目标实例、后台进度、SHA-1）+ 启动器设置（启动/外观/下载/关于：窗口尺寸、JVM/游戏参数、启动后最小化、下载重试/额外镜像、主题与卡片风格、本机图片背景/取色、背景与卡片模糊滑杆、目录打开）；CurseForge 浏览仍走 CLI |
 | 游玩活动 | 已实现 | GUI 与 CLI 启动都写入 `activity.json`；热力图还会读取各实例 `logs/aurora-launcher.log` 的启动横幅回填旧启动 |
 | 主题包/服务端 | 未接入 | 原 Java 功能尚未迁移 |
 
@@ -505,7 +506,7 @@ classDiagram
 - **镜像元数据可信度**：版本清单和版本 JSON 本身没有签名，镜像可以返回与官方不同的元数据；文件 SHA-1 只能保证与镜像给出的摘要一致。
 - **模组代码信任**：Modrinth/CurseForge 只保证文件完整性和元数据一致；mod jar 会在 Minecraft 进程内以当前用户权限执行，没有静态扫描或沙箱。
 - **整合包覆盖**：首次安装按 HMCL 语义覆盖同名 overrides；升级时用户修改过的文件保留，用户删除的文件不会被恢复，`--force` 强制覆盖。整合包内容可写实例目录下的任意相对路径（仍拒绝绝对路径、`..`、ADS 和 Windows 保留名）。
-- **未现场验证**：Microsoft 登录、Forge/NeoForge 完整安装还没有端到端验证；原版 1.19.2 与 Fabric 1.19.4 实例的真实游戏启动已实跑通过（离线账号，到达主界面）。Fabric 元数据已通过镜像实测，Quilt 官方 API 在本机超时。Modrinth 搜索、安装、启停和更新已现场验证；CurseForge 验证了请求路径、403 映射、fingerprint 测试向量与注入式更新流程，有效 key 下的搜索/安装待验证。整合包自动加载器已用空包 + Fabric 实测（`--no-game`），完整整合包下载后真启动尚未串联验证。
+- **未现场验证**：Microsoft 登录、Forge/NeoForge 完整安装还没有端到端验证；原版 1.19.2 与 Fabric 1.19.4 实例的真实游戏启动已实跑通过（离线账号，到达主界面）。Fabric 元数据已通过镜像实测，Quilt 官方 API 在本机超时。Modrinth 搜索、安装、启停和更新已现场验证；CurseForge 验证了请求路径、403 映射、fingerprint 测试向量与注入式更新流程，有效 key 下的搜索/安装待验证。整合包自动加载器已用空包 + Fabric 实测（`--no-game`），完整整合包下载后真启动尚未串联验证；GUI 的整合包安装复用同一核心路径，尚未用真实大包跑完“下载→装加载器→下载游戏→启动”全链路。GUI 下载页已真实验证游戏 1.0、光影与资源包。
 - **命令行长度**：没有 argfile/classpath manifest；大量模组导致命令行超过 Windows 限制时会启动失败。
 - **Java 选择**：只按 major 选择最低可用版本；没有厂商/位数/内存参数兼容性判断。
 - **FIPS/BCrypt**：离线 UUID 使用 BCrypt MD5；在禁用 MD5 的 FIPS 策略下可能失败。
@@ -516,7 +517,7 @@ classDiagram
 ### P2
 
 - 没有结构化日志文件轮转；`--verbose` 只影响 stderr。
-- 没有下载进度条；资源下载只每 250 个输出一次。
+- CLI 没有下载进度条，资源下载只每 250 个输出一次；GUI 下载页显示阶段与单文件字节进度，但游戏/加载器安装阶段没有总体百分比。
 - 没有 CLI 自动补全、国际化、退出码细分。
 - 没有 CMake install/打包规则；当前只产出 `build/<Config>/aurora.exe`。
 - Java 安装尚未做 Adoptium 之外的厂商镜像选择。
@@ -533,7 +534,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 结果：
 
-- Debug 和 Release 编译通过；14 个测试目标全部通过：核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL、活动记录。
+- Debug 和 Release 编译通过；15 个测试目标全部通过：核心、HTTP、加载器、版本清单、认证、Java 安装、Forge/NeoForge、Modrinth、模组管理、CurseForge、资源包、整合包、PCL、活动记录、下载目录。
 - 现场联网：`version latest` 拉取 Mojang 清单成功；`forge list forge 1.21.1`（52.1.20）和 `forge list neoforge 1.21.1`（260 个版本，最新 21.1.265）经 BMCLAPI 元数据镜像成功，单次约 0.6 秒；`loader list fabric` 经 BMCLAPI 成功。
 - Modrinth 现场联网：`mod search sodium` 经 MCIM API 镜像返回结果；`mod install sodium` 和 `mod install sodium-extra` 完成下载、SHA-1 校验和 Sodium 依赖识别。
 - 模组管理现场验证：`mod list`、`mod disable/enable` 在临时目录往返成功；安装 Sodium 0.6.0 后 `mod update` 报告 0.8.13 可用，`mod update --apply` 下载、校验并删除旧 JAR，再次检查为 up to date。
@@ -544,20 +545,23 @@ ctest --test-dir build -C Debug --output-on-failure
 - PCL 实例现场验证：合成 `PCL/Setup.ini`（隔离、内存 tick 25、`-Xss1M`、`--width 1280`、长路径 Java）下 `launch --dry-run --json` 的工作目录切到实例目录、内存 8192 MB、额外参数和 java 全部生效；`config.v1.yml`、自动隔离、显式关闭隔离、无效 Java 回退和参数引号拆分有测试覆盖。
 - 启动计划测试覆盖空 `clientid`/`auth_xuid` 参数保留和单次变量替换。
 - 真实游戏启动（离线账号）已从 `--dry-run` 走到进程实跑：从 `D:\PCL\.minecraft` 复制出 1.5 GB 独立冒烟目录，原版 1.19.2 到达 `Sound engine started`（LWJGL 3.3.1 build 7、OpenAL 初始化、无 crash-report/hs_err、干净 `Stopping!`）；真实 PCL CE 隔离实例 `1.19.4-Fabric_0.18.4` 的工作目录按 `VersionArgumentIndieV2: true` 切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`，`mod install sodium` 写入实例自己的 `mods` 后重启即出现 `sodium 0.4.10+build.24`。1.19.2/1.19.4 清单里 `natives` 映射为 0 条，LWJGL3 从类路径自解压，因此 `versions/<id>/natives` 为空是正确行为；旧版（≤1.16.x）的 natives 解压仍只有单测覆盖。
-- 桌面 GUI 真机验证：界面为莫奈色块主页 + 全页实例选择 + 全页实例设置（无边框自绘窗口、`WS_POPUP | WS_THICKFRAME`、自绘标题栏）。1180×700 居中窗口下用真实点击完成「主页 → 实例选择 → 实例设置（概览/设置/日志）→ 返回」。窗口交互实测：拖动标题栏、4px 边缘缩放、最大化到工作区 1920×1032（任务栏保留）并还原、最小尺寸钳制 980×620（请求 800×500 无效）；窗口四边逐像素抽样为 #ECE8E1（左/右/下 4px）与 #EAE9E3（上），`DWMWA_BORDER_COLOR = DWMWA_COLOR_NONE` 后没有纯白边框。主页在 1180×700 与 1920×1032 下都铺满高度（最大化时上排 634px、日历 294px），980×620 最小窗口走紧凑断点后整页不滚动。页面切换由 View Transitions 完成：rail/panel 在首页、实例页、设置页之间以同名快照连续形变，日历卡独立淡出，`getAnimations()` 可查到 `::view-transition-group(rail|panel)` 与 old/new 伪元素动画（340ms，cubic-bezier(0.4, 0, 0.2, 1)，取消整页缩放），慢速回放可见色块从 236×644 形变到 320×346、878×644 形变到 792×346；设置页签为 200ms 上移淡入。外观：跟随系统/浅色/深色的 4px 窗口边分别为 #ECE8E1 与 #1B211F，切换时通过 `theme` 消息同步原生边框与 WebView 底色（逐像素抽样）；色块/柔和边界两种卡片风格和主题选择保存在 localStorage；未设置背景时，切换实例会把背景与主卡过渡到该加载器图标的色板（浅色主卡：原版 #bccdb8、Fabric #cec7b5、Quilt #cebeee、Forge #c4c4c4、NeoForge #e7bda5；深色：原版 #2d392a、Fabric #3a3527、Quilt #3b2d50、Forge #353535、NeoForge #4a2e1d），色相取自 HMCL 归档的 grass/fabric/quilt/forge/neoforge 图标并按 OKLCH 统一亮度与彩度；有背景时以图片取色为准。实例设置概览显示 9 项信息（存档数由 C++ 扫描 `saves/`，启动次数来自会话计数）与实例目录；实例设置页保留文件夹快捷方式，主题/卡片风格/背景在启动器设置中。运行态（玫红「停止游戏」、行尾运行点、详情页运行状态）通过消息状态复现核对；真实启动/停止链路见上一轮记录，本轮只调整设置页与外观控制。实例设置的「存档文件夹」用 `ShellExecuteW` 拉起资源管理器到 `versions/<id>/saves`，验证后关闭。草方块图标与玩家头像在运行时从用户自己的客户端 JAR 读取纹理并用 canvas 合成，仓库不附带 Mojang 素材；默认背景为纯 CSS 渐变，背景图只由用户在本机上传。热力图通过 JS 按卡片宽度计算格子尺寸，980×620 最小窗口到 1920 最大化下星期标签与格子均对齐。页面截图与 DOM 自检走 WebView2 CDP（`Page.captureScreenshot`），避免窗口被遮挡时截到其他程序。启动器设置升为顶栏第三页，含启动/外观/下载/关于四组；启动页保存临时值（窗口 900×500、JVM `-XX:+UseG1GC`、游戏参数 `--fullscreen`、重试 7、镜像 `https://example.invalid/mirror`）后 `config.json` 全部落盘，恢复 854×480、空参数、重试 3、空镜像后回读一致；页面动画关闭时 `data-motion=off`、过渡时长降到 1e-6s。背景功能用 3840×2400、1.6MB 的本机 `img0.jpg` 走真实 `<input type=file>` change 链路验证：压缩为 1600×1000 JPEG 后 localStorage 145KB，取色得到 `#99bad3 #0567fb #0329a7 #36a8ff`；背景模糊 8px 时 `body::before` 为 `filter: blur(8px)`、`inset: -16px`，卡片磨砂 24px 时为 `backdrop-filter: blur(24px)`，设为 0 时 `data-blur=off` 且卡片回到实色取色；刷新后背景、取色、两个滑杆、动画与主题/风格一起恢复，清除后 `data-bg` 回 off 且卡片恢复原色板。
+- 桌面 GUI 真机验证：界面为莫奈色块主页 + 全页实例选择 + 全页实例设置（无边框自绘窗口、`WS_POPUP | WS_THICKFRAME`、自绘标题栏）。1180×700 居中窗口下用真实点击完成「主页 → 实例选择 → 实例设置（概览/设置/日志）→ 返回」。窗口交互实测：拖动标题栏、4px 边缘缩放、最大化到工作区 1920×1032（任务栏保留）并还原、最小尺寸钳制 980×620（请求 800×500 无效）；窗口四边逐像素抽样为 #ECE8E1（左/右/下 4px）与 #EAE9E3（上），`DWMWA_BORDER_COLOR = DWMWA_COLOR_NONE` 后没有纯白边框。主页在 1180×700 与 1920×1032 下都铺满高度（最大化时上排 634px、日历 294px），980×620 最小窗口走紧凑断点后整页不滚动。页面切换由 View Transitions 完成：rail/panel 在首页、实例页、设置页之间以同名快照连续形变，日历卡独立淡出，`getAnimations()` 可查到 `::view-transition-group(rail|panel)` 与 old/new 伪元素动画（340ms，cubic-bezier(0.4, 0, 0.2, 1)，取消整页缩放），慢速回放可见色块从 236×644 形变到 320×346、878×644 形变到 792×346；设置页签为 220ms 方向性位移淡入；顶栏转场现为 group 360ms、旧块 170ms、新块 280ms（延迟 40ms），旧块向导航外侧移 14px、新块从另一侧 22px 进入。外观：跟随系统/浅色/深色的 4px 窗口边分别为 #ECE8E1 与 #1B211F，切换时通过 `theme` 消息同步原生边框与 WebView 底色（逐像素抽样）；色块/柔和边界两种卡片风格和主题选择保存在 localStorage；未设置背景时，切换实例会把背景与主卡过渡到该加载器图标的色板（浅色主卡：原版 #bccdb8、Fabric #cec7b5、Quilt #cebeee、Forge #c4c4c4、NeoForge #e7bda5；深色：原版 #2d392a、Fabric #3a3527、Quilt #3b2d50、Forge #353535、NeoForge #4a2e1d），色相取自 HMCL 归档的 grass/fabric/quilt/forge/neoforge 图标并按 OKLCH 统一亮度与彩度；有背景时以图片取色为准。实例设置概览显示 9 项信息（存档数由 C++ 扫描 `saves/`，启动次数来自会话计数）与实例目录；实例设置页保留文件夹快捷方式，主题/卡片风格/背景在启动器设置中。运行态（玫红「停止游戏」、行尾运行点、详情页运行状态）通过消息状态复现核对；真实启动/停止链路见上一轮记录，本轮只调整设置页与外观控制。实例设置的「存档文件夹」用 `ShellExecuteW` 拉起资源管理器到 `versions/<id>/saves`，验证后关闭。草方块图标与玩家头像在运行时从用户自己的客户端 JAR 读取纹理并用 canvas 合成，仓库不附带 Mojang 素材；默认背景为纯 CSS 渐变，背景图只由用户在本机上传。热力图通过 JS 按卡片宽度计算格子尺寸，980×620 最小窗口到 1920 最大化下星期标签与格子均对齐。页面截图与 DOM 自检走 WebView2 CDP（`Page.captureScreenshot`），避免窗口被遮挡时截到其他程序。启动器设置升为顶栏页（新增下载页后为第四页），含启动/外观/下载/关于四组；启动页保存临时值（窗口 900×500、JVM `-XX:+UseG1GC`、游戏参数 `--fullscreen`、重试 7、镜像 `https://example.invalid/mirror`）后 `config.json` 全部落盘，恢复 854×480、空参数、重试 3、空镜像后回读一致；页面动画关闭时 `data-motion=off`、过渡时长降到 1e-6s。背景功能用 3840×2400、1.6MB 的本机 `img0.jpg` 走真实 `<input type=file>` change 链路验证：压缩为 1600×1000 JPEG 后 localStorage 145KB，取色得到 `#99bad3 #0567fb #0329a7 #36a8ff`；背景模糊 8px 时 `body::before` 为 `filter: blur(8px)`、`inset: -16px`，卡片磨砂 24px 时为 `backdrop-filter: blur(24px)`，设为 0 时 `data-blur=off` 且卡片回到实色取色；刷新后背景、取色、两个滑杆、动画与主题/风格一起恢复，清除后 `data-bg` 回 off 且卡片恢复原色板。
 - `launch --log FILE` 实测捕获子进程输出（50 条 log4j 事件 + JVM 的 `JDK_JAVA_OPTIONS` 提示），并确认头部不含参数：`--accessToken`/`-cp` 命中 0 次；`test_process_log_redacts_command_line` 用 `cmd.exe /c echo` 断言日志里有子进程输出但没有命令行片段。
 - 路径安全测试覆盖绝对路径、盘符、`..`、ADS/冒号和危险尾随点/空格。
 - 使用归档中的 `1.0` 版本执行了 `version list`、`version show` 和 `launch --dry-run`；中文路径、用户名和版本 id 已验证。
 - 使用本地临时 HTTP 服务验证了客户端 JAR、库、资源索引和 native ZIP 下载，以及 SHA-1 校验、`.part` 文件、`extract.exclude` 和 `.dll` 解压。
+- 下载页用临时游戏目录实测：Mojang 清单 921 个版本；Modrinth 光影/资源包各 40 条搜索；Complementary Reimagined r5.2.2 与 Fresh Animations v1.8 分别写入目标实例的 `shaderpacks`/`resourcepacks` 并通过 SHA-1；Minecraft 1.0 完整安装并识别为原版实例。后台任务进度浮层、完成刷新与 toast 均已验证；临时游戏目录未写回真实实例。
+- 页面转场复测：启动→实例→下载→设置 触发 rail/panel/chrome/root 同名快照，`data-nav=next` 时旧块左移、新块从右进入，`prev` 反向（伪元素上 `--nav-dir` 继承为 ±1），结束后清除；关闭动画时不启动 View Transition。
+- 代理回归：`NO_PROXY` 中的裸 IPv6 `::1` 曾使 `WinHttpOpen` 返回 error 87，现过滤不带方括号的 IPv6 与 `host:port` 绕过项，并在初始化失败时回退无 bypass/直连；修复后真实下载成功。
 - 未执行 Microsoft 登录和完整 Forge/NeoForge 安装；真实游戏启动与桌面首屏 GUI 已按上文验证。
 - 本机代理对 `meta.fabricmc.net`、`maven.neoforged.net` 的连通性不稳定；Fabric/NeoForge/Forge promotions 的官方端点已实现并由单测覆盖，现场查询走 BMCL 镜像。
 
 ## 14. 后续阶段
 
-1. **GUI**：主页（左栏版本号与启动按钮、最近游玩、统计/热力图）、全页实例选择与全页实例设置已用 WebView2 落地；页面切换用 View Transitions 做连续形变，后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
+1. **GUI**：主页、实例选择/设置、下载页与启动器设置已用 WebView2 落地；View Transitions 覆盖顶栏页与实例设置，内部页签/下载分类也有方向性动画，后续补齐 CurseForge 内容源、下载分页与设置向导，仍不引入 Qt 或前端构建链。
 2. **CurseForge 完善**：依赖关系展示、有效 key 下的真实现场验证。
 3. **整合包完善**：完整游戏文件下载与真实启动的端到端验证、实例级配置编辑。
-4. **资源包完善**：下载源、光影包统一管理。
+4. **资源包/光影完善**：下载后启用与实例级管理面板。
 5. **服务端/更新器**：服务端启动、更新检查、崩溃分析。
 6. **兼容层**：旧版 `virtual`/`map_to_resources` 资源、主题包、其他原 HMCL 功能。
 7. **发布工程**：可信代码签名、CI 构建、安装包和自动更新。
