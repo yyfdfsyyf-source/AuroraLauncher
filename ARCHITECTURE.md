@@ -6,7 +6,7 @@
 D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 ```
 
-当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖浅色玻璃主页（左栏大版本号与启动胶囊、主卡最近游玩行内启动、底部统计与年度日历）、全页实例选择与全页实例设置（概览/设置/日志，含实例/存档/模组/日志文件夹快捷方式）。实例选择与实例设置沿用 PCL2 CE 的信息结构；主页骨架按用户提供的设计稿重排，视觉沿用 LauncherX 与美西螈启动器的浅色卡片语言。窗口为无边框自绘（4px 缩放入口、`DWMWA_BORDER_COLOR = NONE` 去掉 Win11 白边）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
+当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖莫奈色块主页（左栏大版本号与启动按钮、主卡最近游玩、通栏年度日历）、全页实例选择与全页实例设置（概览/设置/日志，含实例/存档/模组/日志文件夹快捷方式）。实例选择与实例设置沿用 PCL2 CE 的信息结构；主页骨架按用户设计稿重排，视觉为大色块与莫奈取色，不使用玻璃、描边或投影；页面切换用 View Transitions 让左栏与主卡在页面之间连续形变。窗口为无边框自绘（4px 缩放入口、`DWMWA_BORDER_COLOR = NONE` 去掉 Win11 白边）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
 
 ## 1. 状态定义
 
@@ -145,7 +145,7 @@ flowchart TB
 | --- | --- |
 | `src/cli.cpp` | 命令、参数、JSON/文本输出、敏感参数脱敏 |
 | `src/gui/main.cpp` | WebView2 宿主、JS↔C++ JSON 消息桥、进程轮询与日志尾部推送 |
-| `src/gui/ui/index.html` | 浅色玻璃主页（左栏大版本号与启动胶囊、最近游玩行内启动、统计、年度热力图）、实例选择页与实例设置页（单文件 HTML/CSS/JS，无前端构建步骤） |
+| `src/gui/ui/index.html` | 莫奈色块主页（左栏大版本号与启动按钮、最近游玩、年度热力图）、实例选择页与实例设置页（单文件 HTML/CSS/JS，无前端构建步骤；页面切换用 View Transitions） |
 | `src/core/repository.cpp` | 扫描 `versions`，加载并递归解析 `inheritsFrom` |
 | `src/core/version.cpp` | 版本 JSON 模型、库、参数、下载信息、合并规则 |
 | `src/core/rules.cpp` | OS/arch/version/features 规则判断 |
@@ -476,7 +476,7 @@ classDiagram
 | 整合包 | 已实现 | `.mrpack` / CurseForge manifest、自动加载器、可启动实例、overrides 哈希、升级/备份 |
 | PCL 实例兼容 | 已实现 | `Setup.ini`/`config.v1.yml`、版本隔离、内存档位、JVM/游戏参数、指定 Java；`launch` 与 `run_dir` 自动采用 |
 | 自签开发签名 | 已实现 | 脚本 + Windows 资源/清单；公开发布需可信证书 |
-| GUI | 主页与实例页已实现 | WebView2 宿主 + 无边框浅色窗口（自绘标题栏、状态胶囊、拖动/缩放/最大化/最小化、无 DWM 白边）+ 主页（左栏大版本号与启动/停止胶囊、最近游玩行内启动、统计、年度热力图）+ 全页实例选择（文件夹侧栏、搜索、行内齿轮）+ 全页实例设置（概览/设置/日志、打开实例/存档/模组/日志文件夹）；下载与安装仍在 CLI |
+| GUI | 主页与实例页已实现 | WebView2 宿主 + 无边框窗口（自绘标题栏、拖动/缩放/最大化/最小化、无 DWM 白边）+ 莫奈色块主页（左栏大版本号与启动/停止按钮、最近游玩、年度热力图）+ 全页实例选择（文件夹侧栏、搜索、行内齿轮）+ 全页实例设置（概览/设置/日志、打开实例/存档/模组/日志文件夹）；下载与安装仍在 CLI |
 | 游玩活动 | 已实现 | GUI 与 CLI 启动都写入 `activity.json`；热力图还会读取各实例 `logs/aurora-launcher.log` 的启动横幅回填旧启动 |
 | 主题包/服务端 | 未接入 | 原 Java 功能尚未迁移 |
 
@@ -544,7 +544,7 @@ ctest --test-dir build -C Debug --output-on-failure
 - PCL 实例现场验证：合成 `PCL/Setup.ini`（隔离、内存 tick 25、`-Xss1M`、`--width 1280`、长路径 Java）下 `launch --dry-run --json` 的工作目录切到实例目录、内存 8192 MB、额外参数和 java 全部生效；`config.v1.yml`、自动隔离、显式关闭隔离、无效 Java 回退和参数引号拆分有测试覆盖。
 - 启动计划测试覆盖空 `clientid`/`auth_xuid` 参数保留和单次变量替换。
 - 真实游戏启动（离线账号）已从 `--dry-run` 走到进程实跑：从 `D:\PCL\.minecraft` 复制出 1.5 GB 独立冒烟目录，原版 1.19.2 到达 `Sound engine started`（LWJGL 3.3.1 build 7、OpenAL 初始化、无 crash-report/hs_err、干净 `Stopping!`）；真实 PCL CE 隔离实例 `1.19.4-Fabric_0.18.4` 的工作目录按 `VersionArgumentIndieV2: true` 切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`，`mod install sodium` 写入实例自己的 `mods` 后重启即出现 `sodium 0.4.10+build.24`。1.19.2/1.19.4 清单里 `natives` 映射为 0 条，LWJGL3 从类路径自解压，因此 `versions/<id>/natives` 为空是正确行为；旧版（≤1.16.x）的 natives 解压仍只有单测覆盖。
-- 桌面 GUI 真机验证：界面为浅色玻璃主页 + 全页实例选择 + 全页实例设置（无边框自绘窗口、`WS_POPUP | WS_THICKFRAME`、自绘浅色标题栏与状态胶囊）。1180×760 居中窗口下用真实点击完成「主页 → 实例选择 → 实例设置（概览/设置/日志）→ 启动 → 停止」。窗口交互实测：拖动标题栏、4px 边缘缩放、最大化到工作区 1920×1032（任务栏保留）并还原 1180×760、最小尺寸钳制 980×620（请求 800×500 无效）；窗口四边逐像素抽样为 #EEF1F6（左/右/下 4px）与 #FAFBFD（上），`DWMWA_BORDER_COLOR = DWMWA_COLOR_NONE` 后没有纯白边框。启动后主胶囊与状态胶囊变绿「停止游戏 / 运行中 · 1.19.4-Fabric_0.18.4」，最近行内按钮变「停止」、另一行禁用；日志滚动到 LWJGL/资源加载行；停止后状态「已手动停止」，`activity.json` 写入会话，统计变为「4 分钟 / 10 次（今天 5 次）」。实例设置的「存档文件夹」用 `ShellExecuteW` 拉起资源管理器到 `versions/<id>/saves`，验证后关闭。页面切换（190ms 位移淡入）与设置页签切换（170ms 上移淡入）均在 70ms 中间帧截到位移；实例选择的搜索过滤与无匹配空态、返回上一页的 `anim-left` 均已验证。草方块图标与玩家头像在运行时从用户自己的客户端 JAR 读取纹理并用 canvas 合成，仓库不附带 Mojang 素材；背景图由本项目生成。热力图通过 JS 按卡片宽度计算格子尺寸，980×620 最小窗口到 1920 最大化下星期标签与格子均对齐。页面截图与 DOM 自检走 WebView2 CDP（`Page.captureScreenshot`），避免窗口被遮挡时截到其他程序。
+- 桌面 GUI 真机验证：界面为莫奈色块主页 + 全页实例选择 + 全页实例设置（无边框自绘窗口、`WS_POPUP | WS_THICKFRAME`、自绘标题栏）。1180×700 居中窗口下用真实点击完成「主页 → 实例选择 → 实例设置（概览/设置/日志）→ 返回」。窗口交互实测：拖动标题栏、4px 边缘缩放、最大化到工作区 1920×1032（任务栏保留）并还原、最小尺寸钳制 980×620（请求 800×500 无效）；窗口四边逐像素抽样为 #ECE8E1（左/右/下 4px）与 #EAE9E3（上），`DWMWA_BORDER_COLOR = DWMWA_COLOR_NONE` 后没有纯白边框。主页在 1180×700 与 1920×1032 下都铺满高度（最大化时上排 634px、日历 294px），980×620 最小窗口走紧凑断点后整页不滚动。页面切换由 View Transitions 完成：rail/panel 在首页、实例页、设置页之间以同名快照连续形变，日历卡独立淡出，`getAnimations()` 可查到 `::view-transition-group(rail|panel)` 与 old/new 伪元素动画，慢速回放可见色块从 236×644 形变到 320×346、878×644 形变到 792×346；设置页签为 220ms 上移淡入。运行态（玫红「停止游戏」、行尾运行点、详情页运行状态）通过消息状态复现核对；真实启动/停止链路见上一轮记录，本轮只改样式与配色。实例设置的「存档文件夹」用 `ShellExecuteW` 拉起资源管理器到 `versions/<id>/saves`，验证后关闭。草方块图标与玩家头像在运行时从用户自己的客户端 JAR 读取纹理并用 canvas 合成，仓库不附带 Mojang 素材；背景为纯 CSS 渐变。热力图通过 JS 按卡片宽度计算格子尺寸，980×620 最小窗口到 1920 最大化下星期标签与格子均对齐。页面截图与 DOM 自检走 WebView2 CDP（`Page.captureScreenshot`），避免窗口被遮挡时截到其他程序。
 - `launch --log FILE` 实测捕获子进程输出（50 条 log4j 事件 + JVM 的 `JDK_JAVA_OPTIONS` 提示），并确认头部不含参数：`--accessToken`/`-cp` 命中 0 次；`test_process_log_redacts_command_line` 用 `cmd.exe /c echo` 断言日志里有子进程输出但没有命令行片段。
 - 路径安全测试覆盖绝对路径、盘符、`..`、ADS/冒号和危险尾随点/空格。
 - 使用归档中的 `1.0` 版本执行了 `version list`、`version show` 和 `launch --dry-run`；中文路径、用户名和版本 id 已验证。
@@ -554,7 +554,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 14. 后续阶段
 
-1. **GUI**：主页（左栏版本号与启动胶囊、最近游玩、统计/热力图）、全页实例选择与全页实例设置已用 WebView2 落地；后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
+1. **GUI**：主页（左栏版本号与启动按钮、最近游玩、统计/热力图）、全页实例选择与全页实例设置已用 WebView2 落地；页面切换用 View Transitions 做连续形变，后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
 2. **CurseForge 完善**：依赖关系展示、有效 key 下的真实现场验证。
 3. **整合包完善**：完整游戏文件下载与真实启动的端到端验证、实例级配置编辑。
 4. **资源包完善**：下载源、光影包统一管理。

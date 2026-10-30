@@ -958,19 +958,19 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.hbrBackground = CreateSolidBrush(RGB(238, 241, 246));
+    window_class.hbrBackground = CreateSolidBrush(RGB(236, 232, 225));
     window_class.lpszClassName = L"AuroraLauncherGuiWindow";
     if (RegisterClassW(&window_class) == 0) {
         return 1;
     }
 
-    state.rim_brush = CreateSolidBrush(RGB(238, 241, 246));
-    state.header_brush = CreateSolidBrush(RGB(250, 251, 253));
+    state.rim_brush = CreateSolidBrush(RGB(236, 232, 225));
+    state.header_brush = CreateSolidBrush(RGB(234, 233, 227));
 
     state.window = CreateWindowExW(
         WS_EX_APPWINDOW, window_class.lpszClassName, L"AuroraLauncher",
         WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN,
-        CW_USEDEFAULT, CW_USEDEFAULT, 1180, 760, nullptr, nullptr, instance, nullptr);
+        CW_USEDEFAULT, CW_USEDEFAULT, 1180, 700, nullptr, nullptr, instance, nullptr);
     if (state.window == nullptr) {
         return 1;
     }
@@ -1027,9 +1027,9 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
 
                             COREWEBVIEW2_COLOR background{};
                             background.A = 255;
-                            background.R = 238;
-                            background.G = 241;
-                            background.B = 246;
+                            background.R = 236;
+                            background.G = 232;
+                            background.B = 225;
                             // Background lives on ICoreWebView2Controller2, not on the view.
                             ComPtr<ICoreWebView2Controller2> controller2;
                             if (SUCCEEDED(state.controller.As(&controller2))) {

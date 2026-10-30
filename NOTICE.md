@@ -20,14 +20,15 @@ The desktop information architecture follows PCL2 CE (instance picker with a
 folder sidebar and instance rows, full-page instance settings with a category
 nav and cards), observed from a locally installed copy. The home layout (version
 rail, recent-games card, calendar card) follows a design sketch provided by the
-project owner. The visual language (light frosted cards, large selected-version
-heading, gradient pill launch button, inline recent-project launch) takes cues
-from LauncherX and Axolotl Launcher as shown in reference videos supplied by the
-user. No code, XAML, artwork, or other assets from those launchers are included.
-The launcher background (`src/gui/ui/assets/bg.jpg`) was generated for this
-project. Grass-block icons and the player head are composed at runtime in the
-WebView from textures inside the user's own Minecraft client JAR; no Mojang
-textures are redistributed with this repository.
+project owner. The visual language (large flat color blocks, a Monet-inspired
+sage / powder-blue / cream / lilac palette, oversized version heading) is an
+original implementation; earlier layout explorations took cues from LauncherX
+and Axolotl Launcher reference videos supplied by the user. No code, XAML,
+artwork, or other assets from those launchers are included. The page background
+is generated with CSS gradients in this project. Grass-block icons and the
+player head are composed at runtime in the WebView from textures inside the
+user's own Minecraft client JAR; no Mojang textures are redistributed with this
+repository.
 
 Microsoft login, when enabled, must use an Azure application registration owned
 by the AuroraLauncher project. Release binaries should be signed with the
