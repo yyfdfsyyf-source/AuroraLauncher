@@ -9,6 +9,7 @@
 #include "core/pcl.hpp"
 #include "core/process.hpp"
 #include "core/repository.hpp"
+#include "core/resourcepacks.hpp"
 #include "core/rules.hpp"
 #include "core/strings.hpp"
 #include "core/zip.hpp"
@@ -243,6 +244,7 @@ Json instance_entry(const VersionRepository& repository, const std::string& id) 
     entry["javaMajor"] = 0;
     entry["isolated"] = false;
     entry["modCount"] = 0;
+    entry["resourcePackCount"] = 0;
     entry["modpack"] = std::string();
     entry["ready"] = false;
     try {
@@ -275,6 +277,8 @@ Json instance_entry(const VersionRepository& repository, const std::string& id) 
             }
         }
         entry["modCount"] = static_cast<int>(enabled);
+        entry["resourcePackCount"] =
+            static_cast<int>(scan_resource_packs(version.run_dir).size());
     } catch (const std::exception& error) {
         entry["error"] = error.what();
     }

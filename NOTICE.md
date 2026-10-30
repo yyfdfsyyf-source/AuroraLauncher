@@ -18,9 +18,10 @@ or update metadata.
 
 The desktop information architecture follows PCL2 CE (instance picker with a
 folder sidebar and instance rows, full-page instance settings with a category
-nav and cards), observed from a locally installed copy. The visual language
-(light frosted cards, large selected-instance heading, gradient pill launch
-button, inline recent-project launch, insights and calendar column) takes cues
+nav and cards), observed from a locally installed copy. The home layout (version
+rail, recent-games card, calendar card) follows a design sketch provided by the
+project owner. The visual language (light frosted cards, large selected-version
+heading, gradient pill launch button, inline recent-project launch) takes cues
 from LauncherX and Axolotl Launcher as shown in reference videos supplied by the
 user. No code, XAML, artwork, or other assets from those launchers are included.
 The launcher background (`src/gui/ui/assets/bg.jpg`) was generated for this

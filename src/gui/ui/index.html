@@ -165,17 +165,27 @@
     display: flex; flex-direction: column; gap: 16px;
   }
 
-  .hero { flex: none; padding: 4px 4px 0; display: flex; flex-direction: column; gap: 18px; }
-  .hero-top { display: flex; align-items: flex-start; gap: 24px; }
-  .hero-text { flex: 1; min-width: 0; }
-  .greet { font-size: 12.5px; color: var(--muted); letter-spacing: 0.2px; }
-  .hero-name {
-    margin: 6px 0 0;
-    font-size: clamp(40px, 2.9vw, 56px); line-height: 1.12; font-weight: 700; letter-spacing: -0.8px;
+  .home-top { flex: none; display: flex; gap: 16px; align-items: stretch; }
+  .instance-rail { width: 300px; flex: none; display: flex; flex-direction: column; padding: 6px 4px 4px; }
+  .rail-version {
+    font-size: clamp(48px, 5vw, 64px); line-height: 1.04; font-weight: 700;
+    letter-spacing: -1.6px; color: #0d3057;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .hero-meta { margin: 9px 0 0; font-size: 12.5px; color: var(--muted);
+  .rail-loader { display: flex; align-items: center; gap: 7px; margin-top: 7px;
+                 font-size: 13.5px; font-weight: 600; color: var(--blue); }
+  .rail-loader .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue);
+                      box-shadow: 0 0 0 3px rgba(63, 125, 251, 0.14); }
+  .rail-meta { margin-top: 8px; font-size: 12px; color: var(--muted);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rail-instance { margin-top: 10px; font-size: 11.5px; color: rgba(27, 35, 48, 0.5);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rail-link { margin-top: 4px; display: flex; align-items: center; gap: 6px;
+               align-self: flex-start; padding: 6px 0;
+               background: none; border: 0; color: var(--muted); font-size: 12px; }
+  .rail-link:hover:not(:disabled) { color: var(--text); }
+  .rail-link:disabled { opacity: 0.45; cursor: default; }
+  .rail-link svg { width: 14px; height: 14px; }
 
   .account {
     flex: none;
@@ -198,11 +208,12 @@
   .account-info b { display: block; font-size: 12.5px; font-weight: 600;
                     max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .account-info span { display: block; margin-top: 1px; font-size: 10.5px; color: var(--muted); }
+  .instance-rail .account { margin-top: auto; align-self: flex-start; }
 
-  .hero-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .pill-launch {
-    display: flex; align-items: center; gap: 9px;
-    height: 48px; padding: 0 26px 0 22px;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    width: 100%; margin-top: 18px;
+    height: 48px; padding: 0 18px;
     border: 0; border-radius: 24px;
     background: linear-gradient(135deg, #3f7dfb, #6a5cf0);
     color: #fff; font-size: 14.5px; font-weight: 600; letter-spacing: 0.3px;
@@ -220,25 +231,15 @@
   .pill-launch.running::before {
     content: ""; width: 12px; height: 12px; border-radius: 3px; background: #fff; flex: none;
   }
-  .pill-ghost {
-    height: 42px; padding: 0 20px;
-    background: rgba(255, 255, 255, 0.58);
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    border-radius: 21px;
-    font-size: 13px; font-weight: 500;
-    box-shadow: 0 8px 20px rgba(36, 48, 70, 0.07);
-    transition: background-color 120ms ease;
+  .list-card { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .list-foot {
+    margin-top: auto; height: 38px; flex: none;
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: 0; border-top: 1px solid rgba(27, 35, 48, 0.07);
+    color: var(--blue); font-size: 12.5px;
   }
-  .pill-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.9); }
-  .pill-ghost:disabled { opacity: 0.42; cursor: default; }
-
-  .home-row { flex: none; display: flex; gap: 16px; align-items: stretch; }
-  .home-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .home-side { width: 330px; flex: none; display: flex; flex-direction: column; }
-  .section-head { display: flex; align-items: center; gap: 10px; padding: 2px 4px 10px; }
-  .section-head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.1px; }
-  .link { background: none; border: 0; padding: 0; color: var(--blue); font-size: 12px; }
-  .link:hover { text-decoration: underline; }
+  .list-foot:hover { color: var(--blue-hi); }
+  .list-foot svg { width: 14px; height: 14px; }
 
   .card, .glass-card {
     background: rgba(255, 255, 255, 0.6);
@@ -247,25 +248,23 @@
     padding: 16px 18px;
     box-shadow: var(--shadow);
   }
-  .insight-card { flex: 1; display: flex; flex-direction: column; }
   .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .card-head h2 { margin: 0; font-size: 14.5px; font-weight: 600; }
   .card-head .sub { color: var(--muted); font-size: 11px; }
 
-  .recent-list { display: flex; flex-direction: column; gap: 8px; }
+  .recent-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
   .recent-row {
     display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(36, 48, 70, 0.06);
+    padding: 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
     cursor: pointer;
-    transition: transform 130ms ease, box-shadow 160ms ease, border-color 130ms ease;
+    transition: background 120ms ease, border-color 120ms ease;
   }
-  .recent-row:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(36, 48, 70, 0.1);
-                      border-color: rgba(255, 255, 255, 0.98); }
-  .recent-row.sel { border-color: rgba(63, 125, 251, 0.5); }
+  .recent-row:hover { background: rgba(255, 255, 255, 0.58); border-color: rgba(27, 35, 48, 0.06); }
+  .recent-row.sel { background: rgba(63, 125, 251, 0.08); border-color: rgba(63, 125, 251, 0.3); }
+  .recent-list.few .recent-row { flex: 1 1 0; max-height: 88px; }
   .recent-row .info { flex: 1; min-width: 0; }
   .recent-row b { display: block; font-size: 13.5px; font-weight: 600;
                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -302,7 +301,6 @@
   }
 
   /* ---------- stats ---------- */
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; margin-top: 2px; }
   .stat { min-width: 0; }
   .stat span { display: block; color: var(--muted); font-size: 11px; }
   .stat b {
@@ -316,6 +314,12 @@
 
   /* ---------- heatmap ---------- */
   .calendar-card { flex: none; }
+  .cal-head { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 14px; }
+  .cal-title { flex: none; }
+  .cal-title h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .cal-title .sub { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .cal-stats { flex: 1; display: flex; justify-content: space-between; gap: 20px; }
+  .cal-stats .stat b { font-size: 20px; }
   .heat-scroll { padding-bottom: 2px; }
   .months {
     display: grid; gap: 2px; margin-left: 26px; height: 14px;
@@ -336,7 +340,9 @@
   .grid i.l4 { background: var(--l4); }
   .grid i.future { background: transparent; }
   .grid i.today { box-shadow: 0 0 0 1.5px var(--blue) inset; }
-  .heat-foot { margin-top: 10px; color: var(--muted); font-size: 11px; }
+  .heat-foot { margin-top: 10px; display: flex; align-items: center; justify-content: space-between;
+               gap: 12px; color: var(--muted); font-size: 11px; }
+  .heat-note { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .legend { display: flex; align-items: center; gap: 3px; color: var(--muted2); font-size: 10.5px; }
   .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
   .legend i.l0 { background: var(--l0); }
@@ -666,8 +672,9 @@
   .tip.show { opacity: 1; }
 
   @media (max-width: 1040px) {
-    .home-side { width: 288px; }
-    .hero-name { font-size: 34px; }
+    .instance-rail { width: 260px; }
+    .cal-head { gap: 16px; }
+    .cal-stats { gap: 12px; }
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .detail-settings { grid-template-columns: 1fr 1fr; }
   }</style>
@@ -707,56 +714,52 @@
 <main>
   <section class="view" id="view-launch">
     <div class="home">
-      <div class="hero">
-        <div class="hero-top">
-          <div class="hero-text">
-            <div class="greet" id="greet">你好</div>
-            <h1 class="hero-name" id="heroName">还没有游戏实例</h1>
-            <p class="hero-meta" id="heroMeta">安装一个版本后，这里会显示当前选择的实例</p>
-          </div>
+      <div class="home-top">
+        <aside class="instance-rail">
+          <div class="rail-version" id="railVersion">—</div>
+          <div class="rail-loader"><i class="dot"></i><span id="railLoader">没有实例</span></div>
+          <div class="rail-meta" id="railMeta">先在实例页安装一个版本</div>
+          <button class="pill-launch" id="launch" disabled>
+            <svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg>
+            <span id="launchLabel">没有可用实例</span>
+          </button>
+          <div class="rail-instance" id="railInstance"></div>
+          <button class="rail-link" id="instanceSettings" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
+            实例设置
+          </button>
+          <div class="grow"></div>
           <div class="account">
             <span class="head" id="playerHead"><span id="playerInitial">Y</span><img id="playerSkin" alt="" hidden></span>
             <div class="account-info"><b id="playerName">玩家</b><span>离线模式</span></div>
           </div>
-        </div>
-        <div class="hero-actions">
-          <button class="pill-launch" id="launch" disabled>
-            <svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg>
-            <span id="launchLabel">启动游戏</span>
-          </button>
-          <button class="pill-ghost" id="choose">选择实例</button>
-          <button class="pill-ghost" id="instanceSettings" disabled>实例设置</button>
-        </div>
-      </div>
+        </aside>
 
-      <div class="home-row">
-        <div class="home-main">
-          <div class="section-head">
+        <section class="card list-card">
+          <div class="card-head">
             <h2>最近游玩</h2>
-            <div class="grow"></div>
-            <button class="link" id="allInstances">全部实例</button>
+            <span class="sub" id="recentSub"></span>
           </div>
           <div class="recent-list" id="recent"></div>
-        </div>
-        <aside class="home-side">
-          <div class="card insight-card">
-            <div class="card-head"><h2>游玩统计</h2></div>
-            <div class="stats">
-              <div class="stat"><span>总游戏时长</span><b id="statTotal">—</b><small id="statTotalSub"></small></div>
-              <div class="stat"><span>本周游玩</span><b id="statWeek">—</b><small>最近 7 天</small></div>
-              <div class="stat"><span>连续游玩</span><b id="statStreak">—</b><small id="statStreakSub"></small></div>
-              <div class="stat"><span>启动次数</span><b id="statLaunch">—</b><small id="statLaunchSub"></small></div>
-            </div>
-          </div>
-        </aside>
+          <button class="list-foot" id="allInstances">
+            查看全部实例
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </button>
+        </section>
       </div>
 
       <div class="card calendar-card">
-        <div class="card-head">
-          <h2>游玩日历</h2>
-          <span class="sub" id="heatSub"></span>
-          <div class="grow"></div>
-          <div class="legend"><span>少</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>多</span></div>
+        <div class="cal-head">
+          <div class="cal-title">
+            <h2>游玩日历</h2>
+            <span class="sub" id="heatSub"></span>
+          </div>
+          <div class="stats cal-stats">
+            <div class="stat"><span>总游戏时长</span><b id="statTotal">—</b><small id="statTotalSub"></small></div>
+            <div class="stat"><span>本周游玩</span><b id="statWeek">—</b><small>最近 7 天</small></div>
+            <div class="stat"><span>连续游玩</span><b id="statStreak">—</b><small id="statStreakSub"></small></div>
+            <div class="stat"><span>启动次数</span><b id="statLaunch">—</b><small id="statLaunchSub"></small></div>
+          </div>
         </div>
         <div class="heat-scroll">
           <div class="months" id="months"></div>
@@ -765,7 +768,10 @@
             <div class="grid" id="grid"></div>
           </div>
         </div>
-        <div class="heat-foot" id="heatFoot"></div>
+        <div class="heat-foot">
+          <span class="heat-note" id="heatFoot"></span>
+          <div class="legend"><span>少</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>多</span></div>
+        </div>
       </div>
     </div>
   </section>
@@ -905,8 +911,9 @@ const native = window.chrome?.webview ?? null;
 const els = {};
 for (const id of ['version','tabs','win-min','win-max','win-close','subnav','backBtn','subTitle',
                   'playerHead','playerSkin','playerInitial','playerName',
-                  'launch','launchLabel','choose','instanceSettings',
-                  'greet','heroName','heroMeta','statusPill','statusText',
+                  'launch','launchLabel','instanceSettings',
+                  'railVersion','railLoader','railMeta','railInstance','recentSub',
+                  'statusPill','statusText',
                   'heatSub','months','grid','heatFoot','statTotal','statTotalSub',
                   'statWeek','statStreak','statStreakSub','statLaunch','statLaunchSub',
                   'recent','allInstances','count','instances','empty','nomatch','refresh',
@@ -1038,21 +1045,23 @@ function renderPlayer() {
   }
 }
 
-function renderHero() {
-  const hour = new Date().getHours();
-  els.greet.textContent = hour < 5 ? '夜深了' : hour < 11 ? '早上好'
-    : hour < 14 ? '中午好' : hour < 18 ? '下午好' : '晚上好';
+function renderRail() {
   const item = itemById(state.selectedId);
   if (!item) {
-    els.heroName.textContent = '还没有游戏实例';
-    els.heroMeta.textContent = '安装一个版本后，这里会显示当前选择的实例';
+    els.railVersion.textContent = '—';
+    els.railLoader.textContent = '没有实例';
+    els.railMeta.textContent = '先在实例页安装一个版本';
+    els.railInstance.textContent = '';
     return;
   }
-  els.heroName.textContent = displayName(item);
-  const bits = ['Minecraft ' + item.minecraftVersion];
-  if (item.kind && item.kind !== 'vanilla') { bits.push(kindLabel(item.kind)); }
-  bits.push(item.modCount ? item.modCount + ' 个模组' : (item.isolated ? '独立目录' : '共享目录'));
-  els.heroMeta.textContent = bits.join(' · ');
+  els.railVersion.textContent = item.minecraftVersion || item.id;
+  els.railLoader.textContent = kindLabel(item.kind);
+  const bits = [];
+  if (item.resourcePackCount) { bits.push(item.resourcePackCount + ' 个材质'); }
+  if (item.modCount) { bits.push(item.modCount + ' 个模组'); }
+  bits.push(item.isolated ? '独立目录' : '共享目录');
+  els.railMeta.textContent = bits.join(' · ');
+  els.railInstance.textContent = displayName(item);
 }
 
 function renderStatusPill() {
@@ -1079,7 +1088,7 @@ function renderLaunchButton() {
   const running = state.running;
   els.launch.classList.toggle('running', running);
   els.launch.disabled = running ? false : !item || !!item.error || !item.ready;
-  els.launchLabel.textContent = running ? '停止游戏' : '启动游戏';
+  els.launchLabel.textContent = running ? '停止游戏' : item ? '启动游戏' : '没有可用实例';
   els.launch.title = running ? 'PID ' + state.pid
     : !item ? '没有可用实例'
     : item.error ? '实例 JSON 有问题'
@@ -1091,6 +1100,7 @@ const PLAY_SVG = '<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z"/></svg>'
 const STOP_SVG = '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.6"/></svg>';
 
 function renderRecent() {
+  els.recentSub.textContent = state.instances.length ? '共 ' + state.instances.length + ' 个实例' : '';
   const items = new Map(state.instances.map(item => [item.id, item]));
   const recent = (state.activity?.recent) || [];
   const rows = [];
@@ -1104,6 +1114,7 @@ function renderRecent() {
     if (!seen.has(item.id)) { rows.push({ item, entry: null }); seen.add(item.id); }
   }
   els.recent.textContent = '';
+  els.recent.classList.toggle('few', rows.length <= 2);
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
@@ -1160,7 +1171,7 @@ function renderRecent() {
 
 function renderLaunchView() {
   renderPlayer();
-  renderHero();
+  renderRail();
   renderLaunchButton();
   renderRecent();
 }
@@ -1844,7 +1855,6 @@ els.statusPill.addEventListener('click', () => {
   if (!itemById(state.selectedId)) { setView('instances'); return; }
   openSettings(state.selectedId, 'logs');
 });
-els.choose.addEventListener('click', () => setView('instances'));
 els.instanceSettings.addEventListener('click', () => openSettings(state.selectedId));
 els.allInstances.addEventListener('click', () => setView('instances'));
 els.backBtn.addEventListener('click', closeSettings);
