@@ -201,6 +201,14 @@ void center_in_work_area(HWND window) {
     SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
+Json string_list_payload(const std::vector<std::string>& values) {
+    Json list = Json::array();
+    for (const std::string& value : values) {
+        list.push_back(value);
+    }
+    return list;
+}
+
 Json settings_payload() {
     Json settings = Json::object();
     settings["gameDir"] = path_to_utf8(state.config.game_dir);
@@ -209,6 +217,11 @@ Json settings_payload() {
     settings["javaPath"] = path_to_utf8(state.config.java_path);
     settings["width"] = state.config.width;
     settings["height"] = state.config.height;
+    settings["jvmArgs"] = string_list_payload(state.config.jvm_args);
+    settings["gameArgs"] = string_list_payload(state.config.game_args);
+    settings["downloadRetries"] = state.config.download_retries;
+    settings["downloadMirrors"] = string_list_payload(state.config.download_mirrors);
+    settings["configPath"] = path_to_utf8(state.config_path);
     return settings;
 }
 
@@ -755,6 +768,29 @@ void handle_open_folder(const Json& message) {
     }
 }
 
+void handle_open_path(const Json& message) {
+    const std::string target = json_string(message, "target");
+    std::filesystem::path path;
+    if (target == "game") {
+        path = state.config.game_dir;
+    } else if (target == "config") {
+        path = state.config_path.parent_path();
+    } else {
+        post_error("Unknown path: " + target);
+        return;
+    }
+    std::error_code error;
+    if (!std::filesystem::is_directory(path, error)) {
+        post_error("Folder not found: " + path_to_utf8(path));
+        return;
+    }
+    const HINSTANCE launched = ShellExecuteW(nullptr, L"open", path.wstring().c_str(),
+                                             nullptr, nullptr, SW_SHOWNORMAL);
+    if (reinterpret_cast<INT_PTR>(launched) <= 32) {
+        post_error("Unable to open " + path_to_utf8(path));
+    }
+}
+
 void handle_save_settings(const Json& message) {
     if (const auto value = json_optional_string(message, "gameDir"); value && !value->empty()) {
         state.config.game_dir = absolute_path(path_from_utf8(*value));
@@ -770,6 +806,48 @@ void handle_save_settings(const Json& message) {
     const std::int64_t memory = json_integer(message, "memoryMb", state.config.memory_mb);
     if (memory > 0) {
         state.config.memory_mb = static_cast<int>(memory);
+    }
+    const std::int64_t width = json_integer(message, "width", state.config.width);
+    const std::int64_t height = json_integer(message, "height", state.config.height);
+    if (width >= 320 && width <= 7680) {
+        state.config.width = static_cast<int>(width);
+    }
+    if (height >= 240 && height <= 4320) {
+        state.config.height = static_cast<int>(height);
+    }
+    auto read_lines = [&](const char* key, std::vector<std::string>& target) {
+        const Json* array = json_array(message, key);
+        if (array == nullptr) {
+            return;
+        }
+        target.clear();
+        for (const Json& item : *array) {
+            if (!item.is_string()) {
+                continue;
+            }
+            std::string value = trim(item.get<std::string>());
+            if (!value.empty()) {
+                target.push_back(std::move(value));
+            }
+        }
+    };
+    read_lines("jvmArgs", state.config.jvm_args);
+    read_lines("gameArgs", state.config.game_args);
+    const std::int64_t retries = json_integer(message, "downloadRetries", state.config.download_retries);
+    if (retries >= 0 && retries <= 32) {
+        state.config.download_retries = static_cast<int>(retries);
+    }
+    if (json_array(message, "downloadMirrors") != nullptr) {
+        std::vector<std::string> mirrors;
+        read_lines("downloadMirrors", mirrors);
+        std::vector<std::string> valid;
+        for (std::string& mirror : mirrors) {
+            const std::string lower = to_lower_ascii(mirror);
+            if (lower.rfind("http://", 0) == 0 || lower.rfind("https://", 0) == 0) {
+                valid.push_back(std::move(mirror));
+            }
+        }
+        state.config.download_mirrors = std::move(valid);
     }
     try {
         state.config.save(state.config_path);
@@ -836,6 +914,8 @@ void handle_message(const std::string& json_text) {
             handle_save_settings(message);
         } else if (action == "openFolder") {
             handle_open_folder(message);
+        } else if (action == "openPath") {
+            handle_open_path(message);
         } else {
             post_error("Unknown action: " + action);
         }
