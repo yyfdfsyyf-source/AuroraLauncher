@@ -6,26 +6,24 @@
 <title>AuroraLauncher</title>
 <style>
   :root {
-    --bg: #12141a;
-    --panel: #171a21;
-    --panel-2: #1d2028;
-    --line: rgba(255, 255, 255, 0.07);
-    --line-strong: rgba(255, 255, 255, 0.14);
-    --text: #e8eaf1;
-    --muted: #929bad;
-    --accent: #63a4ff;
-    --accent-ink: #0b1220;
-    --good: #4ad295;
-    --warn: #f0b849;
+    --blue: #2a80e3;
+    --blue-hi: #4a97f0;
+    --bg: #0b0e13;
+    --text: #ffffff;
+    --muted: rgba(255, 255, 255, 0.62);
+    --muted2: rgba(255, 255, 255, 0.4);
+    --line: rgba(255, 255, 255, 0.13);
+    --line-soft: rgba(255, 255, 255, 0.08);
+    --panel: rgba(10, 14, 20, 0.78);
+    --good: #41d18b;
     --bad: #ff6b6b;
-    --r-sm: 8px;
-    --r-md: 12px;
-    --r-lg: 16px;
-    --l0: #1b1f27;
-    --l1: #1f3a56;
-    --l2: #2b5f96;
-    --l3: #3f83c9;
-    --l4: #63a4ff;
+    --warn: #f0b849;
+    --radius: 6px;
+    --l0: rgba(255, 255, 255, 0.075);
+    --l1: #1d4368;
+    --l2: #2a6ba8;
+    --l3: #3e8fd6;
+    --l4: #63b4ff;
   }
 
   * { box-sizing: border-box; }
@@ -35,479 +33,584 @@
   body {
     display: flex;
     flex-direction: column;
-    background: var(--bg);
     color: var(--text);
-    font: 13px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font: 13px/1.5 "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     user-select: none;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -2;
+    background: url("assets/bg.jpg") center / cover no-repeat;
+    filter: blur(1.2px) brightness(1.02) saturate(1.08);
+    transform: scale(1.012);
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      linear-gradient(90deg, rgba(5, 8, 13, 0.6) 0, rgba(5, 8, 13, 0.42) 300px,
+                      rgba(5, 8, 13, 0.16) 58%, rgba(5, 8, 13, 0.28) 100%),
+      linear-gradient(180deg, rgba(5, 8, 13, 0.06), rgba(5, 8, 13, 0.32));
   }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb {
-    background: #2a303c; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.18); border-radius: 6px;
     border: 2px solid transparent; background-clip: content-box;
   }
-  ::-webkit-scrollbar-thumb:hover { background: #37404f; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); background-clip: content-box; }
   ::-webkit-scrollbar-track { background: transparent; }
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    height: 52px;
-    padding: 0 16px;
-    border-bottom: 1px solid var(--line);
-    background: var(--panel);
-    flex: none;
-    position: relative;
-    z-index: 30;
-  }
-
-  .mark {
-    width: 22px; height: 22px; border-radius: 7px;
-    background: conic-gradient(from 210deg, #63a4ff, #4ad295, #63a4ff);
-    box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset;
-  }
-
-  .wordmark { font-size: 14px; font-weight: 600; letter-spacing: .2px; }
-  .wordmark span { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
-
+  button { font: inherit; color: inherit; cursor: pointer; }
   .grow { flex: 1; }
 
+  /* ---------- title bar (PCL2-style custom chrome) ---------- */
+  header {
+    height: 48px; flex: none;
+    display: flex; align-items: center;
+    background: var(--blue);
+    padding-left: 16px;
+    position: relative; z-index: 30;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand .logo {
+    width: 25px; height: 25px; border-radius: 6px;
+    background: #fff; color: var(--blue);
+    display: grid; place-items: center;
+    font-size: 15px; font-weight: 800; letter-spacing: -0.5px;
+  }
+  .brand b { font-size: 15.5px; font-weight: 600; letter-spacing: 0.2px; }
+  .brand .ver { font-size: 11px; color: rgba(255, 255, 255, 0.62); margin-left: -3px; }
+
   .tabs {
-    display: flex; gap: 2px; margin-left: 10px;
-    background: var(--panel-2); border: 1px solid var(--line);
-    border-radius: 9px; padding: 2px;
+    display: flex; gap: 4px;
+    position: absolute; left: 50%; transform: translateX(-50%);
   }
   .tabs button {
-    background: transparent; border: 0; border-radius: 7px;
-    padding: 4px 14px; color: var(--muted);
-    font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer;
-  }
-  .tabs button.on { background: #2a303c; color: var(--text); }
-
-  .path {
-    max-width: 40ch;
-    color: var(--muted);
-    font-size: 12px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    direction: rtl;
-    text-align: left;
-  }
-
-  .runpill {
+    height: 30px; padding: 0 16px;
     display: flex; align-items: center; gap: 7px;
-    background: rgba(74,210,149,.1); border: 1px solid rgba(74,210,149,.35);
-    color: var(--good); border-radius: 999px; padding: 4px 12px;
-    font: inherit; font-size: 12px; cursor: pointer; max-width: 28ch;
+    background: transparent; border: 0; border-radius: 15px;
+    color: rgba(255, 255, 255, 0.94); font-size: 13px; font-weight: 500;
   }
-  .runpill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .runpill .dot {
-    width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none;
-    animation: pulse 1.6s ease-in-out infinite;
-  }
+  .tabs button:hover { background: rgba(255, 255, 255, 0.15); }
+  .tabs button.on { background: #fff; color: var(--blue); font-weight: 600; }
+  .tabs svg { width: 15px; height: 15px; fill: currentColor; }
 
-  button {
-    background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-    padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer;
-    transition: filter 120ms ease, transform 90ms ease, opacity 120ms ease;
+  .winctrl { margin-left: auto; display: flex; align-self: stretch; }
+  .winctrl button {
+    width: 46px; height: 100%; padding: 0;
+    display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 0;
+    color: #fff;
   }
-  button:hover:not(:disabled) { filter: brightness(1.16); }
-  button:active:not(:disabled) { transform: translateY(1px); }
-  button:disabled { opacity: .45; cursor: default; }
-  button.ghost { background: transparent; font-weight: 500; color: var(--muted); }
-  button.primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); }
-  button.danger { color: var(--bad); border-color: rgba(255,107,107,.4); background: transparent; }
+  .winctrl button:hover { background: rgba(255, 255, 255, 0.17); }
+  .winctrl button.close:hover { background: #e81123; }
+  .winctrl svg { width: 12px; height: 12px; }
 
-  main { flex: 1; display: flex; min-height: 0; }
-  .view { flex: 1; min-width: 0; overflow-y: auto; }
+  /* ---------- layout ---------- */
+  main { flex: 1; min-height: 0; display: flex; }
+  .view { flex: 1; min-width: 0; display: flex; min-height: 0; }
   .view[hidden] { display: none; }
 
-  .home {
-    max-width: 1080px; margin: 0 auto; padding: 20px 26px 30px;
+  /* ---------- launch view (left 300px + content) ---------- */
+  .launch-left {
+    width: 300px; flex: none;
+    display: flex; flex-direction: column;
+    padding: 0 20px;
+    background: linear-gradient(180deg, rgba(8, 12, 17, 0.3), rgba(8, 12, 17, 0.46));
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .player {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding-bottom: 26px;
+  }
+  .head {
+    width: 82px; height: 82px; border-radius: 8px; overflow: hidden;
+    background: rgba(10, 14, 20, 0.35);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+    display: grid; place-items: center;
+    font-size: 30px; font-weight: 700;
+  }
+  .head img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; }
+  .pname { margin-top: 14px; font-size: 17px; font-weight: 600; max-width: 260px;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pauth { margin-top: 3px; font-size: 12px; color: var(--muted); }
+
+  .launchbox { padding-bottom: 20px; flex: none; }
+  .btn-launch {
+    width: 100%; height: 54px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius);
+    font-size: 16px; font-weight: 500;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .btn-launch:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+  .btn-launch:disabled { opacity: 0.5; cursor: default; }
+  .btn-launch .sub {
+    max-width: 100%; padding: 0 10px;
+    font-size: 11px; font-weight: 400; color: rgba(255, 255, 255, 0.62);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .btn-launch.running {
+    border-color: rgba(65, 209, 139, 0.8);
+    background: rgba(16, 74, 50, 0.45);
+  }
+  .btn-launch.running .sub { color: rgba(150, 240, 195, 0.88); }
+  .launch-row { display: flex; gap: 10px; margin-top: 10px; }
+  .launch-row button {
+    flex: 1; height: 35px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    border-radius: var(--radius);
+    font-size: 13px; font-weight: 400;
+  }
+  .launch-row button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+  .launch-row button:disabled { opacity: 0.45; cursor: default; }
+
+  .content {
+    flex: 1; min-width: 0;
+    padding: 20px 20px 20px 0;
     display: flex; flex-direction: column; gap: 14px;
+    overflow-y: auto;
   }
-
-  .hello h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: .2px; }
-  .hello p { margin: 3px 0 0; color: var(--muted); font-size: 12.5px; }
-
-  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-  .stat {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: var(--r-md); padding: 11px 15px;
+  .recent-card {
+    display: flex; flex-direction: column; min-height: 0;
+    flex: none; margin-top: auto;
   }
-  .stat .k { color: var(--muted); font-size: 11.5px; letter-spacing: .3px; }
+  .recent { flex: 1; min-height: 0; align-content: flex-start; overflow-y: auto; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    flex: none;
+  }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .card-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .card-head .sub { color: var(--muted); font-size: 11.5px; }
+  .link { background: none; border: 0; padding: 0; color: var(--blue-hi); font-size: 12px; }
+  .link:hover { text-decoration: underline; }
+
+  /* ---------- stats + heatmap ---------- */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 16px; }
+  .stat { padding: 0 4px 0 16px; border-left: 1px solid var(--line-soft); min-width: 0; }
+  .stat:first-child { border-left: 0; padding-left: 0; }
+  .stat span { display: block; color: var(--muted); font-size: 11.5px; }
   .stat b {
-    display: block; margin-top: 4px;
-    font-size: 19px; font-weight: 650; letter-spacing: .2px;
+    display: block; margin-top: 2px;
+    font-size: 20px; font-weight: 600; letter-spacing: 0.2px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .stat .s { display: block; color: var(--muted); font-size: 11px; margin-top: 3px;
-             white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat small { display: block; color: var(--muted2); font-size: 10.5px; margin-top: 1px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .panel {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: var(--r-lg);
+  .heat-scroll { padding-bottom: 2px; }
+  .months {
+    display: grid; gap: 2px; margin-left: 26px; height: 13px;
+    color: var(--muted); font-size: 10px;
   }
-
-  .heat { padding: 14px 18px 10px; }
-  .heat-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-  .heat-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
-  .heat-head p { margin: 3px 0 0; color: var(--muted); font-size: 11.5px; }
-  .legend { margin-left: auto; display: flex; align-items: center; gap: 4px;
-            color: var(--muted); font-size: 11px; }
-  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .months span { grid-row: 1; white-space: nowrap; }
+  .heat-body { display: flex; gap: 5px; }
+  .weekdays {
+    display: grid; grid-template-rows: repeat(7, 1fr); gap: 2px;
+    width: 21px; color: var(--muted2); font-size: 9.5px;
+  }
+  .weekdays span { display: flex; align-items: center; }
+  .grid { flex: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, auto); gap: 2px; }
+  .grid i { width: 100%; height: 100%; border-radius: 2px; background: var(--l0); }
+  .grid i.l1 { background: var(--l1); }
+  .grid i.l2 { background: var(--l2); }
+  .grid i.l3 { background: var(--l3); }
+  .grid i.l4 { background: var(--l4); }
+  .grid i.future { background: transparent; }
+  .grid i.today { box-shadow: 0 0 0 1px var(--blue-hi) inset; }
+  .heat-foot { margin-top: 10px; color: var(--muted); font-size: 11px; }
+  .legend { display: flex; align-items: center; gap: 3px; color: var(--muted2); font-size: 10.5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
   .legend i.l0 { background: var(--l0); }
   .legend i.l1 { background: var(--l1); }
   .legend i.l2 { background: var(--l2); }
   .legend i.l3 { background: var(--l3); }
   .legend i.l4 { background: var(--l4); }
 
-  .heat-scroll { overflow-x: auto; padding-bottom: 2px; }
-  .months {
-    display: grid; gap: 3px; margin-left: 28px; height: 14px;
-    color: var(--muted); font-size: 10.5px;
+  /* ---------- recent ---------- */
+  .recent { display: flex; gap: 10px; flex-wrap: wrap; }
+  .recent-item {
+    flex: 1 1 240px; min-width: 0;
+    display: flex; align-items: center; gap: 11px;
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    text-align: left;
   }
-  .months span { grid-row: 1; white-space: nowrap; }
-  .heat-body { display: flex; gap: 6px; }
-  .days {
-    display: grid; grid-template-rows: repeat(7, 12px); gap: 3px;
-    width: 22px; color: var(--muted); font-size: 10px;
-  }
-  .days span { line-height: 12px; }
-  .grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 12px); gap: 3px; }
-  .grid i { width: 12px; height: 12px; border-radius: 3px; background: var(--l0); }
-  .grid i.l1 { background: var(--l1); }
-  .grid i.l2 { background: var(--l2); }
-  .grid i.l3 { background: var(--l3); }
-  .grid i.l4 { background: var(--l4); }
-  .grid i.future { background: transparent; }
-  .grid i.today { box-shadow: 0 0 0 1px var(--accent) inset; }
+  .recent-item:hover { background: rgba(255, 255, 255, 0.09); border-color: var(--line); }
+  .recent-item .info { min-width: 0; flex: 1; }
+  .recent-item b { display: block; font-size: 13px; font-weight: 500;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-item span { display: block; margin-top: 1px; font-size: 10.5px; color: var(--muted); }
 
-  .heat-foot {
-    margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line);
-    color: var(--muted); font-size: 11px;
+  .blockimg { width: 44px; height: 44px; flex: none; object-fit: contain; image-rendering: pixelated; }
+  .blockimg.sm { width: 30px; height: 30px; }
+  .blockimg.xs { width: 22px; height: 22px; }
+  .blockimg.fallback {
+    border-radius: 4px;
+    background: linear-gradient(135deg, #77b84b 0 26%, #8a5a34 26% 68%, #744a2b 68% 100%);
   }
 
-  .shelf-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
-  .shelf-head h2 { margin: 0; font-size: 14px; font-weight: 600; }
-  .link {
-    background: none; border: 0; padding: 0; color: var(--accent);
-    font: inherit; font-size: 12px; font-weight: 500; cursor: pointer;
+  /* ---------- instances page ---------- */
+  .page {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    padding: 22px 24px 24px;
   }
-  .shelf-row { display: flex; gap: 14px; overflow-x: auto; padding: 2px 2px 8px; }
-  .shelf-row .cover { width: 118px; flex: none; }
-
-  .wall-page { max-width: 1180px; margin: 0 auto; padding: 24px 28px 44px; }
-  .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-  .page-head h1 { margin: 0; font-size: 21px; font-weight: 650; }
+  .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex: none; }
+  .page-head h1 { margin: 0; font-size: 20px; font-weight: 600; }
   .count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-  .wall {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
-    gap: 18px 16px;
+  .ghost {
+    height: 32px; padding: 0 14px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: var(--radius);
+    font-size: 12.5px; font-weight: 400;
   }
+  .ghost:hover { background: rgba(255, 255, 255, 0.1); }
 
-  .cover {
-    --h1: 212deg; --h2: 250deg;
-    position: relative; aspect-ratio: 3 / 4; width: 100%;
-    border: 1px solid var(--line); border-radius: 14px; padding: 0;
-    overflow: hidden; cursor: pointer; text-align: left;
-    color: var(--text); font: inherit;
-    background:
-      radial-gradient(120% 80% at 85% 0%, hsl(var(--h2) 62% 44% / .75), transparent 58%),
-      radial-gradient(130% 90% at 15% 105%, hsl(var(--h1) 58% 34% / .9), transparent 62%),
-      linear-gradient(165deg, #232838, #10131a 70%);
-    transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  .list-panel {
+    flex: 1; min-height: 0; overflow-y: auto;
+    padding: 8px;
+    background: rgba(10, 14, 20, 0.9);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
   }
-  .cover::before {
-    content: ""; position: absolute; inset: -35% 10% 28% -25%;
-    background: conic-gradient(from 205deg at 55% 100%,
-      transparent 0deg, hsl(var(--h2) 85% 74% / .16) 55deg, transparent 130deg);
-    transform: rotate(-7deg); pointer-events: none;
+  .instance-grid { display: flex; flex-direction: column; gap: 2px; }
+  .inst {
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    text-align: left;
+    position: relative;
+    transition: background 120ms ease, border-color 120ms ease;
   }
-  .cover::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(45deg,
-      rgba(255,255,255,.028) 0 2px, transparent 2px 9px);
+  .inst:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
+  .inst.sel { background: rgba(42, 128, 227, 0.16); border-color: rgba(74, 151, 240, 0.75); }
+  .inst .info { flex: 1; min-width: 0; }
+  .inst .title { display: flex; align-items: center; gap: 8px; }
+  .inst b { font-size: 15px; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inst .meta { margin-top: 3px; color: var(--muted); font-size: 11.5px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; flex: none; }
+  .chip {
+    font-size: 10.5px; line-height: 17px; padding: 0 7px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 3px; color: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.05);
   }
-  .cover:hover { transform: translateY(-3px); border-color: var(--line-strong);
-                 box-shadow: 0 10px 24px rgba(0,0,0,.35); }
-  .cover:active { transform: translateY(-1px); }
-  .cover.sel { border-color: rgba(99,164,255,.8);
-               box-shadow: 0 0 0 1px rgba(99,164,255,.45), 0 8px 22px rgba(0,0,0,.35); }
-
-  .cover .chip {
-    position: absolute; top: 10px; left: 10px; z-index: 3;
-    background: rgba(10,13,18,.62); border: 1px solid rgba(255,255,255,.14);
-    border-radius: 999px; padding: 1px 8px; font-size: 10.5px; color: #dfe6f2;
-    backdrop-filter: none;
+  .chip.fabric, .chip.quilt { color: #e8cda3; }
+  .chip.forge, .chip.neoforge { color: #b9e3bf; }
+  .chip.iso { color: var(--blue-hi); }
+  .chip.bad { color: var(--bad); }
+  .chip.run { color: var(--good); }
+  .inst .gear {
+    width: 30px; height: 30px; flex: none;
+    display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 4px;
+    color: rgba(255, 255, 255, 0.55);
+    opacity: 0;
+    transition: opacity 120ms ease, background 120ms ease;
   }
-  .cover .chip.fabric, .cover .chip.quilt { color: #e7cda7; }
-  .cover .chip.forge, .cover .chip.neoforge { color: #b7e0bd; }
-
-  .cover .runbadge {
-    position: absolute; top: 10px; right: 10px; z-index: 3;
-    display: flex; align-items: center; gap: 5px;
-    background: rgba(9, 32, 22, .72); border: 1px solid rgba(74,210,149,.45);
-    color: var(--good); border-radius: 999px; padding: 1px 8px; font-size: 10.5px;
-  }
-  .cover .runbadge i { width: 6px; height: 6px; border-radius: 50%; background: var(--good);
-                       animation: pulse 1.6s ease-in-out infinite; }
-
-  .cover .initial {
-    position: absolute; right: 8px; bottom: 52px; z-index: 1;
-    font-size: 66px; line-height: 1; font-weight: 800; letter-spacing: -3px;
-    color: rgba(255,255,255,.12); text-transform: uppercase;
-  }
-  .cover .veil {
-    position: absolute; inset: auto 0 0 0; z-index: 2;
-    padding: 34px 12px 11px;
-    background: linear-gradient(transparent, rgba(11,13,18,.9) 58%);
-  }
-  .cover .veil b {
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; font-size: 13.5px; font-weight: 600; line-height: 1.35;
-    word-break: break-word;
-  }
-  .cover .veil span {
-    display: block; margin-top: 3px; color: var(--muted); font-size: 11px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .cover .veil em { font-style: normal; color: var(--warn); }
-  .cover .veil .bad { color: var(--bad); }
+  .inst:hover .gear { opacity: 1; }
+  .inst .gear:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .inst .gear svg { width: 16px; height: 16px; }
 
   .empty {
-    border: 1px dashed var(--line-strong); border-radius: var(--r-lg);
-    padding: 30px 24px; color: var(--muted); font-size: 12.5px; line-height: 2;
+    margin-top: 8px;
+    padding: 26px 24px;
+    background: var(--panel);
+    border: 1px dashed rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius);
+    color: var(--muted); font-size: 12.5px; line-height: 2;
   }
   .empty b { display: block; color: var(--text); font-size: 14px; margin-bottom: 4px; }
   .empty p { margin: 0; }
   .empty code {
-    display: inline-block; color: var(--text); background: var(--panel-2);
-    padding: 1px 7px; border-radius: 6px; margin-top: 4px;
+    display: inline-block; padding: 1px 7px; border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08); color: var(--text);
   }
 
+  /* ---------- drawer ---------- */
   .scrim {
-    position: fixed; inset: 52px 0 0 0; z-index: 20;
-    background: rgba(6, 8, 12, .45);
-    opacity: 0; pointer-events: none; transition: opacity 160ms ease;
+    position: fixed; inset: 48px 0 0 0; z-index: 40;
+    background: rgba(0, 0, 0, 0.38);
+    opacity: 0; pointer-events: none;
+    transition: opacity 160ms ease;
   }
   .scrim.open { opacity: 1; pointer-events: auto; }
 
   .drawer {
-    position: fixed; top: 52px; right: 0; bottom: 0; z-index: 25;
-    width: 410px; max-width: 92vw;
+    position: fixed; top: 48px; right: 0; bottom: 0; z-index: 45;
+    width: 400px; max-width: 92vw;
     display: flex; flex-direction: column;
-    background: var(--panel); border-left: 1px solid var(--line-strong);
-    transform: translateX(102%); transition: transform 180ms ease;
-    box-shadow: -18px 0 40px rgba(0,0,0,.28);
+    background: #151a22;
+    border-left: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow: -18px 0 44px rgba(0, 0, 0, 0.42);
+    transform: translateX(102%);
+    transition: transform 180ms ease;
   }
   .drawer.open { transform: none; }
 
-  .d-band {
-    --h1: 212deg; --h2: 250deg;
-    position: relative; height: 126px; flex: none; overflow: hidden;
-    background:
-      radial-gradient(120% 90% at 85% 0%, hsl(var(--h2) 62% 44% / .7), transparent 60%),
-      radial-gradient(130% 100% at 10% 110%, hsl(var(--h1) 58% 34% / .85), transparent 62%),
-      linear-gradient(165deg, #232838, #10131a 75%);
+  .drawer-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, rgba(42, 128, 227, 0.3), rgba(42, 128, 227, 0.06));
+    border-bottom: 1px solid var(--line-soft);
+    flex: none;
   }
-  .d-band::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(45deg,
-      rgba(255,255,255,.028) 0 2px, transparent 2px 9px);
-  }
-  .d-band .initial {
-    position: absolute; right: 14px; bottom: 2px;
-    font-size: 82px; line-height: 1; font-weight: 800; letter-spacing: -3px;
-    color: rgba(255,255,255,.1); text-transform: uppercase;
-  }
-  .d-band-text { position: absolute; left: 18px; right: 18px; bottom: 12px; }
-  .d-band-text h2 { margin: 0; font-size: 19px; font-weight: 650;
+  .drawer-head .info { flex: 1; min-width: 0; }
+  .drawer-head h2 { margin: 0; font-size: 15px; font-weight: 600;
                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .d-band-text div { margin-top: 3px; color: #b7c0d0; font-size: 11.5px;
-                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+  .drawer-head p { margin: 3px 0 0; font-size: 11px; color: var(--muted);
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .iconbtn {
-    position: absolute; top: 10px; right: 10px; z-index: 3;
-    width: 28px; height: 28px; padding: 0; border-radius: 8px;
-    background: rgba(10,13,18,.55); border: 1px solid rgba(255,255,255,.16);
-    color: #dfe6f2; font-size: 17px; line-height: 1; cursor: pointer;
+    width: 28px; height: 28px; padding: 0; flex: none;
+    display: grid; place-items: center;
+    background: transparent; border: 0; border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7); font-size: 18px; line-height: 1;
   }
+  .iconbtn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
 
-  .d-statusline { padding: 12px 18px 0; flex: none; }
-  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .status.run .dot { background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
-  .status.run { color: var(--good); }
-  .status.stop .dot { background: var(--bad); }
-  .status.stop { color: var(--bad); }
-  .status.idle .dot { background: #4a5262; }
+  .d-status {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 16px 0;
+    font-size: 12px; color: var(--muted);
+    flex: none;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #4a5262; }
+  .d-status.run { color: var(--good); }
+  .d-status.run .dot { background: var(--good); animation: pulse 1.6s ease-in-out infinite; }
+  .d-status.stop { color: var(--bad); }
+  .d-status.stop .dot { background: var(--bad); }
   @keyframes pulse {
-    0%,100% { box-shadow: 0 0 0 0 rgba(74,210,149,.55); }
-    50% { box-shadow: 0 0 0 5px rgba(74,210,149,0); }
+    0%, 100% { box-shadow: 0 0 0 0 rgba(65, 209, 139, 0.55); }
+    50% { box-shadow: 0 0 0 5px rgba(65, 209, 139, 0); }
   }
 
-  .d-controls {
-    display: grid; grid-template-columns: minmax(0, 1fr) 112px;
-    gap: 10px 12px; padding: 14px 18px 12px; flex: none;
+  .drawer-body {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px;
+    padding: 14px 16px 12px; flex: none;
   }
-  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .field.wide { grid-column: 1 / -1; }
-  .field label { font-size: 11px; color: var(--muted); letter-spacing: .4px; }
+  .field label { font-size: 11px; color: var(--muted); }
   input, select {
-    background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-    padding: 7px 9px; font: inherit; outline: none; min-width: 0;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
+    height: 32px; min-width: 0;
+    background: rgba(255, 255, 255, 0.055);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 4px;
+    color: var(--text); font: inherit; font-size: 12.5px;
+    padding: 0 9px; outline: none;
   }
-  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,164,255,.18); }
-  #java { width: 100%; }
-  .d-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(42, 128, 227, 0.22); }
+  .drawer-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+  .save {
+    height: 32px; padding: 0 16px;
+    background: var(--blue); border: 0; border-radius: 4px;
+    color: #fff; font-size: 12.5px; font-weight: 500;
+  }
+  .save:hover { background: var(--blue-hi); }
+  .hint-text { color: var(--muted2); font-size: 11px; }
 
   .logs {
-    flex: 1; min-height: 150px; display: flex; flex-direction: column;
-    border-top: 1px solid var(--line); background: #0f1116; position: relative;
+    flex: 1; min-height: 120px;
+    margin-top: 10px;
+    display: flex; flex-direction: column;
+    background: rgba(4, 7, 11, 0.72);
+    border-top: 1px solid var(--line-soft);
+    position: relative;
   }
-  .logs .bar {
-    display: flex; align-items: center; gap: 10px; padding: 8px 18px;
-    color: var(--muted); font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
-    border-bottom: 1px solid var(--line); flex: none;
+  .logs-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 16px; flex: none;
+    font-size: 10.5px; letter-spacing: 0.7px; text-transform: uppercase;
+    color: var(--muted2);
+    border-bottom: 1px solid var(--line-soft);
   }
   #log {
-    flex: 1; overflow: auto; padding: 9px 18px 16px;
+    flex: 1; overflow: auto; padding: 8px 16px 14px;
     font: 11px/1.55 "Cascadia Mono", Consolas, monospace;
+    color: #b9c2d0;
     white-space: pre-wrap; overflow-wrap: anywhere;
-    user-select: text; color: #b9c2d0;
+    user-select: text;
   }
   #log .l { display: block; }
-  #log .hint {
-    position: absolute; inset: 34px 0 0 0; display: grid; place-content: center;
-    color: #5d6675; font-size: 12.5px; text-align: center; line-height: 1.9;
-    pointer-events: none;
-  }
   #log .warn { color: var(--warn); }
   #log .err { color: var(--bad); }
-  #log .sys { color: var(--accent); }
+  #log .sys { color: var(--blue-hi); }
   #log .jvm { color: #86b7d6; }
-
-  .toast {
-    position: fixed; right: 18px; bottom: 18px; z-index: 40; max-width: 52ch;
-    background: #242833; border: 1px solid var(--line-strong); border-left: 3px solid var(--bad);
-    border-radius: var(--r-md); padding: 10px 14px; font-size: 12.5px;
-    box-shadow: 0 10px 30px rgba(0,0,0,.5);
-    opacity: 0; transform: translateY(8px); pointer-events: none;
-    transition: opacity 160ms ease, transform 160ms ease;
+  #log .hint {
+    position: absolute; inset: 34px 0 0 0;
+    display: grid; place-content: center;
+    color: rgba(255, 255, 255, 0.32); font-size: 12px; text-align: center; line-height: 1.9;
+    pointer-events: none;
   }
-  .toast.show { opacity: 1; transform: none; }
+
+  /* ---------- toast + tooltip ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; z-index: 60;
+    transform: translate(-50%, 8px);
+    max-width: 60ch;
+    padding: 9px 16px;
+    background: rgba(20, 26, 35, 0.96);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    font-size: 12.5px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
   .tip {
-    position: fixed; z-index: 50; pointer-events: none;
-    background: #262b36; border: 1px solid var(--line-strong); border-radius: 7px;
-    padding: 5px 9px; font-size: 11.5px; color: var(--text);
-    box-shadow: 0 8px 22px rgba(0,0,0,.45);
+    position: fixed; z-index: 70; pointer-events: none;
+    padding: 5px 9px;
+    background: rgba(18, 24, 32, 0.97);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-size: 11.5px; color: var(--text);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
     opacity: 0; transition: opacity 100ms ease;
   }
   .tip.show { opacity: 1; }
 
   @media (max-width: 980px) {
-    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stats { grid-template-columns: repeat(2, 1fr); row-gap: 10px; }
+    .stat:nth-child(3) { border-left: 0; padding-left: 0; }
   }
 </style>
 </head>
 <body>
-<header>
-  <div class="mark"></div>
-  <div class="wordmark">Aurora<span id="version"></span></div>
+<header id="titlebar">
+  <div class="brand"><span class="logo">A</span><b>Aurora</b><span class="ver" id="version"></span></div>
   <nav class="tabs" id="tabs">
-    <button data-view="home" class="on">主页</button>
-    <button data-view="instances">实例</button>
+    <button data-view="launch" class="on">
+      <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5z"/></svg>启动
+    </button>
+    <button data-view="instances">
+      <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>实例
+    </button>
   </nav>
   <div class="grow"></div>
-  <button class="runpill" id="runpill" hidden><i class="dot"></i><span id="runtext"></span></button>
-  <div class="path" id="gamedir" title="游戏目录"></div>
-  <button class="ghost" id="refresh" title="重新扫描实例与活动">刷新</button>
+  <div class="winctrl">
+    <button id="win-min" title="最小化">
+      <svg viewBox="0 0 12 12"><path d="M2.5 6h7" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>
+    </button>
+    <button id="win-max" title="最大化">
+      <svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>
+    </button>
+    <button id="win-close" class="close" title="关闭">
+      <svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.1" fill="none"/></svg>
+    </button>
+  </div>
 </header>
 
 <main>
-  <section class="view" id="view-home">
-    <div class="home">
-      <div class="hello">
-        <h1 id="hello">欢迎回来</h1>
-        <p id="hellosub">正在读取本地活动记录…</p>
+  <section class="view" id="view-launch">
+    <aside class="launch-left">
+      <div class="player">
+        <div class="head" id="playerHead"><span id="playerInitial">Y</span><img id="playerSkin" alt="" hidden></div>
+        <div class="pname" id="playerName">玩家</div>
+        <div class="pauth">离线模式</div>
       </div>
-
-      <div class="stats">
-        <div class="stat"><span class="k">总游戏时长</span><b id="stat-total">—</b><span class="s" id="stat-total-sub"></span></div>
-        <div class="stat"><span class="k">本周游玩</span><b id="stat-week">—</b><span class="s">最近 7 天</span></div>
-        <div class="stat"><span class="k">连续游玩</span><b id="stat-streak">—</b><span class="s" id="stat-streak-sub"></span></div>
-        <div class="stat"><span class="k">启动次数</span><b id="stat-launch">—</b><span class="s" id="stat-launch-sub"></span></div>
+      <div class="launchbox">
+        <button class="btn-launch" id="launch" disabled>
+          <span id="launchLabel">启动游戏</span>
+          <span class="sub" id="launchSub">没有可用实例</span>
+        </button>
+        <div class="launch-row">
+          <button id="choose">实例选择</button>
+          <button id="instanceSettings" disabled>实例设置</button>
+        </div>
       </div>
+    </aside>
 
-      <div class="panel heat">
-        <div class="heat-head">
-          <div><h2>游玩热力图</h2><p id="heat-sub">最近一年</p></div>
+    <section class="content">
+      <div class="card">
+        <div class="card-head">
+          <h2>游玩统计</h2>
+          <span class="sub" id="heatSub"></span>
+          <div class="grow"></div>
           <div class="legend"><span>少</span><i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i><span>多</span></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>总游戏时长</span><b id="statTotal">—</b><small id="statTotalSub"></small></div>
+          <div class="stat"><span>本周游玩</span><b id="statWeek">—</b><small>最近 7 天</small></div>
+          <div class="stat"><span>连续游玩</span><b id="statStreak">—</b><small id="statStreakSub"></small></div>
+          <div class="stat"><span>启动次数</span><b id="statLaunch">—</b><small id="statLaunchSub"></small></div>
         </div>
         <div class="heat-scroll">
           <div class="months" id="months"></div>
           <div class="heat-body">
-            <div class="days"><span></span><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span></div>
-            <div class="grid" id="heatgrid"></div>
+            <div class="weekdays"><span>一</span><span></span><span>三</span><span></span><span>五</span><span></span><span></span></div>
+            <div class="grid" id="grid"></div>
           </div>
         </div>
-        <div class="heat-foot"><span id="heat-foot"></span></div>
+        <div class="heat-foot" id="heatFoot"></div>
       </div>
 
-      <div class="shelf" id="shelf" hidden>
-        <div class="shelf-head">
-          <h2 id="shelf-title">继续游玩</h2>
-          <button class="link" id="shelf-all">查看全部实例</button>
+      <div class="card recent-card">
+        <div class="card-head">
+          <h2>最近游玩</h2>
+          <div class="grow"></div>
+          <button class="link" id="allInstances">全部实例</button>
         </div>
-        <div class="shelf-row" id="shelf-row"></div>
+        <div class="recent" id="recent"></div>
       </div>
-    </div>
+    </section>
   </section>
 
   <section class="view" id="view-instances" hidden>
-    <div class="wall-page">
+    <div class="page">
       <div class="page-head">
         <h1>实例</h1><span class="count" id="count"></span>
         <div class="grow"></div>
-        <button class="ghost" id="refresh2">重新扫描</button>
+        <button class="ghost" id="refresh">重新扫描</button>
       </div>
-      <div class="wall" id="wall"></div>
-      <div class="empty" id="wall-empty" hidden>
-        <b>还没有实例</b>
-        <p>用命令行安装一个版本或整合包，然后点「重新扫描」：</p>
-        <code>aurora install 1.21.1</code><br>
-        <code>aurora modpack install 包.mrpack</code>
+      <div class="list-panel">
+        <div class="instance-grid" id="instances"></div>
+        <div class="empty" id="empty" hidden>
+          <b>还没有实例</b>
+          <p>用命令行安装一个版本或整合包，然后点「重新扫描」：</p>
+          <code>aurora install 1.21.1</code><br>
+          <code>aurora modpack install 包.mrpack</code>
+        </div>
       </div>
     </div>
   </section>
 </main>
 
 <div class="scrim" id="scrim"></div>
-
 <aside class="drawer" id="drawer" aria-hidden="true">
-  <div class="d-band" id="d-band">
-    <span class="initial" id="d-initial"></span>
-    <button class="iconbtn" id="d-close" aria-label="关闭">×</button>
-    <div class="d-band-text">
-      <h2 id="d-name">选择一个实例</h2>
-      <div id="d-meta"></div>
-    </div>
+  <div class="drawer-head">
+    <span id="drawerIcon"></span>
+    <div class="info"><h2 id="drawerName">选择一个实例</h2><p id="drawerMeta"></p></div>
+    <button class="iconbtn" id="drawerClose" aria-label="关闭">×</button>
   </div>
-
-  <div class="d-statusline">
-    <div class="status idle" id="status"><i class="dot"></i><span id="statustext">未运行</span></div>
-  </div>
-
-  <div class="d-controls">
+  <div class="d-status" id="drawerStatus"><i class="dot"></i><span id="drawerStatusText">未运行</span></div>
+  <div class="drawer-body">
     <div class="field"><label for="username">用户名</label><input id="username" spellcheck="false" autocomplete="off"></div>
     <div class="field"><label for="memory">最大内存</label>
       <select id="memory">
@@ -517,16 +620,13 @@
       </select>
     </div>
     <div class="field wide"><label for="java">Java</label><select id="java"></select></div>
-    <div class="d-actions">
-      <button class="ghost" id="save">保存设置</button>
-      <div class="grow"></div>
-      <button class="danger" id="stop" disabled>停止</button>
-      <button class="primary" id="launch" disabled>启动</button>
+    <div class="drawer-actions">
+      <button class="save" id="save">保存设置</button>
+      <span class="hint-text" id="saveHint"></span>
     </div>
   </div>
-
   <div class="logs">
-    <div class="bar"><span>日志</span><div class="grow"></div><span id="logsrc"></span></div>
+    <div class="logs-head"><span>日志</span><div class="grow"></div><span id="logsrc"></span></div>
     <div id="log"><div class="hint" id="loghint">启动游戏后，这里会实时显示日志<br>安装版本与下载模组仍在命令行</div></div>
   </div>
 </aside>
@@ -537,13 +637,15 @@
 <script>
 const native = window.chrome?.webview ?? null;
 const els = {};
-for (const id of ['version','tabs','runpill','runtext','gamedir','refresh',
-                  'hello','hellosub','stat-total','stat-total-sub','stat-week',
-                  'stat-streak','stat-streak-sub','stat-launch','stat-launch-sub',
-                  'heat-sub','months','heatgrid','heat-foot','shelf','shelf-title','shelf-row','shelf-all',
-                  'count','wall','wall-empty','refresh2','scrim','drawer','d-band','d-initial',
-                  'd-close','d-name','d-meta','status','statustext','username','memory','java',
-                  'save','stop','launch','log','logsrc','loghint','toast','tip']) {
+for (const id of ['version','tabs','win-min','win-max','win-close',
+                  'playerHead','playerSkin','playerInitial','playerName',
+                  'launch','launchLabel','launchSub','choose','instanceSettings',
+                  'heatSub','months','grid','heatFoot','statTotal','statTotalSub',
+                  'statWeek','statStreak','statStreakSub','statLaunch','statLaunchSub',
+                  'recent','allInstances','count','instances','empty','refresh',
+                  'scrim','drawer','drawerIcon','drawerName','drawerMeta','drawerClose',
+                  'drawerStatus','drawerStatusText','username','memory','java','save','saveHint',
+                  'log','logsrc','loghint','toast','tip']) {
   els[id] = document.getElementById(id);
 }
 
@@ -557,7 +659,12 @@ const state = {
   pid: 0,
   lastExit: null,
   stoppedByUser: false,
-  view: 'home',
+  maximized: false,
+  weeks: 0,
+  blockIcon: '',
+  headIcon: '',
+  assetsReady: false,
+  view: 'launch',
 };
 
 let seq = 0;
@@ -571,11 +678,33 @@ function toast(text) {
   els.toast.textContent = text;
   els.toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 5200);
+  toastTimer = setTimeout(() => els.toast.classList.remove('show'), 4200);
 }
 
-/* ---------- logs ---------- */
+/* ---------- window chrome ---------- */
+els['win-min'].addEventListener('click', () => send('window', { command: 'minimize' }));
+els['win-max'].addEventListener('click', () => send('window', { command: 'maximize' }));
+els['win-close'].addEventListener('click', () => send('window', { command: 'close' }));
 
+const MAX_SVG = '<svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>';
+const RESTORE_SVG = '<svg viewBox="0 0 12 12"><rect x="2.2" y="3.8" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M4.2 3.8V2.2h5.6v5.6H8.2" fill="none" stroke="currentColor" stroke-width="1.1"/></svg>';
+
+function setMaximized(value) {
+  state.maximized = !!value;
+  els['win-max'].innerHTML = value ? RESTORE_SVG : MAX_SVG;
+  els['win-max'].title = value ? '还原' : '最大化';
+}
+
+document.getElementById('titlebar').addEventListener('mousedown', event => {
+  if (event.button !== 0 || event.target.closest('button')) { return; }
+  send('window', { command: 'drag' });
+});
+document.getElementById('titlebar').addEventListener('dblclick', event => {
+  if (event.target.closest('button')) { return; }
+  send('window', { command: 'maximize' });
+});
+
+/* ---------- logs ---------- */
 function line(text, kind) {
   const hint = els.loghint;
   if (hint) { hint.remove(); }
@@ -596,113 +725,185 @@ function kindOf(text) {
 function feedLog(source, text) {
   const parts = text.split(/\r?\n/);
   const tail = parts.pop();
-  for (const p of parts) { if (p.trim()) { line(p, kindOf(p)); } }
+  for (const part of parts) { if (part.trim()) { line(part, kindOf(part)); } }
   els.logsrc.textContent = source === 'launcher' ? '启动器输出' : '游戏日志';
   if (tail.trim()) { line(tail, kindOf(tail)); }
 }
 
-/* ---------- covers ---------- */
+/* ---------- instance helpers ---------- */
+function itemById(id) { return state.instances.find(item => item.id === id) || null; }
+function displayName(item) { return item ? (item.modpack || item.id) : ''; }
 
 function kindLabel(kind) {
   return { vanilla: '原版', fabric: 'Fabric', quilt: 'Quilt', forge: 'Forge',
            neoforge: 'NeoForge' }[kind] || kind;
 }
 
-function hashHue(text) {
-  let hash = 0;
-  for (const ch of String(text)) { hash = (hash * 31 + ch.codePointAt(0)) % 3600; }
-  return hash % 44;
-}
-
-const loaderHue = { vanilla: 212, fabric: 32, quilt: 278, forge: 142, neoforge: 108 };
-
-function coverStyle(item) {
-  const base = loaderHue[item.kind] ?? 212;
-  const h1 = ((base + hashHue(item.id) - 22) % 360 + 360) % 360;
-  const h2 = (h1 + 38) % 360;
-  return `--h1:${h1}deg;--h2:${h2}deg`;
-}
-
-function coverInitial(item) {
-  const text = (item.modpack || item.id).trim();
-  const letter = Array.from(text).find(ch => /[A-Za-z一-鿿]/.test(ch));
-  return (letter || Array.from(kindLabel(item.kind))[0]).toUpperCase();
-}
-
-function makeCover(item, mini) {
-  const card = document.createElement('button');
-  card.type = 'button';
-  card.className = 'cover' + (item.id === state.selectedId ? ' sel' : '');
-  card.style.cssText = coverStyle(item);
-  card.title = item.modpack || item.id;
-
-  const chip = document.createElement('span');
-  chip.className = 'chip ' + (loaderHue[item.kind] !== undefined && item.kind !== 'vanilla' ? item.kind : '');
-  chip.textContent = kindLabel(item.kind);
-
-  const initial = document.createElement('span');
-  initial.className = 'initial';
-  initial.textContent = coverInitial(item);
-
-  card.append(chip, initial);
-
-  if (state.running && state.runningId === item.id) {
-    const badge = document.createElement('span');
-    badge.className = 'runbadge';
-    badge.innerHTML = '<i></i>运行中';
-    card.appendChild(badge);
+function blockIcon(extraClass) {
+  if (state.blockIcon) {
+    const img = document.createElement('img');
+    img.className = 'blockimg ' + (extraClass || '');
+    img.src = state.blockIcon;
+    img.alt = '';
+    return img;
   }
+  const span = document.createElement('span');
+  span.className = 'blockimg fallback ' + (extraClass || '');
+  return span;
+}
 
-  const veil = document.createElement('div');
-  veil.className = 'veil';
-  const title = document.createElement('b');
-  title.textContent = item.modpack || item.id;
-  const sub = document.createElement('span');
-  if (item.error) {
-    sub.textContent = 'JSON 有问题';
-    sub.className = 'bad';
-  } else if (!item.ready) {
-    sub.textContent = 'MC ' + item.minecraftVersion + ' · 缺客户端';
-    sub.className = 'bad';
+/* ---------- render: launch view ---------- */
+function renderPlayer() {
+  const name = els.username.value.trim() || '玩家';
+  els.playerName.textContent = name;
+  els.playerInitial.textContent = Array.from(name)[0] || '?';
+  if (state.headIcon) {
+    els.playerSkin.src = state.headIcon;
+    els.playerSkin.hidden = false;
+    els.playerInitial.hidden = true;
   } else {
-    sub.textContent = 'MC ' + item.minecraftVersion + (mini || !item.modCount ? '' : ' · ' + item.modCount + ' 模组');
+    els.playerSkin.hidden = true;
+    els.playerInitial.hidden = false;
   }
-  veil.append(title, sub);
-  card.appendChild(veil);
-
-  card.addEventListener('click', () => openDrawer(item.id));
-  return card;
 }
 
-function renderWall() {
-  els.wall.textContent = '';
-  const count = state.instances.length;
-  els.count.textContent = count ? count + ' 个' : '';
-  els['wall-empty'].hidden = count > 0;
-  for (const item of state.instances) { els.wall.appendChild(makeCover(item, false)); }
+function renderLaunchButton() {
+  const item = itemById(state.selectedId);
+  els['instanceSettings'].disabled = !item;
+  if (state.running) {
+    els.launch.classList.add('running');
+    els.launch.disabled = false;
+    els.launchLabel.textContent = '停止游戏';
+    els.launchSub.textContent = '运行中 · ' + (state.runningId || '') + ' · PID ' + state.pid;
+    return;
+  }
+  els.launch.classList.remove('running');
+  els.launchLabel.textContent = '启动游戏';
+  if (!item) {
+    els.launchSub.textContent = '没有可用实例';
+    els.launch.disabled = true;
+  } else if (item.error) {
+    els.launchSub.textContent = '实例 JSON 有问题';
+    els.launch.disabled = true;
+  } else if (!item.ready) {
+    els.launchSub.textContent = '缺少客户端文件';
+    els.launch.disabled = true;
+  } else {
+    els.launchSub.textContent = displayName(item);
+    els.launch.disabled = false;
+  }
 }
 
-function renderShelf() {
+function renderRecent() {
   const items = new Map(state.instances.map(item => [item.id, item]));
   const recent = (state.activity?.recent) || [];
-  const quick = [];
+  const row = [];
   const seen = new Set();
   for (const entry of recent) {
     const item = items.get(entry.id);
-    if (item && !seen.has(item.id)) { quick.push(item); seen.add(item.id); }
+    if (item && !seen.has(item.id)) { row.push({ item, entry }); seen.add(item.id); }
   }
-  const hasHistory = quick.length > 0;
-  if (!hasHistory) {
-    for (const item of state.instances.slice(0, 6)) { quick.push(item); seen.add(item.id); }
+  for (const item of state.instances) {
+    if (row.length >= 4) { break; }
+    if (!seen.has(item.id)) { row.push({ item, entry: null }); seen.add(item.id); }
   }
-  els.shelf.hidden = quick.length === 0;
-  els['shelf-title'].textContent = hasHistory ? '继续游玩' : '开始一局';
-  els['shelf-row'].textContent = '';
-  for (const item of quick.slice(0, 8)) { els['shelf-row'].appendChild(makeCover(item, true)); }
+  els.recent.textContent = '';
+  for (const { item, entry } of row.slice(0, 4)) {
+    const button = document.createElement('button');
+    button.className = 'recent-item';
+    button.append(blockIcon('sm'));
+    const info = document.createElement('span');
+    info.className = 'info';
+    const title = document.createElement('b');
+    title.textContent = displayName(item);
+    const meta = document.createElement('span');
+    if (entry) {
+      const date = entry.lastStart ? entry.lastStart.slice(5, 10).replace('-', ' 月 ') + ' 日' : '';
+      meta.textContent = (date ? '上次 ' + date + ' · ' : '') + dur(entry.seconds || 0);
+    } else {
+      meta.textContent = 'MC ' + item.minecraftVersion + (item.modCount ? ' · ' + item.modCount + ' 模组' : '');
+    }
+    info.append(title, meta);
+    button.append(info);
+    button.addEventListener('click', () => {
+      selectInstance(item.id);
+      setView('launch');
+    });
+    els.recent.appendChild(button);
+  }
 }
 
-/* ---------- heatmap ---------- */
+function renderLaunchView() {
+  renderPlayer();
+  renderLaunchButton();
+  renderRecent();
+}
 
+/* ---------- render: instances ---------- */
+function makeInstanceCard(item) {
+  const card = document.createElement('button');
+  card.className = 'inst' + (item.id === state.selectedId ? ' sel' : '');
+  card.append(blockIcon());
+
+  const info = document.createElement('div');
+  info.className = 'info';
+  const title = document.createElement('div');
+  title.className = 'title';
+  const name = document.createElement('b');
+  name.textContent = displayName(item);
+  title.appendChild(name);
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = 'MC ' + item.minecraftVersion + (item.javaMajor ? ' · Java ' + item.javaMajor + '+' : '');
+
+  const badges = document.createElement('div');
+  badges.className = 'badges';
+  const push = (text, extra) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip ' + (extra || '');
+    chip.textContent = text;
+    badges.appendChild(chip);
+  };
+  push(kindLabel(item.kind), item.kind);
+  if (item.modCount) { push(item.modCount + ' 个模组'); }
+  if (item.isolated) { push('隔离', 'iso'); }
+  if (state.running && state.runningId === item.id) { push('运行中', 'run'); }
+  if (item.error) { push('JSON 有问题', 'bad'); }
+  else if (!item.ready) { push('缺客户端', 'bad'); }
+  info.append(title, meta);
+
+  const gear = document.createElement('span');
+  gear.className = 'gear';
+  gear.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>';
+  gear.title = '实例设置与日志';
+  gear.addEventListener('click', event => {
+    event.stopPropagation();
+    openDrawer(item.id);
+  });
+  card.append(info, badges, gear);
+
+  card.addEventListener('click', () => {
+    selectInstance(item.id);
+    setView('launch');
+  });
+  return card;
+}
+
+function renderInstances() {
+  els.instances.textContent = '';
+  els.count.textContent = state.instances.length ? state.instances.length + ' 个' : '';
+  els.empty.hidden = state.instances.length > 0;
+  for (const item of state.instances) { els.instances.appendChild(makeInstanceCard(item)); }
+}
+
+function selectInstance(id) {
+  state.selectedId = id;
+  renderLaunchView();
+  renderInstances();
+  renderDrawer();
+}
+
+/* ---------- heatmap + stats ---------- */
 function pad2(value) { return String(value).padStart(2, '0'); }
 function keyOf(date) {
   return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
@@ -714,7 +915,6 @@ function parseKey(key) {
 function addDays(date, days) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
-
 function dur(seconds) {
   const value = Math.max(0, Number(seconds) || 0);
   if (value < 60) { return Math.round(value) + ' 秒'; }
@@ -724,7 +924,6 @@ function dur(seconds) {
   const rest = minutes % 60;
   return rest ? hours + ' 小时 ' + rest + ' 分' : hours + ' 小时';
 }
-
 function levelOf(day) {
   if (!day) { return 0; }
   const minutes = (day.seconds || 0) / 60;
@@ -735,8 +934,18 @@ function levelOf(day) {
   const byLaunches = day.launches >= 5 ? 4 : day.launches >= 3 ? 3 : day.launches >= 2 ? 2 : day.launches >= 1 ? 1 : 0;
   return Math.max(level, byLaunches);
 }
-
 const LEVELS = ['l0', 'l1', 'l2', 'l3', 'l4'];
+
+function sizeHeatmap(weeks) {
+  const body = els.grid.parentElement;
+  if (!body || !weeks) { return; }
+  const available = body.clientWidth - 21 - 5;
+  const cell = Math.max(6, (available - (weeks - 1) * 2) / weeks);
+  els.grid.style.gridTemplateColumns = `repeat(${weeks}, ${cell}px)`;
+  els.grid.style.gridTemplateRows = `repeat(7, ${cell}px)`;
+  els.months.style.gridTemplateColumns = `repeat(${weeks}, ${cell}px)`;
+  document.querySelector('.weekdays').style.gridTemplateRows = `repeat(7, ${cell}px)`;
+}
 
 function renderHeatmap() {
   const activity = state.activity || {};
@@ -747,9 +956,11 @@ function renderHeatmap() {
   const gridStart = addDays(start, -((start.getDay() + 6) % 7));
   const totalDays = Math.round((today - gridStart) / 86400000) + 1;
   const weeks = Math.ceil(totalDays / 7);
+  state.weeks = weeks;
 
   els.months.textContent = '';
-  els.months.style.gridTemplateColumns = `repeat(${weeks}, 12px)`;
+  els.months.style.gridTemplateColumns = `repeat(${weeks}, minmax(0, 1fr))`;
+  els.grid.style.gridTemplateColumns = `repeat(${weeks}, minmax(0, 1fr))`;
   let lastMonth = -1;
   let lastLabelWeek = -10;
   for (let week = 0; week < weeks; week++) {
@@ -765,7 +976,7 @@ function renderHeatmap() {
     }
   }
 
-  els.heatgrid.textContent = '';
+  els.grid.textContent = '';
   let activeDays = 0;
   for (let week = 0; week < weeks; week++) {
     for (let day = 0; day < 7; day++) {
@@ -780,59 +991,24 @@ function renderHeatmap() {
       cell.dataset.date = key;
       cell.dataset.seconds = entry ? String(entry.seconds || 0) : '0';
       cell.dataset.launches = entry ? String(entry.launches || 0) : '0';
-      els.heatgrid.appendChild(cell);
+      els.grid.appendChild(cell);
     }
   }
 
   const daysPlayed = activity.daysPlayed || 0;
-  els['heat-sub'].textContent = daysPlayed
-    ? `过去一年 ${activeDays} 天有记录`
-    : '过去一年';
+  els.heatSub.textContent = daysPlayed ? '过去一年 ' + activeDays + ' 天有记录' : '过去一年';
   if (!daysPlayed) {
-    els['heat-foot'].textContent = '还没有游玩记录，启动一次游戏就会亮起第一格。';
+    els.heatFoot.textContent = '还没有游玩记录，启动一次游戏就会亮起第一格。';
   } else {
     const first = activity.firstDate ? parseKey(activity.firstDate) : null;
-    els['heat-foot'].textContent =
-      (first ? `自 ${first.getFullYear()} 年 ${first.getMonth() + 1} 月 ${first.getDate()} 日起 · ` : '') +
-      `共 ${daysPlayed} 天有记录 · 悬停查看当天详情`;
+    els.heatFoot.textContent =
+      (first ? '自 ' + first.getFullYear() + ' 年 ' + (first.getMonth() + 1) + ' 月 ' + first.getDate() + ' 日起 · ' : '') +
+      '共 ' + daysPlayed + ' 天有记录 · 悬停查看当天详情';
   }
+  sizeHeatmap(weeks);
 }
 
-function tipText(cell) {
-  const date = parseKey(cell.dataset.date);
-  const launches = Number(cell.dataset.launches) || 0;
-  const seconds = Number(cell.dataset.seconds) || 0;
-  const label = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 · 周${'日一二三四五六'[date.getDay()]}`;
-  if (!launches) { return label + ' · 无记录'; }
-  return label + ' · ' + (seconds > 0 ? dur(seconds) : '时长未记录') + ' · ' + launches + ' 次启动';
-}
-
-function placeTip(x, y) {
-  const tip = els.tip;
-  const rect = tip.getBoundingClientRect();
-  let left = x + 14;
-  if (left + rect.width > window.innerWidth - 8) { left = x - rect.width - 14; }
-  let top = y - rect.height - 12;
-  if (top < 58) { top = y + 18; }
-  tip.style.left = Math.max(8, left) + 'px';
-  tip.style.top = top + 'px';
-}
-
-els.heatgrid.addEventListener('mouseover', event => {
-  const cell = event.target.closest('i.c');
-  if (!cell || cell.classList.contains('future')) { return; }
-  els.tip.textContent = tipText(cell);
-  els.tip.classList.add('show');
-  placeTip(event.clientX, event.clientY);
-});
-els.heatgrid.addEventListener('mousemove', event => {
-  if (els.tip.classList.contains('show')) { placeTip(event.clientX, event.clientY); }
-});
-els.heatgrid.addEventListener('mouseleave', () => els.tip.classList.remove('show'));
-
-/* ---------- stats ---------- */
-
-function setText(id, text) { els[id].textContent = text; }
+new ResizeObserver(() => sizeHeatmap(state.weeks)).observe(document.querySelector('.heat-body'));
 
 function renderStats() {
   const activity = state.activity || {};
@@ -865,21 +1041,15 @@ function renderStats() {
   const todayEntry = map.get(todayKey);
   const daysPlayed = activity.daysPlayed || 0;
   const totalSeconds = Number(activity.totalSeconds) || 0;
-  setText('stat-total', totalSeconds > 0 ? dur(totalSeconds) : (daysPlayed ? '—' : '0 分钟'));
-  setText('stat-total-sub', daysPlayed
-    ? (totalSeconds > 0 ? `共 ${daysPlayed} 天有记录` : '仅有启动记录')
-    : '还没有记录');
-  setText('stat-week', weekSeconds > 0 ? dur(weekSeconds) : '—');
-  setText('stat-streak', streak ? streak + ' 天' : '—');
-  setText('stat-streak-sub', longest ? `最长 ${longest} 天` : '连续游玩会累计');
-  setText('stat-launch', (activity.totalLaunches || 0) + ' 次');
-  setText('stat-launch-sub', todayEntry ? `今天 ${todayEntry.launches} 次` : '今天 0 次');
-
-  const name = els.username.value.trim();
-  setText('hello', name ? `欢迎回来，${name}` : '欢迎回来');
-  setText('hellosub', todayEntry && todayEntry.seconds > 0
-    ? `今天已游玩 ${dur(todayEntry.seconds)}`
-    : (todayEntry ? `今天启动了 ${todayEntry.launches} 次` : '今天还没有开游戏'));
+  els.statTotal.textContent = totalSeconds > 0 ? dur(totalSeconds) : (daysPlayed ? '—' : '0 分钟');
+  els.statTotalSub.textContent = daysPlayed
+    ? (totalSeconds > 0 ? '共 ' + daysPlayed + ' 天' : '仅有启动记录')
+    : '还没有记录';
+  els.statWeek.textContent = weekSeconds > 0 ? dur(weekSeconds) : '—';
+  els.statStreak.textContent = streak ? streak + ' 天' : '—';
+  els.statStreakSub.textContent = longest ? '最长 ' + longest + ' 天' : '连续游玩会累计';
+  els.statLaunch.textContent = (activity.totalLaunches || 0) + ' 次';
+  els.statLaunchSub.textContent = todayEntry ? '今天 ' + todayEntry.launches + ' 次' : '今天 0 次';
 }
 
 function renderHome() {
@@ -887,45 +1057,67 @@ function renderHome() {
   renderHeatmap();
 }
 
+/* ---------- tooltip ---------- */
+function tipText(cell) {
+  const date = parseKey(cell.dataset.date);
+  const launches = Number(cell.dataset.launches) || 0;
+  const seconds = Number(cell.dataset.seconds) || 0;
+  const label = date.getFullYear() + ' 年 ' + (date.getMonth() + 1) + ' 月 ' + date.getDate() + ' 日 · 周' +
+                '日一二三四五六'[date.getDay()];
+  if (!launches) { return label + ' · 无记录'; }
+  return label + ' · ' + (seconds > 0 ? dur(seconds) : '时长未记录') + ' · ' + launches + ' 次启动';
+}
+function placeTip(x, y) {
+  const rect = els.tip.getBoundingClientRect();
+  let left = x + 14;
+  if (left + rect.width > window.innerWidth - 8) { left = x - rect.width - 14; }
+  let top = y - rect.height - 12;
+  if (top < 56) { top = y + 18; }
+  els.tip.style.left = Math.max(8, left) + 'px';
+  els.tip.style.top = top + 'px';
+}
+els.grid.addEventListener('mouseover', event => {
+  const cell = event.target.closest('i.c');
+  if (!cell || cell.classList.contains('future')) { return; }
+  els.tip.textContent = tipText(cell);
+  els.tip.classList.add('show');
+  placeTip(event.clientX, event.clientY);
+});
+els.grid.addEventListener('mousemove', event => {
+  if (els.tip.classList.contains('show')) { placeTip(event.clientX, event.clientY); }
+});
+els.grid.addEventListener('mouseleave', () => els.tip.classList.remove('show'));
+
 /* ---------- drawer ---------- */
-
-function itemById(id) { return state.instances.find(item => item.id === id) || null; }
-
 function renderDrawer() {
   const item = itemById(state.selectedId);
-  if (!item) {
-    setText('d-name', '选择一个实例');
-    setText('d-meta', '');
-    setText('d-initial', '');
-    els['d-band'].style.cssText = '';
-    els.launch.disabled = true;
-    renderStatus();
-    return;
+  els.drawerIcon.textContent = '';
+  if (item) {
+    els.drawerIcon.appendChild(blockIcon('sm'));
+    els.drawerName.textContent = displayName(item);
+    const bits = [kindLabel(item.kind), 'MC ' + item.minecraftVersion];
+    if (item.javaMajor) { bits.push('Java ' + item.javaMajor + '+'); }
+    if (item.modCount) { bits.push(item.modCount + ' 个模组'); }
+    bits.push(item.isolated ? '独立目录' : '共享目录');
+    els.drawerMeta.textContent = bits.join(' · ');
+  } else {
+    els.drawerName.textContent = '选择一个实例';
+    els.drawerMeta.textContent = '';
   }
-  els['d-band'].style.cssText = coverStyle(item);
-  setText('d-initial', coverInitial(item));
-  setText('d-name', item.modpack || item.id);
-  const bits = [kindLabel(item.kind), 'MC ' + item.minecraftVersion];
-  if (item.javaMajor) { bits.push('Java ' + item.javaMajor + '+'); }
-  if (item.modCount) { bits.push(item.modCount + ' 个模组'); }
-  bits.push(item.isolated ? '独立目录' : '共享目录');
-  setText('d-meta', bits.join(' · '));
-  els.launch.disabled = state.running || !!item.error || !item.ready;
-  els.stop.disabled = !state.running;
-  renderStatus();
+  renderDrawerStatus();
 }
 
-function renderStatus() {
+function renderDrawerStatus() {
   const running = state.running;
   const exited = !running && state.launchedId && state.lastExit !== null;
-  els.status.className = 'status ' +
-    (running ? 'run' : (exited && !state.stoppedByUser ? 'stop' : 'idle'));
+  els.drawerStatus.className = 'd-status' +
+    (running ? ' run' : (exited && !state.stoppedByUser ? ' stop' : ''));
   const text = running
-    ? `运行中 · ${state.runningId} · PID ${state.pid}`
+    ? '运行中 · ' + (state.runningId || '') + ' · PID ' + state.pid
     : state.stoppedByUser && state.launchedId ? '已手动停止'
-    : exited ? `已退出，返回码 ${state.lastExit}`
+    : exited ? '已退出，返回码 ' + state.lastExit
     : '未运行';
-  setText('statustext', text);
+  els.drawerStatusText.textContent = text;
 }
 
 function openDrawer(id) {
@@ -934,7 +1126,6 @@ function openDrawer(id) {
   els.drawer.setAttribute('aria-hidden', 'false');
   els.scrim.classList.add('open');
 }
-
 function closeDrawer() {
   els.drawer.classList.remove('open');
   els.drawer.setAttribute('aria-hidden', 'true');
@@ -942,20 +1133,118 @@ function closeDrawer() {
   els.tip.classList.remove('show');
 }
 
-function selectInstance(id) {
-  state.selectedId = id;
-  renderWall();
-  renderShelf();
+/* ---------- assets from the client jar ---------- */
+function loadImage(src) {
+  return new Promise(resolve => {
+    if (!src) { resolve(null); return; }
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = src;
+  });
+}
+
+function makeBlockIcon(top, side) {
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+
+  const face = (points, image, shade) => {
+    context.save();
+    context.beginPath();
+    context.moveTo(points[0][0], points[0][1]);
+    for (let index = 1; index < points.length; index++) {
+      context.lineTo(points[index][0], points[index][1]);
+    }
+    context.closePath();
+    context.clip();
+    const origin = points[0];
+    const ux = points[1][0] - origin[0];
+    const uy = points[1][1] - origin[1];
+    const vx = points[3][0] - origin[0];
+    const vy = points[3][1] - origin[1];
+    context.setTransform(ux, uy, vx, vy, origin[0], origin[1]);
+    context.drawImage(image, 0, 0, 1, 1);
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    if (shade > 0) {
+      context.fillStyle = `rgba(0, 0, 0, ${shade})`;
+      context.fillRect(0, 0, size, size);
+    }
+    context.restore();
+  };
+
+  const topFace = [[32, 4], [60, 20], [32, 36], [4, 20]];
+  const leftFace = [[4, 20], [32, 36], [32, 60], [4, 44]];
+  const rightFace = [[60, 20], [32, 36], [32, 60], [60, 44]];
+  face(leftFace, side, 0.18);
+  face(rightFace, side, 0.34);
+  face(topFace, top, 0);
+  return canvas.toDataURL('image/png');
+}
+
+function makeHead(skin) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+  context.imageSmoothingEnabled = false;
+  context.drawImage(skin, 8, 8, 8, 8, 0, 0, 64, 64);
+  return canvas.toDataURL('image/png');
+}
+
+async function prepareAssets(textures) {
+  if (!textures || state.assetsReady) { return; }
+  state.assetsReady = true;
+  const [top, side, skin] = await Promise.all([
+    loadImage(textures.grassTop),
+    loadImage(textures.grassSide),
+    loadImage(textures.skin),
+  ]);
+  if (top && side) { state.blockIcon = makeBlockIcon(top, side); }
+  if (skin) { state.headIcon = makeHead(skin); }
+  renderLaunchView();
+  renderInstances();
   renderDrawer();
 }
 
-/* ---------- state ---------- */
-
-function renderRunPill() {
-  els.runpill.hidden = !state.running;
-  if (state.running) { setText('runtext', state.runningId + ' 运行中'); }
+/* ---------- runtime settings ---------- */
+function renderRuntimes(list, chosen) {
+  els.java.textContent = '';
+  const auto = document.createElement('option');
+  auto.value = '';
+  auto.textContent = '自动（按实例要求）';
+  els.java.appendChild(auto);
+  for (const runtime of list || []) {
+    const option = document.createElement('option');
+    option.value = runtime.path;
+    option.textContent = 'Java ' + runtime.major + ' · ' + (runtime.vendor || '') + ' · ' + runtime.path;
+    els.java.appendChild(option);
+  }
+  if (chosen) { els.java.value = chosen; }
+}
+function setMemory(value) {
+  if (!value) { return; }
+  const text = String(value);
+  if (!Array.from(els.memory.options).some(option => option.value === text)) {
+    const option = document.createElement('option');
+    option.value = text;
+    option.textContent = Math.round(Number(value) / 1024) + ' GB';
+    els.memory.appendChild(option);
+  }
+  els.memory.value = text;
+}
+function currentInputs() {
+  return {
+    username: els.username.value.trim(),
+    memoryMb: Number(els.memory.value),
+    javaPath: els.java.value,
+  };
 }
 
+/* ---------- state ---------- */
 function applyState(data) {
   const wasRunning = state.running;
   const previousId = state.runningId;
@@ -979,100 +1268,59 @@ function applyState(data) {
       state.stoppedByUser ? 'sys' : 'err');
   }
 
-  renderRunPill();
-  renderWall();
-  renderShelf();
-  renderDrawer();
+  renderLaunchButton();
+  renderInstances();
+  renderDrawerStatus();
 }
 
 /* ---------- views ---------- */
-
 function setView(view) {
   state.view = view;
-  document.getElementById('view-home').hidden = view !== 'home';
+  document.getElementById('view-launch').hidden = view !== 'launch';
   document.getElementById('view-instances').hidden = view !== 'instances';
   for (const button of els.tabs.querySelectorAll('button')) {
     button.classList.toggle('on', button.dataset.view === view);
   }
-  if (view === 'home') { closeDrawer(); }
+  closeDrawer();
 }
-
 els.tabs.addEventListener('click', event => {
   const button = event.target.closest('button[data-view]');
   if (button) { setView(button.dataset.view); }
 });
 
-/* ---------- runtimes and settings ---------- */
-
-function renderRuntimes(list, chosen) {
-  els.java.textContent = '';
-  const auto = document.createElement('option');
-  auto.value = '';
-  auto.textContent = '自动（按实例要求的 Java 版本）';
-  els.java.appendChild(auto);
-  for (const runtime of list || []) {
-    const option = document.createElement('option');
-    option.value = runtime.path;
-    option.textContent = 'Java ' + runtime.major + ' · ' + (runtime.vendor || '') + ' · ' + runtime.path;
-    els.java.appendChild(option);
-  }
-  if (chosen) { els.java.value = chosen; }
-}
-
-function setMemory(value) {
-  if (!value) { return; }
-  const text = String(value);
-  if (!Array.from(els.memory.options).some(option => option.value === text)) {
-    const option = document.createElement('option');
-    option.value = text;
-    option.textContent = Math.round(Number(value) / 1024) + ' GB';
-    els.memory.appendChild(option);
-  }
-  els.memory.value = text;
-}
-
-function currentInputs() {
-  return {
-    username: els.username.value.trim(),
-    memoryMb: Number(els.memory.value),
-    javaPath: els.java.value,
-  };
-}
-
 /* ---------- events ---------- */
-
 if (native) {
   native.addEventListener('message', event => {
     const message = event.data || {};
     const data = message.data || {};
     switch (message.event) {
       case 'boot':
-        setText('version', 'v' + (data.version || ''));
+        els.version.textContent = 'v' + (data.version || '');
         state.instances = data.instances?.instances || [];
         state.activity = data.activity || null;
-        setText('gamedir', data.instances?.gameDir || '');
         renderRuntimes(data.runtimes?.runtimes, data.settings?.javaPath);
         if (data.settings) {
           els.username.value = data.settings.username || '';
           setMemory(data.settings.memoryMb);
         }
         state.selectedId = state.instances.length ? state.instances[0].id : null;
-        renderWall();
-        renderShelf();
         renderHome();
+        renderLaunchView();
+        renderInstances();
         renderDrawer();
+        prepareAssets(data.instances?.textures);
         applyState(data.state || {});
-        setView('home');
+        setView('launch');
         break;
       case 'instances':
         state.instances = data.instances || [];
-        setText('gamedir', data.gameDir || '');
         if (!itemById(state.selectedId)) {
           state.selectedId = state.instances.length ? state.instances[0].id : null;
         }
-        renderWall();
-        renderShelf();
+        renderLaunchView();
+        renderInstances();
         renderDrawer();
+        prepareAssets(data.textures);
         break;
       case 'runtimes':
         renderRuntimes(data.runtimes, null);
@@ -1080,15 +1328,18 @@ if (native) {
       case 'activity':
         state.activity = data;
         renderHome();
-        renderShelf();
+        renderRecent();
         break;
       case 'launched':
       case 'state':
         applyState(data);
         break;
+      case 'window':
+        setMaximized(data.maximized);
+        break;
       case 'saved':
         toast('设置已保存');
-        renderStats();
+        renderPlayer();
         break;
       case 'log':
         feedLog(data.source, data.text || '');
@@ -1101,28 +1352,30 @@ if (native) {
   });
 }
 
+/* ---------- interactions ---------- */
 els.launch.addEventListener('click', () => {
+  if (state.running) {
+    send('stop');
+    return;
+  }
   if (!state.selectedId) { return; }
   line('→ 启动 ' + state.selectedId, 'sys');
   send('launch', Object.assign({ id: state.selectedId }, currentInputs()));
 });
-els.stop.addEventListener('click', () => send('stop'));
-els.save.addEventListener('click', () => send('saveSettings', currentInputs()));
+els.choose.addEventListener('click', () => setView('instances'));
+els.instanceSettings.addEventListener('click', () => openDrawer(state.selectedId));
+els.allInstances.addEventListener('click', () => setView('instances'));
 els.refresh.addEventListener('click', () => {
   send('instances');
   send('runtimes');
   send('activity');
 });
-els.refresh2.addEventListener('click', () => {
-  send('instances');
-  send('runtimes');
-  send('activity');
+els.save.addEventListener('click', () => {
+  send('saveSettings', currentInputs());
+  els.saveHint.textContent = '保存到 config.json';
+  setTimeout(() => { els.saveHint.textContent = ''; }, 1600);
 });
-els['shelf-all'].addEventListener('click', () => setView('instances'));
-els.runpill.addEventListener('click', () => {
-  if (state.runningId) { openDrawer(state.runningId); }
-});
-els['d-close'].addEventListener('click', closeDrawer);
+els.drawerClose.addEventListener('click', closeDrawer);
 els.scrim.addEventListener('click', closeDrawer);
 window.addEventListener('keydown', event => {
   if (event.key === 'Escape') { closeDrawer(); }

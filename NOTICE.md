@@ -16,6 +16,14 @@ retained only as a reference and for license/compliance purposes. The C++ core
 does not copy its source code, branding, OAuth client ID, signing certificate,
 or update metadata.
 
+The desktop layout follows the interaction patterns of PCL2 CE (frameless blue
+title bar, centered tabs, left player/launch column, card-based home), observed
+from a locally installed copy. No PCL2 code, XAML, artwork, or other assets are
+included. The launcher background (`src/gui/ui/assets/bg.jpg`) was generated for
+this project. Grass-block icons and the player head are composed at runtime in
+the WebView from textures inside the user's own Minecraft client JAR; no Mojang
+textures are redistributed with this repository.
+
 Microsoft login, when enabled, must use an Azure application registration owned
 by the AuroraLauncher project. Release binaries should be signed with the
 project's own code-signing certificate. See `SIGNING.md`.

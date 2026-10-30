@@ -6,7 +6,7 @@
 D:\AuroraLauncher-archive\2026-10-26\HMCL-main
 ```
 
-当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖主页（游玩热力图与统计）与实例封面墙/详情抽屉（启动、停止、设置、日志）。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
+当前工程是 Windows-first 的启动核心，CLI 为完整功能面，GUI 覆盖主页（游玩热力图与统计）与实例列表/详情抽屉（启动、停止、设置、日志）。界面按 PCL2 CE 的启动页布局重做：无边框窗口、蓝色自绘标题栏与居中页签、左侧玩家/启动区、右侧统计卡片。所有“已实现”描述都以本仓库源码为准；产品身份、OAuth 应用和签名边界见 `SIGNING.md`。
 
 ## 1. 状态定义
 
@@ -145,7 +145,7 @@ flowchart TB
 | --- | --- |
 | `src/cli.cpp` | 命令、参数、JSON/文本输出、敏感参数脱敏 |
 | `src/gui/main.cpp` | WebView2 宿主、JS↔C++ JSON 消息桥、进程轮询与日志尾部推送 |
-| `src/gui/ui/index.html` | 主页热力图与实例封面墙（单文件 HTML/CSS/JS，无前端构建步骤） |
+| `src/gui/ui/index.html` | PCL2 式主页热力图、实例列表与详情抽屉（单文件 HTML/CSS/JS，无前端构建步骤） |
 | `src/core/repository.cpp` | 扫描 `versions`，加载并递归解析 `inheritsFrom` |
 | `src/core/version.cpp` | 版本 JSON 模型、库、参数、下载信息、合并规则 |
 | `src/core/rules.cpp` | OS/arch/version/features 规则判断 |
@@ -173,6 +173,8 @@ flowchart TB
 | `src/core/hash.cpp` | BCrypt SHA-1/SHA-256/MD5、文件哈希、离线 UUID |
 | `src/core/process.cpp` | `CreateProcessW` 启动、等待、输出重定向 |
 | `src/core/config.cpp` | `%APPDATA%\AuroraLauncher\config.json` |
+
+GUI 宿主要点：顶层窗口用 `WS_POPUP | WS_THICKFRAME` + `WS_EX_APPWINDOW`，`WM_NCCALCSIZE` 返回 0 去掉原生标题栏；`WM_NCHITTEST` 在四边 6px 内返回缩放命中码，`WM_GETMINMAXINFO` 把最大化限制在显示器工作区；窗口创建后按工作区居中，并用 `DwmSetWindowAttribute(33)` 在 Windows 11 上取圆角。WebView2 的 bounds 向内缩 4px（`k_resize_border`），保证边缘缩放由父窗口命中；父窗口 `WM_ERASEBKGND` 只绘制这条可见边框——顶部按 DPI 缩放的 48px 标题栏高度刷成蓝色，其余刷深色，使标题栏看起来铺满窗口。标题栏拖动由页面 `mousedown` 发 `window/drag` 消息，宿主 `ReleaseCapture()` 后投递 `WM_NCLBUTTONDOWN(HTCAPTION)`；最大化/还原/最小化/关闭同理。UI 通过 `SetVirtualHostNameToFolderMapping("aurora.ui")` 加载，启动前用 CDP 关闭 HTTP 缓存，避免升级后仍加载旧 `index.html`。
 
 ## 4. 版本解析
 
@@ -474,7 +476,7 @@ classDiagram
 | 整合包 | 已实现 | `.mrpack` / CurseForge manifest、自动加载器、可启动实例、overrides 哈希、升级/备份 |
 | PCL 实例兼容 | 已实现 | `Setup.ini`/`config.v1.yml`、版本隔离、内存档位、JVM/游戏参数、指定 Java；`launch` 与 `run_dir` 自动采用 |
 | 自签开发签名 | 已实现 | 脚本 + Windows 资源/清单；公开发布需可信证书 |
-| GUI | 主页与实例页已实现 | WebView2 宿主 + 主页游玩热力图/统计 + 实例封面墙/详情抽屉（启动、停止、设置、日志）；下载与安装仍在 CLI |
+| GUI | 主页与实例页已实现 | WebView2 宿主 + PCL2 式无边框窗口（蓝色标题栏、居中页签、拖动/缩放/最大化/最小化）+ 主页游玩热力图/统计 + 实例列表/详情抽屉（启动、停止、设置、日志）；下载与安装仍在 CLI |
 | 游玩活动 | 已实现 | GUI 与 CLI 启动都写入 `activity.json`；热力图还会读取各实例 `logs/aurora-launcher.log` 的启动横幅回填旧启动 |
 | 主题包/服务端 | 未接入 | 原 Java 功能尚未迁移 |
 
@@ -542,7 +544,7 @@ ctest --test-dir build -C Debug --output-on-failure
 - PCL 实例现场验证：合成 `PCL/Setup.ini`（隔离、内存 tick 25、`-Xss1M`、`--width 1280`、长路径 Java）下 `launch --dry-run --json` 的工作目录切到实例目录、内存 8192 MB、额外参数和 java 全部生效；`config.v1.yml`、自动隔离、显式关闭隔离、无效 Java 回退和参数引号拆分有测试覆盖。
 - 启动计划测试覆盖空 `clientid`/`auth_xuid` 参数保留和单次变量替换。
 - 真实游戏启动（离线账号）已从 `--dry-run` 走到进程实跑：从 `D:\PCL\.minecraft` 复制出 1.5 GB 独立冒烟目录，原版 1.19.2 到达 `Sound engine started`（LWJGL 3.3.1 build 7、OpenAL 初始化、无 crash-report/hs_err、干净 `Stopping!`）；真实 PCL CE 隔离实例 `1.19.4-Fabric_0.18.4` 的工作目录按 `VersionArgumentIndieV2: true` 切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`，`mod install sodium` 写入实例自己的 `mods` 后重启即出现 `sodium 0.4.10+build.24`。1.19.2/1.19.4 清单里 `natives` 映射为 0 条，LWJGL3 从类路径自解压，因此 `versions/<id>/natives` 为空是正确行为；旧版（≤1.16.x）的 natives 解压仍只有单测覆盖。
-- 桌面 GUI 真机验证：1180×760 下用真实鼠标走完「主页 → 实例封面墙 → 详情抽屉 → 启动 → 游戏标题界面 → 停止」。启动后 `javaw.exe` 工作集 676 MB → 1.15 GB，顶栏出现运行胶囊、封面出现运行徽标，抽屉状态为「运行中 · PID」；停止后进程消失、状态转中性灰「已手动停止」，`activity.json` 写入 51 秒会话，主页统计与热力图立即刷新，抽屉日志尾部出现「已手动停止」。日志面板过滤 log4j 的 XML 脚手架与自身 banner，只保留 latest.log 没有的 JVM 级输出。热力图分级、月份标签与悬浮提示另用 148 天临时活动数据核对后还原。CLI 侧同样实测：`aurora launch` 起游戏 26 秒后结束，`activity.json` 追加第二条会话。截图取窗口真实像素（PrintWindow + PW_RENDERFULLCONTENT）。
+- 桌面 GUI 真机验证：界面按 PCL2 CE 启动页重做（无边框自绘窗口、`WS_POPUP | WS_THICKFRAME`、蓝色标题栏、居中页签、左侧 300px 玩家/启动区、右侧统计卡片与底部最近游玩），1180×760 居中窗口下用真实鼠标完成「主页 → 实例列表 → 详情抽屉 → 启动 1.19.2 → 停止」。窗口交互实测：标题栏拖动 370,184 → 490,254；左边缘缩放 1180 → 1240 宽；最大化到工作区 1920×1032（任务栏保留）并还原；最小化/关闭走同一消息桥。启动后按钮变绿「停止游戏 / 运行中 · 1.19.2 · PID 21032」，日志滚动到 LWJGL/资源加载行；停止后 `activity.json` 写入 44 秒会话，主页变为「总游戏时长 2 分钟 / 本周 2 分钟 / 连续 1 天 / 启动 6 次（今天 1 次）」，热力图当天格、悬浮提示与最近游玩卡片同步更新。草方块图标与玩家头像在运行时从用户自己的客户端 JAR 读取纹理并用 canvas 合成，仓库不附带 Mojang 素材；背景图由本项目生成。热力图通过 JS 按卡片宽度计算格子尺寸，980×620 最小窗口到 1920 最大化下星期标签与格子均对齐（DOM 坐标核对），148 天临时数据核对后还原真实数据。页面截图与 DOM 自检走 WebView2 CDP（`Page.captureScreenshot`），避免窗口被遮挡时截到其他程序。
 - `launch --log FILE` 实测捕获子进程输出（50 条 log4j 事件 + JVM 的 `JDK_JAVA_OPTIONS` 提示），并确认头部不含参数：`--accessToken`/`-cp` 命中 0 次；`test_process_log_redacts_command_line` 用 `cmd.exe /c echo` 断言日志里有子进程输出但没有命令行片段。
 - 路径安全测试覆盖绝对路径、盘符、`..`、ADS/冒号和危险尾随点/空格。
 - 使用归档中的 `1.0` 版本执行了 `version list`、`version show` 和 `launch --dry-run`；中文路径、用户名和版本 id 已验证。
@@ -552,7 +554,7 @@ ctest --test-dir build -C Debug --output-on-failure
 
 ## 14. 后续阶段
 
-1. **GUI**：主页（游玩热力图/统计）与实例页（封面墙 + 详情抽屉）已用 WebView2 落地；后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
+1. **GUI**：PCL2 式主页（游玩热力图/统计）与实例列表 + 详情抽屉已用 WebView2 落地；后续按页面补齐下载进度、整合包与设置向导，仍不引入 Qt 或前端构建链。
 2. **CurseForge 完善**：依赖关系展示、有效 key 下的真实现场验证。
 3. **整合包完善**：完整游戏文件下载与真实启动的端到端验证、实例级配置编辑。
 4. **资源包完善**：下载源、光影包统一管理。

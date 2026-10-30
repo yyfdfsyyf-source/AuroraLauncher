@@ -1,6 +1,6 @@
 # AuroraLauncher C++ Core
 
-这是 AuroraLauncher 的 C++ 重写工程，当前是 **Windows-first 的启动核心**，不是 HMCL/Java 版的完整功能等价实现。CLI 覆盖全部功能面，GUI 提供主页（游玩热力图与统计）和实例封面墙/详情抽屉（启动、停止、设置、日志），两者调用同一套核心模块。
+这是 AuroraLauncher 的 C++ 重写工程，当前是 **Windows-first 的启动核心**，不是 HMCL/Java 版的完整功能等价实现。CLI 覆盖全部功能面，GUI 提供主页（游玩热力图与统计）和实例列表/详情抽屉（启动、停止、设置、日志），两者调用同一套核心模块。界面布局参照 PCL2 CE 的启动页：蓝色标题栏 + 居中页签、左侧 300px 玩家/启动区、右侧统计卡片、无边框自绘窗口。
 
 原 Java 工程和未提交的 JFoenix 移除/UI 迁移工作已完整归档，未直接删除：
 
@@ -28,7 +28,8 @@
 - 镜像优先/官方回退：用 `install 1.0 --no-assets` 实测客户端和库经 BMCLAPI 下载，并在镜像慢节点出现后回退官方；客户端和 7 个适用库的 SHA-1 全部匹配。
 - 真实游戏启动（离线账号）：本机 `D:\PCL\.minecraft` 复制出的独立冒烟目录（1.5 GB，不写回真实游戏目录）实跑两次。① 原版 1.19.2：`install` 校验 3390 个资源后 `launch` 起来，日志出现 `Backend library: LWJGL version 3.3.1 build 7`、逐张 atlas 拼接、`OpenAL initialized on device ... 扬声器 (Realtek(R) Audio)`、`Sound engine started`，无 crash-report、无 `hs_err`，退出为干净的 `Stopping!`。② Fabric 1.19.4（真实 PCL CE 实例，带 BOM 的 `config.v1.yml`、`VersionArgumentIndieV2: true`）：工作目录切到 `versions/<id>`，日志 `Loading Minecraft 1.19.4 with Fabric Loader 0.18.4`、`Loading 9 mods`、Mixin `Service=Knot/Fabric Env=CLIENT`；再用 `mod install sodium` 装进实例自己的 `mods`，重启后模组列表出现 `sodium 0.4.10+build.24` 及其 fabric-* 传递依赖并再次到达 `Sound engine started`（进程 RSS 1.13 GB，确认存活后由我们主动结束）。离线启动下 `Failed to verify authentication Status: 401` 属预期（伪造 token 无法通过 authlib 校验，与其他启动器离线模式一致）。
 - `--log FILE` 真机复核：同一次 1.19.2 启动下文件收到 50 条游戏 log4j 事件和 JVM 自身的 stderr（例如 `NOTE: Picked up JDK_JAVA_OPTIONS: ...`，这行只在子进程输出里可见），头部只保留时间戳与 java 可执行路径；同一文件里 `--accessToken` 与 `-cp` 命中均为 0 次。第一版曾把整条命令行写进日志，联网登录时会泄露 access token，已修正并加了回归测试。
-- 桌面 GUI 真机验证：`aurora_gui` 在 1180×760 下用真实鼠标走完「主页热力图 → 实例封面墙 → 详情抽屉 → 启动 → 游戏标题界面（javaw 工作集 676 MB → 1.15 GB）→ 停止」。停止后 `%APPDATA%\AuroraLauncher\activity.json` 写入 51 秒会话，主页立即变为「今天已游玩 51 秒 / 总游戏时长 51 秒 / 启动 5 次」，热力图当天格与悬浮提示同步更新；运行中封面显示绿色徽标、顶栏运行胶囊可点开抽屉，停止后状态为中性灰「已手动停止」。日志面板过滤 log4j 的 XML 脚手架与自身 banner，只保留 latest.log 没有的 JVM 级输出，长行用 `overflow-wrap` 换行。热力图的分级、月份标签与悬浮提示另用 148 天临时活动数据核对，截图后已还原真实数据。CLI 侧同样实测：`aurora launch` 起游戏 26 秒后强制结束，`activity.json` 追加第二条会话（51 + 26 秒），主页汇总为「1 分钟」。截图取窗口真实像素（PrintWindow + PW_RENDERFULLCONTENT）。
+- 桌面 GUI 真机验证：`aurora_gui` 按 PCL2 CE 布局重做后在 1180×760 居中窗口下走完「主页 → 实例列表 → 详情抽屉 → 启动 1.19.2 → 停止」。无边框窗口自绘蓝色标题栏：居中页签、最小化/最大化/关闭、标题栏拖动（370,184 → 490,254）、左边缘缩放（1180 → 1240 宽）、最大化到工作区 1920×1032（任务栏保留）、还原 1180×760，均由真实鼠标事件完成。启动后按钮变绿色「停止游戏 / 运行中 · 1.19.2 · PID 21032」，抽屉日志实时滚动到 LWJGL/资源加载行；停止后日志收尾「已手动停止」，`activity.json` 写入 44 秒会话，主页立即变为「总游戏时长 2 分钟 / 本周 2 分钟 / 连续 1 天 / 启动 6 次（今天 1 次）」，热力图当天格与悬浮提示同步更新，最近游玩卡片同步时间与时长。实例图标（草方块）与玩家头像在运行时从用户自己的客户端 JAR 读取纹理、用 canvas 合成，仓库不附带 Mojang 素材；背景图为本项目生成。热力图按卡片宽度自适应格子尺寸（980×620 最小窗口到 1920 最大化均对齐），悬浮提示另用 148 天临时活动数据核对后还原。
+- 截图与页面自检走 WebView2 远程调试（CDP）：`Page.captureScreenshot` 取 WebView 真实像素，DOM/计算样式核对页签、星期标签与热力图格子坐标，避免窗口被遮挡时截到其他程序。
 - 用本地临时 HTTP 服务验证过客户端 JAR、库、资源索引、native ZIP 下载、SHA-1 校验和 `.dll` 解压；中文路径/用户名也已通过 CLI 验证。
 
 尚未现场验证：
@@ -66,7 +67,7 @@
 | 资源包管理 | 已实现 | `resourcepack list/enable/disable`，读写 `options.txt` 的 `resourcePacks`；pack.mcmeta 兼容性、pack.png 检测、新旧 options 格式 |
 | 整合包 | 已实现 | Modrinth `.mrpack` / CurseForge manifest、SHA-1、overrides、自动安装加载器、安装原版文件、生成可启动实例、升级/备份 |
 | PCL 实例兼容 | 已实现 | 读取 `PCL/Setup.ini` 与 `PCL/config.v1.yml`：版本隔离（含 PCL 自动隔离规则）、内存档位、JVM/游戏参数、指定 Java；`launch` 自动采用 |
-| GUI | 主页与实例页已实现 | `aurora_gui`：WebView2 宿主 + 主页游玩热力图/统计 + 实例封面墙/详情抽屉（启动、停止、设置、日志）；安装与下载仍在 CLI |
+| GUI | 主页与实例页已实现 | `aurora_gui`：WebView2 宿主 + PCL2 式无边框窗口 + 主页游玩热力图/统计 + 实例列表/详情抽屉（启动、停止、设置、日志）；安装与下载仍在 CLI |
 | 主题包/UI/服务端模块 | 未开始 | 未迁移 |
 
 ## 构建

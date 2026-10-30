@@ -11,11 +11,13 @@
 #include "core/repository.hpp"
 #include "core/rules.hpp"
 #include "core/strings.hpp"
+#include "core/zip.hpp"
 
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #include <windows.h>
+#include <windowsx.h>
 
 // WIN32_LEAN_AND_MEAN (set by aurora_core) keeps <windows.h> from pulling in the
 // COM headers that WebView2.h needs.
@@ -30,6 +32,7 @@
 #include <ctime>
 #include <cwchar>
 #include <fstream>
+#include <initializer_list>
 #include <map>
 #include <optional>
 #include <string>
@@ -49,6 +52,7 @@ using Microsoft::WRL::RuntimeClassFlags;
 using Microsoft::WRL::ClassicCom;
 
 constexpr UINT k_poll_timer = 1;
+constexpr int k_resize_border = 4;
 constexpr std::uint64_t k_log_chunk_bytes = 64ULL * 1024ULL;
 constexpr DWORD k_per_monitor_dpi_aware_v2 = static_cast<DWORD>(-4);
 
@@ -74,6 +78,9 @@ struct AppState {
     bool session_open = false;
     Tail launcher_log;
     Tail game_log;
+    Json textures;
+    HBRUSH rim_brush = nullptr;
+    HBRUSH header_brush = nullptr;
 };
 
 AppState state;
@@ -106,6 +113,49 @@ void post_error(const std::string& message) {
     Json payload = Json::object();
     payload["message"] = message;
     post_event("error", payload);
+}
+
+// The WebView stops short of the window edge so the parent window still
+// receives WM_NCHITTEST for resize borders on a frameless window.
+void update_webview_bounds() {
+    if (state.controller == nullptr) {
+        return;
+    }
+    RECT rect{};
+    GetClientRect(state.window, &rect);
+    rect.left += k_resize_border;
+    rect.top += k_resize_border;
+    rect.right -= k_resize_border;
+    rect.bottom -= k_resize_border;
+    if (rect.right < rect.left) {
+        rect.right = rect.left;
+    }
+    if (rect.bottom < rect.top) {
+        rect.bottom = rect.top;
+    }
+    state.controller->put_Bounds(rect);
+}
+
+void toggle_maximize(HWND window) {
+    ShowWindow(window, IsZoomed(window) != 0 ? SW_RESTORE : SW_MAXIMIZE);
+}
+
+void center_in_work_area(HWND window) {
+    RECT rect{};
+    if (GetWindowRect(window, &rect) == 0) {
+        return;
+    }
+    MONITORINFO info{};
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &info) == 0) {
+        return;
+    }
+    const RECT work = info.rcWork;
+    const int width = rect.right - rect.left;
+    const int height = rect.bottom - rect.top;
+    const int x = work.left + ((work.right - work.left) - width) / 2;
+    const int y = work.top + ((work.bottom - work.top) - height) / 2;
+    SetWindowPos(window, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 Json settings_payload() {
@@ -229,6 +279,105 @@ Json instance_entry(const VersionRepository& repository, const std::string& id) 
     return entry;
 }
 
+std::string base64_encode(std::string_view data) {
+    static constexpr char alphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    encoded.reserve((data.size() + 2) / 3 * 4);
+    std::size_t index = 0;
+    while (index + 2 < data.size()) {
+        const unsigned value = (static_cast<unsigned char>(data[index]) << 16) |
+                               (static_cast<unsigned char>(data[index + 1]) << 8) |
+                               static_cast<unsigned char>(data[index + 2]);
+        encoded.push_back(alphabet[(value >> 18) & 63]);
+        encoded.push_back(alphabet[(value >> 12) & 63]);
+        encoded.push_back(alphabet[(value >> 6) & 63]);
+        encoded.push_back(alphabet[value & 63]);
+        index += 3;
+    }
+    if (index < data.size()) {
+        unsigned value = static_cast<unsigned char>(data[index]) << 16;
+        if (index + 1 < data.size()) {
+            value |= static_cast<unsigned char>(data[index + 1]) << 8;
+        }
+        encoded.push_back(alphabet[(value >> 18) & 63]);
+        encoded.push_back(alphabet[(value >> 12) & 63]);
+        encoded.push_back(index + 1 < data.size() ? alphabet[(value >> 6) & 63] : '=');
+        encoded.push_back('=');
+    }
+    return encoded;
+}
+
+std::string zip_texture(const std::filesystem::path& jar,
+                        std::initializer_list<std::string_view> names) {
+    for (const std::string_view name : names) {
+        try {
+            const std::optional<std::string> bytes = read_zip_entry(jar, name);
+            if (bytes && !bytes->empty()) {
+                return "data:image/png;base64," + base64_encode(*bytes);
+            }
+        } catch (...) {
+        }
+    }
+    return {};
+}
+
+// Grass-block and skin textures come from the player's own client jar at
+// runtime; nothing from Minecraft is redistributed with the launcher.
+Json textures_payload() {
+    if (!state.textures.is_null()) {
+        const Json& cached = state.textures;
+        if (!json_string(cached, "grassTop").empty() &&
+            !json_string(cached, "grassSide").empty()) {
+            return cached;
+        }
+    }
+    Json result = Json::object();
+    result["grassTop"] = std::string();
+    result["grassSide"] = std::string();
+    result["skin"] = std::string();
+    try {
+        const VersionRepository repository(state.config.game_dir);
+        for (const std::string& id : repository.list_ids()) {
+            try {
+                const ResolvedVersion version = repository.resolve(id);
+                const std::filesystem::path jar = version.meta.client_jar(version.game_dir);
+                if (!std::filesystem::is_regular_file(jar)) {
+                    continue;
+                }
+                if (json_string(result, "grassTop").empty()) {
+                    result["grassTop"] = zip_texture(
+                        jar, {"assets/minecraft/textures/block/grass_block_top.png",
+                              "assets/minecraft/textures/blocks/grass_top.png"});
+                }
+                if (json_string(result, "grassSide").empty()) {
+                    result["grassSide"] = zip_texture(
+                        jar, {"assets/minecraft/textures/block/grass_block_side.png",
+                              "assets/minecraft/textures/blocks/grass_side.png"});
+                }
+                if (json_string(result, "skin").empty()) {
+                    result["skin"] = zip_texture(
+                        jar, {"assets/minecraft/textures/entity/steve.png",
+                              "assets/minecraft/textures/entity/player/wide/steve.png",
+                              "assets/minecraft/textures/entity/player/steve.png"});
+                }
+            } catch (...) {
+                continue;
+            }
+            if (!json_string(result, "grassTop").empty() &&
+                !json_string(result, "grassSide").empty() &&
+                !json_string(result, "skin").empty()) {
+                break;
+            }
+        }
+    } catch (...) {
+    }
+    if (!json_string(result, "grassTop").empty() && !json_string(result, "grassSide").empty()) {
+        state.textures = result;
+    }
+    return result;
+}
+
 Json instances_payload() {
     Json result = Json::object();
     Json list = Json::array();
@@ -238,6 +387,7 @@ Json instances_payload() {
     }
     result["gameDir"] = path_to_utf8(state.config.game_dir);
     result["instances"] = list;
+    result["textures"] = textures_payload();
     return result;
 }
 
@@ -562,6 +712,21 @@ void handle_message(const std::string& json_text) {
             post_event("settings", settings_payload());
         } else if (action == "activity") {
             post_event("activity", activity_payload());
+        } else if (action == "window") {
+            const std::string command = json_string(message, "command");
+            if (command == "drag") {
+                ReleaseCapture();
+                SendMessageW(state.window, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            } else if (command == "minimize") {
+                ShowWindow(state.window, SW_MINIMIZE);
+            } else if (command == "maximize") {
+                toggle_maximize(state.window);
+            } else if (command == "close") {
+                finish_session();
+                DestroyWindow(state.window);
+            } else {
+                post_error("Unknown window command: " + command);
+            }
         } else if (action == "launch") {
             handle_launch(message);
         } else if (action == "stop") {
@@ -584,12 +749,86 @@ void fail_startup(const std::wstring& text) {
 LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam) {
     switch (message) {
     case WM_SIZE:
-        if (state.controller != nullptr) {
-            RECT rect{};
-            GetClientRect(hwnd, &rect);
-            state.controller->put_Bounds(rect);
+        // Minimized windows report a collapsed client rect; resizing the web
+        // view to that keeps Chromium from reflowing at a bogus viewport.
+        if (wparam != SIZE_MINIMIZED) {
+            update_webview_bounds();
+        }
+        if (wparam == SIZE_MAXIMIZED || wparam == SIZE_RESTORED) {
+            Json payload = Json::object();
+            payload["maximized"] = IsZoomed(hwnd) != 0;
+            post_event("window", payload);
         }
         return 0;
+    case WM_ERASEBKGND: {
+        // Only the 4px rim around the web view is ever visible; paint it in the
+        // title-bar blue on top so the header still reads edge-to-edge.
+        HDC dc = reinterpret_cast<HDC>(wparam);
+        RECT client{};
+        GetClientRect(hwnd, &client);
+        FillRect(dc, &client, state.rim_brush);
+        RECT bar = client;
+        bar.bottom = std::min<LONG>(bar.bottom, MulDiv(48, static_cast<int>(GetDpiForWindow(hwnd)), 96) + k_resize_border);
+        FillRect(dc, &bar, state.header_brush);
+        return 1;
+    }
+    case WM_NCCALCSIZE:
+        // Drop the native caption and frame; the web view draws its own title bar.
+        if (wparam != 0) {
+            return 0;
+        }
+        break;
+    case WM_NCHITTEST: {
+        POINT point{GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        ScreenToClient(hwnd, &point);
+        RECT rect{};
+        GetClientRect(hwnd, &rect);
+        const int border = k_resize_border + 2;
+        const bool left = point.x < border;
+        const bool right = point.x >= rect.right - border;
+        const bool top = point.y < border;
+        const bool bottom = point.y >= rect.bottom - border;
+        if (top && left) {
+            return HTTOPLEFT;
+        }
+        if (top && right) {
+            return HTTOPRIGHT;
+        }
+        if (bottom && left) {
+            return HTBOTTOMLEFT;
+        }
+        if (bottom && right) {
+            return HTBOTTOMRIGHT;
+        }
+        if (left) {
+            return HTLEFT;
+        }
+        if (right) {
+            return HTRIGHT;
+        }
+        if (top) {
+            return HTTOP;
+        }
+        if (bottom) {
+            return HTBOTTOM;
+        }
+        return HTCLIENT;
+    }
+    case WM_GETMINMAXINFO: {
+        auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
+        info->ptMinTrackSize.x = 980;
+        info->ptMinTrackSize.y = 620;
+        MONITORINFO monitor{};
+        monitor.cbSize = sizeof(monitor);
+        if (GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &monitor)) {
+            // Keep a frameless maximize inside the work area (taskbar visible).
+            info->ptMaxPosition.x = monitor.rcWork.left - monitor.rcMonitor.left;
+            info->ptMaxPosition.y = monitor.rcWork.top - monitor.rcMonitor.top;
+            info->ptMaxSize.x = monitor.rcWork.right - monitor.rcWork.left;
+            info->ptMaxSize.y = monitor.rcWork.bottom - monitor.rcWork.top;
+        }
+        return 0;
+    }
     case WM_SETFOCUS:
         if (state.controller != nullptr) {
             state.controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
@@ -619,6 +858,8 @@ using ControllerHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
                                        ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>;
 using MessageHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
                                     ICoreWebView2WebMessageReceivedEventHandler>;
+using CdpHandler = RuntimeClass<RuntimeClassFlags<ClassicCom>,
+                                ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>;
 
 } // namespace
 
@@ -674,29 +915,31 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
     window_class.lpfnWndProc = window_proc;
     window_class.hInstance = instance;
     window_class.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    window_class.hbrBackground = CreateSolidBrush(RGB(18, 20, 26));
+    window_class.hbrBackground = CreateSolidBrush(RGB(11, 14, 19));
     window_class.lpszClassName = L"AuroraLauncherGuiWindow";
     if (RegisterClassW(&window_class) == 0) {
         return 1;
     }
 
-    state.window = CreateWindowW(
-        window_class.lpszClassName, L"AuroraLauncher", WS_OVERLAPPEDWINDOW,
+    state.rim_brush = CreateSolidBrush(RGB(11, 14, 19));
+    state.header_brush = CreateSolidBrush(RGB(42, 128, 227));
+
+    state.window = CreateWindowExW(
+        WS_EX_APPWINDOW, window_class.lpszClassName, L"AuroraLauncher",
+        WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 1180, 760, nullptr, nullptr, instance, nullptr);
     if (state.window == nullptr) {
         return 1;
     }
-    // A light Windows title bar over a dark UI is jarring; DWM can flip it.
-    // Attribute 20 is Windows 10 2004+, 19 is the older numbering. Both are
-    // resolved dynamically so pre-DPI-API builds simply keep the default.
+    center_in_work_area(state.window);
+    // Windows 11 can round the frameless window; older systems simply keep
+    // square corners. Attribute 33 is DWMWA_WINDOW_CORNER_PREFERENCE.
     if (const auto dwm = LoadLibraryExW(L"dwmapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32)) {
         using DwmSetWindowAttributeFn = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
         if (const auto set_attribute = reinterpret_cast<DwmSetWindowAttributeFn>(
                 GetProcAddress(dwm, "DwmSetWindowAttribute"))) {
-            const BOOL dark = TRUE;
-            if (FAILED(set_attribute(state.window, 20, &dark, sizeof(dark)))) {
-                set_attribute(state.window, 19, &dark, sizeof(dark));
-            }
+            const int round = 2;  // DWMWCP_ROUND
+            set_attribute(state.window, 33, &round, sizeof(round));
         }
         FreeLibrary(dwm);
     }
@@ -731,17 +974,15 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
                             }
                             state.controller = controller;
                             state.controller->get_CoreWebView2(&state.webview);
-                            RECT rect{};
-                            GetClientRect(state.window, &rect);
-                            state.controller->put_Bounds(rect);
+                            update_webview_bounds();
                             state.controller->MoveFocus(
                                 COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
 
                             COREWEBVIEW2_COLOR background{};
                             background.A = 255;
-                            background.R = 18;
-                            background.G = 20;
-                            background.B = 26;
+                            background.R = 11;
+                            background.G = 14;
+                            background.B = 19;
                             // Background lives on ICoreWebView2Controller2, not on the view.
                             ComPtr<ICoreWebView2Controller2> controller2;
                             if (SUCCEEDED(state.controller.As(&controller2))) {
@@ -775,6 +1016,13 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
                                     L"aurora.ui", ui_directory().wstring().c_str(),
                                     COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW);
                             }
+                            // The virtual host caches index.html; disable the
+                            // HTTP cache so UI edits show up on the next launch.
+                            state.webview->CallDevToolsProtocolMethod(
+                                L"Network.setCacheDisabled", L"{\"cacheDisabled\":true}",
+                                Callback<CdpHandler>(
+                                    [](HRESULT, LPCWSTR) -> HRESULT { return S_OK; })
+                                    .Get());
                             state.webview->Navigate(L"https://aurora.ui/index.html");
                             return S_OK;
                         })
@@ -795,6 +1043,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE, LPWSTR, int show_command) {
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
+    DeleteObject(state.rim_brush);
+    DeleteObject(state.header_brush);
     CoUninitialize();
     return static_cast<int>(message.wParam);
 }
