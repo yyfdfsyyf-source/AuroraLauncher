@@ -42,6 +42,7 @@
     --teal: #3f645e;
     --teal-deep: #345550;
     --accent-ink: #345550;
+    --loader-ink: var(--accent-ink);
     --btn-bg: #3f645e;
     --btn-ink: #f4eadb;
     --btn-hover: #547a72;
@@ -78,17 +79,18 @@
     --scroll: rgba(47, 59, 56, 0.16);
     --scroll-hover: rgba(47, 59, 56, 0.28);
     --panel-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 56%);
-    --tint-vanilla: #c9d9cd;
-    --tint-fabric: #a8c7cf;
-    --tint-quilt: #bbd2ce;
-    --tint-forge: #8fb3b2;
-    --tint-neoforge: #a2c0ca;
+    /* loader tints sampled from each loader's icon */
+    --tint-vanilla: oklch(from #57864b 0.83 calc(c * 0.34) h);
+    --tint-fabric: oklch(from #dbd0b4 0.83 calc(c * 0.65) h);
+    --tint-quilt: oklch(from #9722ff 0.83 calc(c * 0.24) h);
+    --tint-forge: oklch(from #373636 0.82 calc(c * 0.24) h);
+    --tint-neoforge: oklch(from #d7742f 0.83 calc(c * 0.4) h);
     --tint: var(--tint-fabric);
-    --sw-vanilla: #c9d9cd;
-    --sw-fabric: #a8c7cf;
-    --sw-quilt: #bbd2ce;
-    --sw-forge: #8fb3b2;
-    --sw-neoforge: #a2c0ca;
+    --sw-vanilla: #57864b;
+    --sw-fabric: #cbbf9f;
+    --sw-quilt: #9722ff;
+    --sw-forge: #4a4745;
+    --sw-neoforge: #d7742f;
     --rail-solid: #a4c0b8;
     --calendar-solid: #e5ede7;
     --picker-solid: #b8cdc8;
@@ -171,16 +173,16 @@
     --scroll: rgba(230, 242, 236, 0.18);
     --scroll-hover: rgba(230, 242, 236, 0.3);
     --panel-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 56%);
-    --tint-vanilla: #405247;
-    --tint-fabric: #334c52;
-    --tint-quilt: #3b504c;
-    --tint-forge: #2f4c4c;
-    --tint-neoforge: #354b55;
-    --sw-vanilla: #405247;
-    --sw-fabric: #334c52;
-    --sw-quilt: #3b504c;
-    --sw-forge: #2f4c4c;
-    --sw-neoforge: #354b55;
+    --tint-vanilla: oklch(from #57864b 0.33 calc(c * 0.3) h);
+    --tint-fabric: oklch(from #dbd0b4 0.33 calc(c * 0.6) h);
+    --tint-quilt: oklch(from #9722ff 0.33 calc(c * 0.22) h);
+    --tint-forge: oklch(from #373636 0.33 calc(c * 0.22) h);
+    --tint-neoforge: oklch(from #d7742f 0.33 calc(c * 0.34) h);
+    --sw-vanilla: #8fb77a;
+    --sw-fabric: #dbd0b4;
+    --sw-quilt: #b473ff;
+    --sw-forge: #918c87;
+    --sw-neoforge: #ef9350;
     --rail-solid: #314b45;
     --calendar-solid: #222b26;
     --picker-solid: #2f4042;
@@ -234,21 +236,89 @@
     --tile-bg: rgba(255, 255, 255, 0.05);
   }
 
-  body[data-kind="vanilla"] { --wash-a: #c8d8c2; --wash-b: #d7e2cc; --wash-c: #b9cec2; --wash-d: #d9e5d8; --tint: var(--tint-vanilla); }
-  body[data-kind="fabric"] { --wash-a: #a8c7cf; --wash-b: #bfd7d2; --wash-c: #9fc2bd; --wash-d: #cfe0d8; --tint: var(--tint-fabric); }
-  body[data-kind="quilt"] { --wash-a: #b6d0cc; --wash-b: #c9dcd2; --wash-c: #a6c4c3; --wash-d: #d3e2dc; --tint: var(--tint-quilt); }
-  body[data-kind="forge"] { --wash-a: #93b6b3; --wash-b: #a9c8c0; --wash-c: #bcd4cb; --wash-d: #d0e0d6; --tint: var(--tint-forge); }
-  body[data-kind="neoforge"] { --wash-a: #a4c2cd; --wash-b: #b7d0d3; --wash-c: #93b7bc; --wash-d: #c9ddd8; --tint: var(--tint-neoforge); }
+  body[data-kind="vanilla"] {
+    --wash-a: oklch(from #57864b 0.88 calc(c * 0.55) h);
+    --wash-b: oklch(from #7fa15f 0.92 calc(c * 0.45) h);
+    --wash-c: oklch(from #8a6844 0.87 calc(c * 0.5) h);
+    --wash-d: oklch(from #d7c9a4 0.94 calc(c * 0.4) h);
+    --tint: var(--tint-vanilla);
+    --loader-ink: #4f7040;
+  }
+  body[data-kind="fabric"] {
+    --wash-a: oklch(from #dbd0b4 0.88 calc(c * 0.55) h);
+    --wash-b: oklch(from #bcb29c 0.92 calc(c * 0.45) h);
+    --wash-c: oklch(from #9a927e 0.87 calc(c * 0.5) h);
+    --wash-d: oklch(from #38342a 0.94 calc(c * 0.3) h);
+    --tint: var(--tint-fabric);
+    --loader-ink: #77694b;
+  }
+  body[data-kind="quilt"] {
+    --wash-a: oklch(from #9722ff 0.88 calc(c * 0.55) h);
+    --wash-b: oklch(from #dc29dd 0.92 calc(c * 0.45) h);
+    --wash-c: oklch(from #3344ff 0.87 calc(c * 0.5) h);
+    --wash-d: oklch(from #27a2fd 0.94 calc(c * 0.4) h);
+    --tint: var(--tint-quilt);
+    --loader-ink: #7a45b0;
+  }
+  body[data-kind="forge"] {
+    --wash-a: oklch(from #373636 0.88 calc(c * 0.4) h);
+    --wash-b: oklch(from #4a4846 0.92 calc(c * 0.4) h);
+    --wash-c: oklch(from #292929 0.87 calc(c * 0.4) h);
+    --wash-d: oklch(from #6b6767 0.94 calc(c * 0.4) h);
+    --tint: var(--tint-forge);
+    --loader-ink: #55514e;
+  }
+  body[data-kind="neoforge"] {
+    --wash-a: oklch(from #d7742f 0.88 calc(c * 0.55) h);
+    --wash-b: oklch(from #bf6134 0.92 calc(c * 0.45) h);
+    --wash-c: oklch(from #a44e37 0.87 calc(c * 0.5) h);
+    --wash-d: oklch(from #e7d9d3 0.94 calc(c * 0.4) h);
+    --tint: var(--tint-neoforge);
+    --loader-ink: #a85a26;
+  }
   body[data-kind="none"] { --tint: var(--tint-fabric); }
 
-  html[data-theme="dark"] body[data-kind="vanilla"] { --wash-a: #3c4c3e; --wash-b: #44523f; --wash-c: #35443a; --wash-d: #3a4d40; }
-  html[data-theme="dark"] body[data-kind="fabric"] { --wash-a: #2f4a52; --wash-b: #36545c; --wash-c: #2a4246; --wash-d: #344c48; }
-  html[data-theme="dark"] body[data-kind="quilt"] { --wash-a: #30504b; --wash-b: #3a5550; --wash-c: #2b4541; --wash-d: #38504a; }
-  html[data-theme="dark"] body[data-kind="forge"] { --wash-a: #2b4a4c; --wash-b: #335152; --wash-c: #274140; --wash-d: #35504d; }
-  html[data-theme="dark"] body[data-kind="neoforge"] { --wash-a: #304a54; --wash-b: #38545c; --wash-c: #2a4048; --wash-d: #344b4f; }
+  html[data-theme="dark"] body[data-kind="vanilla"] {
+    --wash-a: oklch(from #57864b 0.28 calc(c * 0.45) h);
+    --wash-b: oklch(from #7fa15f 0.32 calc(c * 0.4) h);
+    --wash-c: oklch(from #8a6844 0.25 calc(c * 0.42) h);
+    --wash-d: oklch(from #d7c9a4 0.34 calc(c * 0.35) h);
+    --loader-ink: #a9c796;
+  }
+  html[data-theme="dark"] body[data-kind="fabric"] {
+    --wash-a: oklch(from #dbd0b4 0.28 calc(c * 0.45) h);
+    --wash-b: oklch(from #bcb29c 0.32 calc(c * 0.4) h);
+    --wash-c: oklch(from #9a927e 0.25 calc(c * 0.42) h);
+    --wash-d: oklch(from #38342a 0.34 calc(c * 0.35) h);
+    --loader-ink: #d9cbad;
+  }
+  html[data-theme="dark"] body[data-kind="quilt"] {
+    --wash-a: oklch(from #9722ff 0.28 calc(c * 0.45) h);
+    --wash-b: oklch(from #dc29dd 0.32 calc(c * 0.4) h);
+    --wash-c: oklch(from #3344ff 0.25 calc(c * 0.42) h);
+    --wash-d: oklch(from #27a2fd 0.34 calc(c * 0.35) h);
+    --loader-ink: #cba9f2;
+  }
+  html[data-theme="dark"] body[data-kind="forge"] {
+    --wash-a: oklch(from #373636 0.28 calc(c * 0.4) h);
+    --wash-b: oklch(from #4a4846 0.32 calc(c * 0.4) h);
+    --wash-c: oklch(from #292929 0.25 calc(c * 0.4) h);
+    --wash-d: oklch(from #6b6767 0.34 calc(c * 0.4) h);
+    --loader-ink: #c2bbb3;
+  }
+  html[data-theme="dark"] body[data-kind="neoforge"] {
+    --wash-a: oklch(from #d7742f 0.28 calc(c * 0.45) h);
+    --wash-b: oklch(from #bf6134 0.32 calc(c * 0.4) h);
+    --wash-c: oklch(from #a44e37 0.25 calc(c * 0.42) h);
+    --wash-d: oklch(from #e7d9d3 0.34 calc(c * 0.35) h);
+    --loader-ink: #e8b287;
+  }
 
-  html[data-theme="dark"] .chip.fabric, html[data-theme="dark"] .chip.quilt { color: #b9d3c6; }
-  html[data-theme="dark"] .chip.forge, html[data-theme="dark"] .chip.neoforge { color: #b7cfd4; }
+  html[data-theme="dark"] .chip.vanilla { color: #a9c89a; }
+  html[data-theme="dark"] .chip.fabric { color: #d6c9ae; }
+  html[data-theme="dark"] .chip.quilt { color: #c6a3ef; }
+  html[data-theme="dark"] .chip.forge { color: #c0b8b0; }
+  html[data-theme="dark"] .chip.neoforge { color: #e6b086; }
   html[data-theme="dark"] .chip.iso { color: #e0a9ac; }
   html[data-theme="dark"] .chip.bad { color: #e6a0a3; }
 
@@ -422,9 +492,11 @@
     to { opacity: 1; transform: none; }
   }
   .rail-loader { display: flex; align-items: center; gap: 7px; margin-top: 10px;
-                 font-size: 13.5px; font-weight: 600; color: var(--accent-ink); }
-  .rail-loader .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-ink);
-                      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-ink) 18%, transparent); }
+                 font-size: 13.5px; font-weight: 600; color: var(--loader-ink);
+                 transition: color 320ms ease; }
+  .rail-loader .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--loader-ink);
+                      box-shadow: 0 0 0 3px color-mix(in srgb, var(--loader-ink) 18%, transparent);
+                      transition: background-color 320ms ease, box-shadow 320ms ease; }
   .rail-meta { margin-top: 8px; font-size: 12.5px; color: var(--ink-soft);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -643,8 +715,11 @@
     background: var(--chip-bg);
     color: var(--ink-soft);
   }
-  .chip.fabric, .chip.quilt { color: #4a6f66; }
-  .chip.forge, .chip.neoforge { color: #4f6f74; }
+  .chip.vanilla { color: #4f7040; }
+  .chip.fabric { color: #77694b; }
+  .chip.quilt { color: #7443a8; }
+  .chip.forge { color: #55514e; }
+  .chip.neoforge { color: #a45a28; }
   .chip.iso { color: #8a5f62; }
   .chip.bad { color: #a34f53; }
   .chip.run { color: var(--accent-ink); }
@@ -1331,7 +1406,7 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><h2>实例取色</h2><span class="sub">无背景时随加载器变化</span></div>
+            <div class="card-head"><h2>实例取色</h2><span class="sub">无背景时按加载器图标取色</span></div>
             <div class="swatches">
               <span class="swatch" data-kind="vanilla"><i class="sw-vanilla"></i>原版</span>
               <span class="swatch" data-kind="fabric"><i class="sw-fabric"></i>Fabric</span>
